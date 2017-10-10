@@ -9,12 +9,11 @@ hiding some aspects such as weights/biases size calculation and initialization.
 import tensorflow as tf
 import math
 import functools
+import numpy as np
 
 
 class NeuralNetworkOperation(object):
-    """
-    Super class inherited by all operations.
-    """
+    """Super class inherited by all operations."""
 
     def __init__(self, name, weights=None, biases=None):
         self.name = name
@@ -22,31 +21,43 @@ class NeuralNetworkOperation(object):
         self.biases = biases
 
     def get_weights(self):
-        """
-        Get weights for this operation if available, otherwise returns None.
-        """
+        """Get weights for this operation if available, otherwise returns None."""
         return self.weights
 
     def get_biases(self):
-        """
-        Get biases for this operation if available, otherwise returns None.
-        """
+        """Get biases for this operation if available, otherwise returns None."""
         return self.biases
 
     def get_operation(self, x):
-        """
-        Call neural-network operation(s) with parameter x and return result.
-        This is an "abstract" method and should be implemented by all sub-classes.
+        """Call neural-network operation(s) with input tensor x and return result.
+        This is an "abstract" method and must be implemented by all sub-classes.
         """
         assert(False)
         return x
 
     def get_feed_dict(self, training):
-        """
-        Override this method in subclasses having placeholder variables that must
+        """Override this method in subclasses having placeholder variables that must
         be configured differently for training and validation. The default is to
         not provide anything for the feed_dict.
         """
+        return dict()
+
+    @classmethod
+    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Provides suitable argument ranges to try for this operation. This method
+        should be overridden by all subclasses with arguments.
+
+        Arguments:
+            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            layer_size: Defines the expected size of this operation with an arbitrary
+                        number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+
+        Returns:
+            Dictionary with lists of values to try for each argument.
+        """
+        assert(max_n_tuning_permutations >= 1)
+        assert(layer_size >= 0.0)
+        assert(layer_size <= 1.0)
         return dict()
 
 
@@ -86,6 +97,35 @@ class DenseOperation(NeuralNetworkOperation):
             x = self.activation(x, name=f"{self.name}_activation")
         return x
 
+    @classmethod
+    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get tuning options for this operation
+
+        Only tune number of output channels for now, and use default values for
+        mu, sigma and the activation function.
+
+        Arguments:
+
+        Keyword Arguments:
+            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            layer_size: Defines the expected size of this operation with an arbitrary
+                        number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+        """
+        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
+                                                                small_value=50,
+                                                                huge_value=1000000)
+
+        # Distribute max_n_tuning_permutations linearly in region [0.9, 1.1] * target_n_output_channels
+        n_output_channels_list = target_n_output_channels * get_linear_distribution_list(max_n_tuning_permutations)
+        n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
+        n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
+
+        return {'n_output_channels': n_output_channels_list,
+                'mu': [0.0],
+                'sigma': [0.1],
+                'activation': [tf.nn.relu]}
+
 
 class Conv2dOperation(NeuralNetworkOperation):
     """Sub-class for a convolutional neural network layer operation.
@@ -101,7 +141,7 @@ class Conv2dOperation(NeuralNetworkOperation):
         activation: Activation function. If None, than no activation is applied.
     """
 
-    def __init__(self, name, input_shape, n_output_channels, filter_shape, strides=(1, 1), mu=0.0,
+    def __init__(self, name, input_shape, n_output_channels, filter_shape=[5, 5], strides=(1, 1), mu=0.0,
                  sigma=0.1, activation=tf.nn.relu):
 
         assert(len(input_shape) == 3)
@@ -129,6 +169,37 @@ class Conv2dOperation(NeuralNetworkOperation):
             x = self.activation(x, name=f"{self.name}_activation")
         return x
 
+    @classmethod
+    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get tuning options for this operation
+
+        Only tune number of output channels for now, and use default values for
+        filter_shape, strides, mu, sigma and the activation function.
+
+        Arguments:
+
+        Keyword Arguments:
+            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            layer_size: Defines the expected size of this operation with an arbitrary
+                        number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+        """
+        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
+                                                                small_value=6,
+                                                                huge_value=1000)
+
+        # Distribute max_n_tuning_permutations linearly in region [0.9, 1.1] * target_n_output_channels
+        n_output_channels_list = target_n_output_channels * get_linear_distribution_list(max_n_tuning_permutations)
+        n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
+        n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
+
+        return {'n_output_channels': n_output_channels_list,
+                'filter_shape': [[5, 5]],
+                'strides': [(1, 1)],
+                'mu': [0.0],
+                'sigma': [0.1],
+                'activation': [tf.nn.relu]}
+
 
 class MaxPoolOperation(NeuralNetworkOperation):
     """Sub-class for a max-pool neural network operation.
@@ -152,6 +223,26 @@ class MaxPoolOperation(NeuralNetworkOperation):
     def get_operation(self, x):
         x = tf.nn.max_pool(x, ksize=self.ksize, strides=self.strides, padding='VALID')
         return x
+
+    @classmethod
+    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get tuning options for this operation
+
+        Keyword Arguments:
+            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            layer_size: Defines the expected size of this operation with an arbitrary
+                        number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+        """
+        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+
+        # Distribute the tuning permutations among the arguments
+        n_variants_per_arg = math.floor(math.sqrt(max_n_tuning_permutations))
+
+        ksize_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
+        strides_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
+
+        return {'ksize': ksize_variants[:n_variants_per_arg],
+                'strides': strides_variants[:n_variants_per_arg]}
 
 
 class DropoutOperation(NeuralNetworkOperation):
@@ -185,3 +276,73 @@ class DropoutOperation(NeuralNetworkOperation):
             return {self.tf_placeholder: self.keep_prob}
         else:
             return {self.tf_placeholder: 1.0}
+
+    @classmethod
+    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get tuning options for this operation
+
+        Keyword Arguments:
+            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            layer_size: Not of interest for this operation.
+        """
+        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        keep_prob_variants = [0.5, 0.55, 0.45, 0.60, 0.40, 0.65, 0.35, 0.70, 0.75, 0.80, 0.85, 0.90]
+
+        return {'keep_prob': keep_prob_variants[:max_n_tuning_permutations]}
+
+
+def layer_size_to_absolute_value(layer_size, small_value, huge_value, k=4.):
+    """Calculates an absolute value for the arbitrary layer size.
+
+    Based on definitions of what is a small and huge value, this method calculates
+    an absolute value for the layer_size. An exponential function is applied for
+    this since it seems reasonable to scale up more as the layer becomes larger.
+
+    Arguments:
+        layer_size {[type]} -- [description]
+        small_value: expected output for layer_size = 0
+        huge_value: expected output for layer_size = 1
+    Keyword Arguments:
+        k: exponential function curvature (default: {4.})
+
+    Returns:
+        value of the layer size in absolute numbers
+    """
+    a, b, k = get_exponential_function(y0=small_value, y1=huge_value, k=k)
+    return a * math.exp(k * layer_size) + b
+
+
+def get_exponential_function(y0, y1, k=4.):
+    """Get an exponential function for layer size definition.
+
+    Calculate coefficients for an exponential function on the form
+    y = a * e^(k * x) + b, with y(0)=y0 and y(1)=y1.
+    The value k controls the curvature, larger k gives more curve.
+
+    Arguments:
+        y0: expected output for x = 0
+        y1: expected output for x = 1
+
+    Keyword Arguments:
+        k: curvature value (default: {4.})
+
+    Returns:
+        a, b, k in the equation y = a * e^(k * x) + b
+    """
+    a = (y0 - y1) / (1. - math.exp(k))
+    b = y0 - a
+    return a, b, k
+
+
+def get_linear_distribution_list(n_values, target=1.0, max_deviation=0.1):
+    """Calculates a list of values around the target value
+
+    The values are evenly distributed in the range target ± max_deviation.
+    """
+    if n_values > 1:
+        distribution_list = np.arange(target - max_deviation,
+                                      target + max_deviation,
+                                      (max_deviation * 2.0) / (n_values - 1))
+    else:
+        distribution_list = np.array([target])
+    return distribution_list

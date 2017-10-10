@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import unittest
+import itertools
 
 from src.NeuralNetworkOperations import *
 
@@ -81,6 +82,25 @@ class TestDenseOperation(unittest.TestCase):
             actual_result = sess.run(logits, feed_dict={x: in_data})
             self.assertTrue(np.allclose(actual_result, expected_result))
 
+    def test_should_provide_valid_tuning_options(self):
+        for max_n_tuning_permutations in range(1, 10):
+            tuning_options = DenseOperation.get_tuning_options(max_n_tuning_permutations, layer_size=1.)
+
+            key_list = []
+            values_list = []
+            actual_n_permutations = 1
+            for key, values in tuning_options.items():
+                key_list.append(key)
+                values_list.append(values)
+                actual_n_permutations *= len(values)
+
+            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
+
+            # Verify that the operation can be initialized with each permutation.
+            for arg_values in itertools.product(*values_list):
+                    args = dict(zip(key_list, arg_values))
+                    DenseOperation(name='dc', input_shape=[32, 32, 3], **args)
+
 
 class TestConv2dOperation(unittest.TestCase):
     def test_forward_operation(self):
@@ -133,6 +153,25 @@ class TestConv2dOperation(unittest.TestCase):
             actual_result = sess.run(logits, feed_dict={x: in_data})
             self.assertTrue(np.allclose(actual_result, expected_result))
 
+    def test_should_provide_valid_tuning_options(self):
+        for max_n_tuning_permutations in range(1, 10):
+            tuning_options = Conv2dOperation.get_tuning_options(max_n_tuning_permutations, layer_size=0.0)
+
+            key_list = []
+            values_list = []
+            actual_n_permutations = 1
+            for key, values in tuning_options.items():
+                key_list.append(key)
+                values_list.append(values)
+                actual_n_permutations *= len(values)
+
+            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
+
+            # Verify that the operation can be initialized with each permutation.
+            for arg_values in itertools.product(*values_list):
+                    args = dict(zip(key_list, arg_values))
+                    Conv2dOperation(name='dc', input_shape=[32, 32, 3], **args)
+
 
 class TestMaxPoolOperation(unittest.TestCase):
     def test_should_downsample_example(self):
@@ -157,6 +196,25 @@ class TestMaxPoolOperation(unittest.TestCase):
         with tf.Session() as sess:
             actual_result = sess.run(logits, feed_dict={x: in_data})
             self.assertTrue(np.allclose(actual_result, expected_result))
+
+    def test_should_provide_valid_tuning_options(self):
+        for max_n_tuning_permutations in range(1, 10):
+            tuning_options = MaxPoolOperation.get_tuning_options(max_n_tuning_permutations)
+
+            key_list = []
+            values_list = []
+            actual_n_permutations = 1
+            for key, values in tuning_options.items():
+                key_list.append(key)
+                values_list.append(values)
+                actual_n_permutations *= len(values)
+
+            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
+
+            # Verify that the operation can be initialized with each permutation.
+            for arg_values in itertools.product(*values_list):
+                    args = dict(zip(key_list, arg_values))
+                    MaxPoolOperation(name='dc', input_shape=[32, 32, 3], **args)
 
 
 class TestDropoutOperation(unittest.TestCase):
@@ -206,3 +264,77 @@ class TestDropoutOperation(unittest.TestCase):
 
             # result is close, but no cigar
             self.assertTrue(np.allclose(result, in_data))
+
+    def test_should_provide_valid_tuning_options(self):
+        for max_n_tuning_permutations in range(1, 10):
+            tuning_options = DropoutOperation.get_tuning_options(max_n_tuning_permutations)
+
+            key_list = []
+            values_list = []
+            actual_n_permutations = 1
+            for key, values in tuning_options.items():
+                key_list.append(key)
+                values_list.append(values)
+                actual_n_permutations *= len(values)
+
+            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
+
+            # Verify that the operation can be initialized with each permutation.
+            for arg_values in itertools.product(*values_list):
+                    args = dict(zip(key_list, arg_values))
+                    DropoutOperation(name='dc', input_shape=None, **args)
+
+
+class TestExponentialFunction(unittest.TestCase):
+    def test_should_intercept_points(self):
+        """The exponential function should intercept points y(0) and y(1)"""
+        test_vector = [
+            (50., 10000000),
+            (50., -10000000),
+            (100., 40.),
+            (100000., 10000000.),
+            (50., 50.)
+        ]
+        for y0, y1 in test_vector:
+            a, b, k = get_exponential_function(y0, y1)
+            actual_y0 = a * math.exp(k * 0) + b
+            actual_y1 = a * math.exp(k * 1) + b
+            self.assertAlmostEqual(actual_y0, y0)
+            self.assertAlmostEqual(actual_y1, y1)
+
+    def test_should_intercept_points_for_all_k(self):
+        """The exponential function should intercept points regardless of value of k"""
+        y0 = 50.
+        y1 = 10000000.
+        for k in np.arange(1., 10., 1.):
+            a, b, _ = get_exponential_function(y0, y1, k=k)
+            actual_y0 = a * math.exp(k * 0) + b
+            actual_y1 = a * math.exp(k * 1) + b
+            self.assertAlmostEqual(actual_y0, y0)
+            self.assertAlmostEqual(actual_y1, y1)
+
+
+class TestLayerSizeMapping(unittest.TestCase):
+    def test_medium_value_should_decrease_with_larger_k(self):
+        """The exponential function should have more curvature for larger k"""
+        small_value = 50.
+        huge_value = 10000000.
+        medium_layer_size = 0.5
+        prev_value = math.inf
+        for k in np.arange(1., 10., 1.):
+            medium_value = layer_size_to_absolute_value(medium_layer_size, small_value, huge_value, k=k)
+            self.assertLess(medium_value, prev_value)
+
+
+class TestLinearDistribution(unittest.TestCase):
+    def test_distributions(self):
+        test_vector = [
+            (1, [1.0]),
+            (2, [0.9, 1.1]),
+            (3, [0.9, 1.0, 1.1]),
+            (4, [0.9, 0.967, 1.033, 1.1]),
+            (5, [0.9, 0.95, 1.0, 1.05, 1.1])
+        ]
+        for n_values, expected in test_vector:
+            actual = get_linear_distribution_list(n_values=n_values, target=1.0, max_deviation=0.1)
+            self.assertTrue(np.allclose(actual, expected, rtol=1e-2))
