@@ -4,7 +4,7 @@ import pickle
 import os
 import shutil
 
-from src.TrafficSignData import TrafficSignData
+from TrafficSignData import TrafficSignData
 
 
 class TestTrafficSignData(unittest.TestCase):

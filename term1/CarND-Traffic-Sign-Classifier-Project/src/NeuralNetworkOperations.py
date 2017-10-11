@@ -43,7 +43,7 @@ class NeuralNetworkOperation(object):
         return dict()
 
     @classmethod
-    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
         """Provides suitable argument ranges to try for this operation. This method
         should be overridden by all subclasses with arguments.
 
@@ -53,12 +53,12 @@ class NeuralNetworkOperation(object):
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
 
         Returns:
-            Dictionary with lists of values to try for each argument.
+            Tuple with object class and a dictionary with lists of values to try for each argument.
         """
         assert(max_n_tuning_permutations >= 1)
         assert(layer_size >= 0.0)
         assert(layer_size <= 1.0)
-        return dict()
+        return (cls, dict())
 
 
 class DenseOperation(NeuralNetworkOperation):
@@ -98,8 +98,8 @@ class DenseOperation(NeuralNetworkOperation):
         return x
 
     @classmethod
-    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
-        """Get tuning options for this operation
+    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get training options for this operation
 
         Only tune number of output channels for now, and use default values for
         mu, sigma and the activation function.
@@ -111,7 +111,7 @@ class DenseOperation(NeuralNetworkOperation):
             layer_size: Defines the expected size of this operation with an arbitrary
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
         """
-        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
         target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
                                                                 small_value=50,
                                                                 huge_value=1000000)
@@ -121,10 +121,10 @@ class DenseOperation(NeuralNetworkOperation):
         n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
         n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
 
-        return {'n_output_channels': n_output_channels_list,
-                'mu': [0.0],
-                'sigma': [0.1],
-                'activation': [tf.nn.relu]}
+        return (cls, {'n_output_channels': n_output_channels_list,
+                      'mu': [0.0],
+                      'sigma': [0.1],
+                      'activation': [tf.nn.relu]})
 
 
 class Conv2dOperation(NeuralNetworkOperation):
@@ -151,7 +151,6 @@ class Conv2dOperation(NeuralNetworkOperation):
 
         assert(output_shape[0] >= 1)
         assert(output_shape[1] >= 1)
-
         weights = tf.Variable(tf.truncated_normal([filter_shape[0],
                                                    filter_shape[1],
                                                    input_shape[2],
@@ -170,8 +169,8 @@ class Conv2dOperation(NeuralNetworkOperation):
         return x
 
     @classmethod
-    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
-        """Get tuning options for this operation
+    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get training options for this operation
 
         Only tune number of output channels for now, and use default values for
         filter_shape, strides, mu, sigma and the activation function.
@@ -183,7 +182,7 @@ class Conv2dOperation(NeuralNetworkOperation):
             layer_size: Defines the expected size of this operation with an arbitrary
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
         """
-        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
         target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
                                                                 small_value=6,
                                                                 huge_value=1000)
@@ -193,12 +192,12 @@ class Conv2dOperation(NeuralNetworkOperation):
         n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
         n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
 
-        return {'n_output_channels': n_output_channels_list,
-                'filter_shape': [[5, 5]],
-                'strides': [(1, 1)],
-                'mu': [0.0],
-                'sigma': [0.1],
-                'activation': [tf.nn.relu]}
+        return (cls, {'n_output_channels': n_output_channels_list,
+                      'filter_shape': [[5, 5]],
+                      'strides': [(1, 1)],
+                      'mu': [0.0],
+                      'sigma': [0.1],
+                      'activation': [tf.nn.relu]})
 
 
 class MaxPoolOperation(NeuralNetworkOperation):
@@ -225,15 +224,15 @@ class MaxPoolOperation(NeuralNetworkOperation):
         return x
 
     @classmethod
-    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
-        """Get tuning options for this operation
+    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get training options for this operation
 
         Keyword Arguments:
             max_n_tuning_permutations: Max number of ways to alternate the arguments.
             layer_size: Defines the expected size of this operation with an arbitrary
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
         """
-        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
 
         # Distribute the tuning permutations among the arguments
         n_variants_per_arg = math.floor(math.sqrt(max_n_tuning_permutations))
@@ -241,8 +240,8 @@ class MaxPoolOperation(NeuralNetworkOperation):
         ksize_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
         strides_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
 
-        return {'ksize': ksize_variants[:n_variants_per_arg],
-                'strides': strides_variants[:n_variants_per_arg]}
+        return (cls, {'ksize': ksize_variants[:n_variants_per_arg],
+                      'strides': strides_variants[:n_variants_per_arg]})
 
 
 class DropoutOperation(NeuralNetworkOperation):
@@ -278,17 +277,17 @@ class DropoutOperation(NeuralNetworkOperation):
             return {self.tf_placeholder: 1.0}
 
     @classmethod
-    def get_tuning_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
-        """Get tuning options for this operation
+    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+        """Get training options for this operation
 
         Keyword Arguments:
             max_n_tuning_permutations: Max number of ways to alternate the arguments.
             layer_size: Not of interest for this operation.
         """
-        NeuralNetworkOperation.get_tuning_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
         keep_prob_variants = [0.5, 0.55, 0.45, 0.60, 0.40, 0.65, 0.35, 0.70, 0.75, 0.80, 0.85, 0.90]
 
-        return {'keep_prob': keep_prob_variants[:max_n_tuning_permutations]}
+        return (cls, {'keep_prob': keep_prob_variants[:max_n_tuning_permutations]})
 
 
 def layer_size_to_absolute_value(layer_size, small_value, huge_value, k=4.):

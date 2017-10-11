@@ -5,6 +5,7 @@ from NeuralNetwork import *
 from NeuralNetworkOperations import *
 from NeuralNetworkGenerator import NeuralNetworkGenerator
 
+
 class TrafficSignTrainer(object):
     def __init__(self, nn_generator, traffic_sign_data, epochs=10, batch_size=128, learning_rate=0.0005,
                  l2_regulizer_beta=0.001):
@@ -22,7 +23,7 @@ class TrafficSignTrainer(object):
 
     def train(self):
 
-        for nn_graph in self.nn_generator.generate(self.x):
+        for nn_graph, self.x, self.y in self.nn_generator.generate():
             self._setup_training(nn_graph)
             self._run_training(nn_graph)
 
@@ -93,7 +94,15 @@ class TrafficSignTrainer(object):
 
 if __name__ == '__main__':
     ts_data = TrafficSignData.TrafficSignData()
-    nn_generator = NeuralNetworkGenerator(ts_data.n_classes, n_conv_layers=2, n_dense_layers=2, use_max_pool=True,
-                                          use_dropout=True)
+    training_list = [
+        Conv2dOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.0),
+        MaxPoolOperation.get_training_options(max_n_tuning_permutations=1),
+        Conv2dOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.2),
+        MaxPoolOperation.get_training_options(max_n_tuning_permutations=1),
+        DenseOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.05),
+        DenseOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.01),
+    ]
+
+    nn_generator = NeuralNetworkGenerator(ts_data.n_classes, training_list, ts_data.image_shape)
     trainer = TrafficSignTrainer(nn_generator=nn_generator, traffic_sign_data=ts_data, l2_regulizer_beta=0.0)
     trainer.train()

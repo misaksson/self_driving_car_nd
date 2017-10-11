@@ -3,7 +3,7 @@ import tensorflow as tf
 import unittest
 import itertools
 
-from src.NeuralNetworkOperations import *
+from NeuralNetworkOperations import *
 
 
 class TestNeuralNetworkOperation(unittest.TestCase):
@@ -83,23 +83,7 @@ class TestDenseOperation(unittest.TestCase):
             self.assertTrue(np.allclose(actual_result, expected_result))
 
     def test_should_provide_valid_tuning_options(self):
-        for max_n_tuning_permutations in range(1, 10):
-            tuning_options = DenseOperation.get_tuning_options(max_n_tuning_permutations, layer_size=1.)
-
-            key_list = []
-            values_list = []
-            actual_n_permutations = 1
-            for key, values in tuning_options.items():
-                key_list.append(key)
-                values_list.append(values)
-                actual_n_permutations *= len(values)
-
-            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
-
-            # Verify that the operation can be initialized with each permutation.
-            for arg_values in itertools.product(*values_list):
-                    args = dict(zip(key_list, arg_values))
-                    DenseOperation(name='dc', input_shape=[32, 32, 3], **args)
+        common_verification_of_tuning_options(self, DenseOperation)
 
 
 class TestConv2dOperation(unittest.TestCase):
@@ -154,23 +138,7 @@ class TestConv2dOperation(unittest.TestCase):
             self.assertTrue(np.allclose(actual_result, expected_result))
 
     def test_should_provide_valid_tuning_options(self):
-        for max_n_tuning_permutations in range(1, 10):
-            tuning_options = Conv2dOperation.get_tuning_options(max_n_tuning_permutations, layer_size=0.0)
-
-            key_list = []
-            values_list = []
-            actual_n_permutations = 1
-            for key, values in tuning_options.items():
-                key_list.append(key)
-                values_list.append(values)
-                actual_n_permutations *= len(values)
-
-            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
-
-            # Verify that the operation can be initialized with each permutation.
-            for arg_values in itertools.product(*values_list):
-                    args = dict(zip(key_list, arg_values))
-                    Conv2dOperation(name='dc', input_shape=[32, 32, 3], **args)
+        common_verification_of_tuning_options(self, Conv2dOperation)
 
 
 class TestMaxPoolOperation(unittest.TestCase):
@@ -198,23 +166,7 @@ class TestMaxPoolOperation(unittest.TestCase):
             self.assertTrue(np.allclose(actual_result, expected_result))
 
     def test_should_provide_valid_tuning_options(self):
-        for max_n_tuning_permutations in range(1, 10):
-            tuning_options = MaxPoolOperation.get_tuning_options(max_n_tuning_permutations)
-
-            key_list = []
-            values_list = []
-            actual_n_permutations = 1
-            for key, values in tuning_options.items():
-                key_list.append(key)
-                values_list.append(values)
-                actual_n_permutations *= len(values)
-
-            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
-
-            # Verify that the operation can be initialized with each permutation.
-            for arg_values in itertools.product(*values_list):
-                    args = dict(zip(key_list, arg_values))
-                    MaxPoolOperation(name='dc', input_shape=[32, 32, 3], **args)
+        common_verification_of_tuning_options(self, MaxPoolOperation)
 
 
 class TestDropoutOperation(unittest.TestCase):
@@ -266,23 +218,7 @@ class TestDropoutOperation(unittest.TestCase):
             self.assertTrue(np.allclose(result, in_data))
 
     def test_should_provide_valid_tuning_options(self):
-        for max_n_tuning_permutations in range(1, 10):
-            tuning_options = DropoutOperation.get_tuning_options(max_n_tuning_permutations)
-
-            key_list = []
-            values_list = []
-            actual_n_permutations = 1
-            for key, values in tuning_options.items():
-                key_list.append(key)
-                values_list.append(values)
-                actual_n_permutations *= len(values)
-
-            self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
-
-            # Verify that the operation can be initialized with each permutation.
-            for arg_values in itertools.product(*values_list):
-                    args = dict(zip(key_list, arg_values))
-                    DropoutOperation(name='dc', input_shape=None, **args)
+        common_verification_of_tuning_options(self, DropoutOperation)
 
 
 class TestExponentialFunction(unittest.TestCase):
@@ -338,3 +274,23 @@ class TestLinearDistribution(unittest.TestCase):
         for n_values, expected in test_vector:
             actual = get_linear_distribution_list(n_values=n_values, target=1.0, max_deviation=0.1)
             self.assertTrue(np.allclose(actual, expected, rtol=1e-2))
+
+
+def common_verification_of_tuning_options(self, operation):
+    for max_n_tuning_permutations in range(1, 10):
+        (operation, tuning_options) = operation.get_training_options(max_n_tuning_permutations, layer_size=0.5)
+
+        key_list = []
+        values_list = []
+        actual_n_permutations = 1
+        for key, values in tuning_options.items():
+            key_list.append(key)
+            values_list.append(values)
+            actual_n_permutations *= len(values)
+
+        self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
+
+        # Verify that the operation can be initialized with each permutation.
+        for arg_values in itertools.product(*values_list):
+                args = dict(zip(key_list, arg_values))
+                operation(name='dc', input_shape=[32, 32, 3], **args)

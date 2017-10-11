@@ -3,8 +3,8 @@ import tensorflow as tf
 import unittest
 import math
 
-from src.NeuralNetwork import *
-from src.NeuralNetworkOperations import NeuralNetworkOperation, MaxPoolOperation
+from NeuralNetwork import *
+from NeuralNetworkOperations import NeuralNetworkOperation, MaxPoolOperation
 
 
 class MockOperation(NeuralNetworkOperation):
