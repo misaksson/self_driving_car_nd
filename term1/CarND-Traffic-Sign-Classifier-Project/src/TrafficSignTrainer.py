@@ -1,5 +1,7 @@
 import tensorflow as tf
 import os.path
+import difflib
+
 import TrafficSignData
 from NeuralNetwork import *
 from NeuralNetworkOperations import *
@@ -15,11 +17,7 @@ class TrafficSignTrainer(object):
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.l2_regulizer_beta = l2_regulizer_beta
-        self.x = tf.placeholder(tf.float32, (None,
-                                             ts_data.image_shape[0],
-                                             ts_data.image_shape[1],
-                                             ts_data.image_shape[2]))
-        self.y = tf.placeholder(tf.int32, (None))
+        self.prev_nn_graph_str_repr = ""
 
     def train(self):
 
@@ -56,7 +54,7 @@ class TrafficSignTrainer(object):
             sess.run(tf.global_variables_initializer())
 
             print("Training...")
-            print(nn_graph)
+            self._print_diff(nn_graph)
             pbar = tqdm(range(self.epochs))
             for i in pbar:
                 self.ts_data.shuffle_training_data()
@@ -86,6 +84,28 @@ class TrafficSignTrainer(object):
             accuracy = sess.run(self.accuracy_operation, feed_dict=feed_dict)
             total_accuracy += (accuracy * len(feed_dict[self.x]))
         return total_accuracy / self.ts_data.n_valid
+
+    def _print_diff(self, nn_graph):
+        """Print diff indicating what has been alternated from previous run.
+
+        The graph from current training is printed, but things that's been alternated
+        from previous training is printed in green.
+        """
+        current_str = nn_graph.__str__()
+        prev_str = self.prev_nn_graph_str_repr
+        match_list = difflib.SequenceMatcher(None, prev_str, current_str).get_matching_blocks()
+        output_str = ""
+        prev_match = (0, 0, 0)
+        for current_match in match_list:
+            if current_match[1] > prev_match[1]:
+                # Add change as green text
+                output_str += "\033[92m" + current_str[(prev_match[1] + prev_match[2]):current_match[1]] + "\033[0m"
+            # Add equal text as default color
+            output_str += current_str[current_match[1]: current_match[1] + current_match[2]]
+            prev_match = current_match
+
+        print(output_str)
+        self.prev_nn_graph_str_repr = current_str
 
 
 # Example:
