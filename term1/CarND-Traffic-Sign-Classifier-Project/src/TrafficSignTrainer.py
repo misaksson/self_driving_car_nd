@@ -56,7 +56,7 @@ class TrafficSignTrainer(object):
             sess.run(tf.global_variables_initializer())
 
             print("Training...")
-            print()
+            print(nn_graph)
             pbar = tqdm(range(self.epochs))
             for i in pbar:
                 self.ts_data.shuffle_training_data()
@@ -101,6 +101,7 @@ if __name__ == '__main__':
         MaxPoolOperation.get_training_options(max_n_tuning_permutations=1),
         DenseOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.05),
         DenseOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.01),
+        DropoutOperation.get_training_options(max_n_tuning_permutations=1)
     ]
 
     nn_generator = NeuralNetworkGenerator(ts_data.n_classes, training_list, ts_data.image_shape)

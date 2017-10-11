@@ -42,6 +42,14 @@ class NeuralNetworkOperation(object):
         """
         return dict()
 
+    def __str__(self):
+        """Return string representation of the nn-operation instance.
+
+        Present each operation as a one line string, with all relevant arguments.
+        Sub-classes must either override this method or set self.str_repr.
+        """
+        return self.str_repr
+
     @classmethod
     def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
         """Provides suitable argument ranges to try for this operation. This method
@@ -87,6 +95,9 @@ class DenseOperation(NeuralNetworkOperation):
         biases = tf.Variable(tf.zeros(n_output_channels), name=f"{name}_biases")
         NeuralNetworkOperation.__init__(self, name=name, weights=weights, biases=biases)
         self.activation = activation
+        self.str_repr = (f"{type(self).__name__}(name=\"{name}\", input_shape={input_shape}, "
+                         f"n_output_channels={n_output_channels}, mu={mu}, sigma={sigma}, "
+                         f"activation={'None' if activation is None else activation.__name__})")
 
     def get_operation(self, x):
         if self.flatten:
@@ -160,6 +171,9 @@ class Conv2dOperation(NeuralNetworkOperation):
         NeuralNetworkOperation.__init__(self, name=name, weights=weights, biases=biases)
         self.strides = [1, strides[0], strides[1], 1]  # Batch and channel stride hard-coded to 1
         self.activation = activation
+        self.str_repr = (f"{type(self).__name__}(name=\"{name}\", input_shape={input_shape}, "
+                         f"n_output_channels={n_output_channels}, filter_shape={filter_shape}, strides={strides}, "
+                         f"mu={mu}, sigma={sigma}, activation={'None' if activation is None else activation.__name__})")
 
     def get_operation(self, x):
         x = tf.nn.conv2d(x, self.weights, self.strides, padding='VALID', name=f"{self.name}_conv2d")
@@ -218,6 +232,8 @@ class MaxPoolOperation(NeuralNetworkOperation):
         NeuralNetworkOperation.__init__(self, name=name)
         self.ksize = ksize
         self.strides = strides
+        self.str_repr = (f"{type(self).__name__}(name=\"{name}\", input_shape={input_shape}, ksize={ksize}, "
+                         f"strides={strides}")
 
     def get_operation(self, x):
         x = tf.nn.max_pool(x, ksize=self.ksize, strides=self.strides, padding='VALID')
@@ -262,6 +278,7 @@ class DropoutOperation(NeuralNetworkOperation):
         NeuralNetworkOperation.__init__(self, name=name)
         self.keep_prob = keep_prob
         self.tf_placeholder = tf.placeholder(tf.float32, (None), name=f"{name}_keep_prob")
+        self.str_repr = f"{type(self).__name__}(name=\"{name}\", input_shape={input_shape}, keep_prob={keep_prob})"
 
     def get_operation(self, x):
         x = tf.nn.dropout(x, self.tf_placeholder, name=f"{self.name}_dropout")

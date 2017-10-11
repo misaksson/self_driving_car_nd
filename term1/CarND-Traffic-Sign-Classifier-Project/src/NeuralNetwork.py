@@ -96,3 +96,10 @@ class NeuralNetwork(object):
         for operation in self.operations:
             feed_dict.update(operation.get_feed_dict(training))
         return feed_dict
+
+    def __str__(self):
+        """Get string representation for all operations"""
+        str_repr = ""
+        for operation in self.operations:
+            str_repr += operation.__str__() + "\n"
+        return str_repr

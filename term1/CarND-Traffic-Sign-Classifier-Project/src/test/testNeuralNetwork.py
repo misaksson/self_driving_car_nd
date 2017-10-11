@@ -20,6 +20,10 @@ class MockOperation(NeuralNetworkOperation):
         self.idx = len(MockOperation.instances)
         self.kwargs = kwargs
         self.n_prior_get_operation_calls = None
+        self.str_repr = f"{type(self).__name__}("
+        for arg_name, arg_value in kwargs.items():
+            self.str_repr += f"{arg_name}={arg_value}, "
+        self.str_repr = self.str_repr[:-2] + ")"
 
         weights = None if 'weights' not in kwargs else kwargs['weights']
         biases = None if 'biases' not in kwargs else kwargs['biases']
@@ -143,6 +147,17 @@ class TestNearalNetwork(unittest.TestCase):
             for _, actual_mode in feed_dict.items():
                 self.assertEqual(actual_mode, expected_mode)
 
+    def test_should_get_graph_as_string(self):
+        """Test the nn-graph string representation."""
+        x = tf.placeholder(tf.float32, (None, 32, 32, 1))
+        nn = NeuralNetwork(x)
+        nn.add(MockOperation, a=2, b=5, c=7)
+        nn.add(MockOperation)
+        nn.add(MockOperation, d="a")
+        expected = ("MockOperation(name=op_1_MockOperation, input_shape=[32, 32, 1], a=2, b=5, c=7)\n"
+                    "MockOperation(name=op_2_MockOperation, input_shape=[32, 32, 1])\n"
+                    "MockOperation(name=op_3_MockOperation, input_shape=[32, 32, 1], d=a)\n")
 
-if __name__ == '__main__':
-    unittest.main()
+        actual = nn.__str__()
+
+        self.assertEqual(actual, expected)
