@@ -115,13 +115,13 @@ class TrafficSignTrainer(object):
 if __name__ == '__main__':
     ts_data = TrafficSignData.TrafficSignData()
     training_list = [
-        Conv2dOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.0),
-        MaxPoolOperation.get_training_options(max_n_tuning_permutations=1),
-        Conv2dOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.2),
-        MaxPoolOperation.get_training_options(max_n_tuning_permutations=1),
-        DenseOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.05),
-        DenseOperation.get_training_options(max_n_tuning_permutations=3, layer_size=0.01),
-        DropoutOperation.get_training_options(max_n_tuning_permutations=1)
+        Conv2dOperation.get_training_options(max_n_permutations=3, layer_size=0.0),
+        MaxPoolOperation.get_training_options(max_n_permutations=1),
+        Conv2dOperation.get_training_options(max_n_permutations=3, layer_size=0.2),
+        MaxPoolOperation.get_training_options(max_n_permutations=1),
+        DenseOperation.get_training_options(max_n_permutations=3, layer_size=0.05),
+        DenseOperation.get_training_options(max_n_permutations=3, layer_size=0.01),
+        DropoutOperation.get_training_options(max_n_permutations=1)
     ]
 
     nn_generator = NeuralNetworkGenerator(ts_data.n_classes, training_list, ts_data.image_shape)

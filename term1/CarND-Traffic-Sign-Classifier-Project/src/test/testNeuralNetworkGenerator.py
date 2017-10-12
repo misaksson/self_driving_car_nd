@@ -9,9 +9,9 @@ class TestNeuralNetworkGenerator(unittest.TestCase):
         expected_n_conv2d_permutations = 4
         expected_n_dense_permutations = 100
         tuning_options_list = [
-            Conv2dOperation.get_training_options(max_n_tuning_permutations=expected_n_conv2d_permutations,
+            Conv2dOperation.get_training_options(max_n_permutations=expected_n_conv2d_permutations,
                                                  layer_size=0.5),
-            DenseOperation.get_training_options(max_n_tuning_permutations=expected_n_dense_permutations,
+            DenseOperation.get_training_options(max_n_permutations=expected_n_dense_permutations,
                                                 layer_size=0.1)
         ]
         generator = NeuralNetworkGenerator(n_classes=10, tuning_options_list=tuning_options_list,

@@ -10,6 +10,7 @@ import tensorflow as tf
 import math
 import functools
 import numpy as np
+import warnings
 
 
 class NeuralNetworkOperation(object):
@@ -51,21 +52,19 @@ class NeuralNetworkOperation(object):
         return self.str_repr
 
     @classmethod
-    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+    def get_training_options(cls, max_n_permutations=1, layer_size=0.0, **kwargs):
         """Provides suitable argument ranges to try for this operation. This method
         should be overridden by all subclasses with arguments.
 
         Arguments:
-            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            max_n_permutations: Max number of ways to alternate the arguments.
             layer_size: Defines the expected size of this operation with an arbitrary
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+            kwargs: user specified argument values to use.
 
         Returns:
             Tuple with object class and a dictionary with lists of values to try for each argument.
         """
-        assert(max_n_tuning_permutations >= 1)
-        assert(layer_size >= 0.0)
-        assert(layer_size <= 1.0)
         return (cls, dict())
 
 
@@ -109,33 +108,43 @@ class DenseOperation(NeuralNetworkOperation):
         return x
 
     @classmethod
-    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+    def get_training_options(cls, max_n_permutations=1, layer_size=0.0, **kwargs):
         """Get training options for this operation
 
         Only tune number of output channels for now, and use default values for
         mu, sigma and the activation function.
 
         Arguments:
-
-        Keyword Arguments:
-            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            max_n_permutations: Max number of ways to alternate the arguments.
             layer_size: Defines the expected size of this operation with an arbitrary
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+            kwargs: user specified argument values to use.
+
+        Returns:
+            Tuple with object class and a dictionary with lists of values to try for each argument.
         """
-        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
-        target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
-                                                                small_value=50,
-                                                                huge_value=1000000)
+        n_remaining_permutations = training_options_arg_helper(cls.__name__, max_n_permutations, layer_size,
+                                                               **kwargs)
+        training_options = {'n_output_channels': None,  # Will be replaced below
+                            'mu': [0.0],
+                            'sigma': [0.1],
+                            'activation': [tf.nn.relu]}
 
-        # Distribute max_n_tuning_permutations linearly in region [0.9, 1.1] * target_n_output_channels
-        n_output_channels_list = target_n_output_channels * get_linear_distribution_list(max_n_tuning_permutations)
-        n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
-        n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
+        if 'n_output_channels' not in kwargs:
 
-        return (cls, {'n_output_channels': n_output_channels_list,
-                      'mu': [0.0],
-                      'sigma': [0.1],
-                      'activation': [tf.nn.relu]})
+            target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
+                                                                    small_value=50,
+                                                                    huge_value=1000000)
+
+            # Distribute n_remaining_permutations linearly in region [0.9, 1.1] * target_n_output_channels
+            n_output_channels_list = target_n_output_channels * get_linear_distribution_list(n_remaining_permutations)
+            n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
+            n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
+
+            training_options['n_output_channels'] = n_output_channels_list
+
+        training_options.update(kwargs)  # Replace with user defined.
+        return (cls, training_options)
 
 
 class Conv2dOperation(NeuralNetworkOperation):
@@ -183,35 +192,47 @@ class Conv2dOperation(NeuralNetworkOperation):
         return x
 
     @classmethod
-    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+    def get_training_options(cls, max_n_permutations=1, layer_size=0.0, **kwargs):
         """Get training options for this operation
 
         Only tune number of output channels for now, and use default values for
         filter_shape, strides, mu, sigma and the activation function.
 
         Arguments:
-
-        Keyword Arguments:
-            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+            max_n_permutations: Max number of ways to alternate the arguments.
             layer_size: Defines the expected size of this operation with an arbitrary
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+            kwargs: user specified argument values to use.
+
+        Returns:
+            Tuple with object class and a dictionary with lists of values to try for each argument.
         """
-        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
-        target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
-                                                                small_value=6,
-                                                                huge_value=1000)
+        n_remaining_permutations = training_options_arg_helper(cls.__name__, max_n_permutations, layer_size,
+                                                               **kwargs)
 
-        # Distribute max_n_tuning_permutations linearly in region [0.9, 1.1] * target_n_output_channels
-        n_output_channels_list = target_n_output_channels * get_linear_distribution_list(max_n_tuning_permutations)
-        n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
-        n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
+        # Default training options
+        training_options = {'n_output_channels': None,  # Will be replaced below
+                            'filter_shape': [[5, 5]],
+                            'strides': [(1, 1)],
+                            'mu': [0.0],
+                            'sigma': [0.1],
+                            'activation': [tf.nn.relu]}
 
-        return (cls, {'n_output_channels': n_output_channels_list,
-                      'filter_shape': [[5, 5]],
-                      'strides': [(1, 1)],
-                      'mu': [0.0],
-                      'sigma': [0.1],
-                      'activation': [tf.nn.relu]})
+        if 'n_output_channels' not in kwargs:
+
+            target_n_output_channels = layer_size_to_absolute_value(layer_size=layer_size,
+                                                                    small_value=6,
+                                                                    huge_value=1000)
+
+            # Distribute n_remaining_permutations linearly in region [0.9, 1.1] * target_n_output_channels
+            n_output_channels_list = target_n_output_channels * get_linear_distribution_list(n_remaining_permutations)
+            n_output_channels_list = np.round(n_output_channels_list).astype(np.int)
+            n_output_channels_list = np.unique(n_output_channels_list)  # Remove any duplicates
+
+            training_options['n_output_channels'] = n_output_channels_list
+
+        training_options.update(kwargs)  # Replace with user defined.
+        return (cls, training_options)
 
 
 class MaxPoolOperation(NeuralNetworkOperation):
@@ -240,24 +261,37 @@ class MaxPoolOperation(NeuralNetworkOperation):
         return x
 
     @classmethod
-    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+    def get_training_options(cls, max_n_permutations=1, layer_size=0.0, **kwargs):
         """Get training options for this operation
 
-        Keyword Arguments:
-            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+        Arguments:
+            max_n_permutations: Max number of ways to alternate the arguments.
             layer_size: Defines the expected size of this operation with an arbitrary
                         number in the range 0 to 1, where 0 is "small" and 1 is "huge".
+            kwargs: user specified argument values to use.
+
+        Returns:
+            Tuple with object class and a dictionary with lists of values to try for each argument.
         """
-        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
+        n_remaining_permutations = training_options_arg_helper(cls.__name__, max_n_permutations, layer_size,
+                                                               **kwargs)
+        training_options = {'ksize': None,
+                            'strides': None}
 
-        # Distribute the tuning permutations among the arguments
-        n_variants_per_arg = math.floor(math.sqrt(max_n_tuning_permutations))
+        # Distribute the remaining permutations
+        n_remaining_args = len(training_options) - len(kwargs)
+        n_arg_variants = calc_n_argument_values(n_remaining_args, n_remaining_permutations)
 
-        ksize_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
-        strides_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
+        if 'ksize' not in kwargs:
+            ksize_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
+            training_options['ksize'] = ksize_variants[:n_arg_variants[0]]
 
-        return (cls, {'ksize': ksize_variants[:n_variants_per_arg],
-                      'strides': strides_variants[:n_variants_per_arg]})
+        if 'strides' not in kwargs:
+            strides_variants = [[1, 2, 2, 1], [1, 3, 3, 1], [1, 2, 3, 1], [1, 3, 2, 1], [1, 3, 3, 1]]
+            training_options['strides'] = strides_variants[:n_arg_variants[1]]
+
+        training_options.update(kwargs)  # Replace with user defined.
+        return (cls, training_options)
 
 
 class DropoutOperation(NeuralNetworkOperation):
@@ -294,17 +328,30 @@ class DropoutOperation(NeuralNetworkOperation):
             return {self.tf_placeholder: 1.0}
 
     @classmethod
-    def get_training_options(cls, max_n_tuning_permutations=1, layer_size=0.0):
+    def get_training_options(cls, max_n_permutations=1, layer_size=0.0, **kwargs):
         """Get training options for this operation
 
-        Keyword Arguments:
-            max_n_tuning_permutations: Max number of ways to alternate the arguments.
+        Arguments:
+            max_n_permutations: Max number of ways to alternate the arguments.
             layer_size: Not of interest for this operation.
-        """
-        NeuralNetworkOperation.get_training_options(max_n_tuning_permutations, layer_size)  # Call parent for asserts.
-        keep_prob_variants = [0.5, 0.55, 0.45, 0.60, 0.40, 0.65, 0.35, 0.70, 0.75, 0.80, 0.85, 0.90]
+            kwargs: user specified argument values to use.
 
-        return (cls, {'keep_prob': keep_prob_variants[:max_n_tuning_permutations]})
+        Returns:
+            Tuple with object class and a dictionary with lists of values to try for each argument.
+        """
+        n_remaining_permutations = training_options_arg_helper(cls.__name__, max_n_permutations, layer_size,
+                                                               **kwargs)
+        training_options = {'keep_prob': None}
+
+        # Distribute the remaining permutations
+        n_remaining_args = len(training_options) - len(kwargs)
+        n_arg_variants = calc_n_argument_values(n_remaining_args, n_remaining_permutations)
+        if 'keep_prob' not in kwargs:
+            keep_prob_variants = [0.5, 0.55, 0.45, 0.60, 0.40, 0.65, 0.35, 0.70, 0.75, 0.80, 0.85, 0.90]
+            training_options['keep_prob'] = keep_prob_variants[:n_arg_variants[0]]
+
+        training_options.update(kwargs)  # Replace with user defined.
+        return (cls, training_options)
 
 
 def layer_size_to_absolute_value(layer_size, small_value, huge_value, k=4.):
@@ -362,3 +409,42 @@ def get_linear_distribution_list(n_values, target=1.0, max_deviation=0.1):
     else:
         distribution_list = np.array([target])
     return distribution_list
+
+
+def training_options_arg_helper(name, max_n_permutations, layer_size, **kwargs):
+    """Assert and common calculations on input arguments.
+
+    Returns:
+        Number of remaining permutations to be distributed on other arguments.
+    """
+    assert(max_n_permutations >= 1)
+    assert(layer_size >= 0.0)
+    assert(layer_size <= 1.0)
+    assert(all(isinstance(values, list) for _, values in kwargs.items()))
+
+    n_input_permutations = calc_permutations_in_arg_dict(kwargs)
+    n_remaining_permutations = math.floor(max_n_permutations / n_input_permutations)
+
+    if n_remaining_permutations < 1.0:
+        warn_msg = (f"{name} user defined number of training options have more permutations "
+                    f"({n_input_permutations:.0f}) than max_n_permutations ({max_n_permutations}).")
+        warnings.warn(warn_msg)
+        n_remaining_permutations = 1.0  # Must be at least 1
+    return n_remaining_permutations
+
+
+def calc_permutations_in_arg_dict(arg_dict):
+    n_permutations = 1.
+    for _, values in arg_dict.items():
+        n_permutations *= len(values)
+    return n_permutations
+
+
+def calc_n_argument_values(n_args, n_permutations):
+    """Distribute a number of permutations among a number of arguments"""
+    n_arg_values = np.zeros(n_args)
+    for arg_idx in range(n_args, 0, -1):
+        n_arg_values[arg_idx - 1] = math.floor(n_permutations**(1. / arg_idx))
+        n_permutations /= n_arg_values[arg_idx - 1]
+
+    return n_arg_values.astype(np.int)

@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import unittest
 import itertools
+import warnings
 
 from NeuralNetworkOperations import *
 
@@ -82,8 +83,39 @@ class TestDenseOperation(unittest.TestCase):
             actual_result = sess.run(logits, feed_dict={x: in_data})
             self.assertTrue(np.allclose(actual_result, expected_result))
 
-    def test_should_provide_valid_tuning_options(self):
-        common_verification_of_tuning_options(self, DenseOperation)
+    def test_should_provide_valid_training_options(self):
+        common_verification_of_training_options(self, DenseOperation)
+
+    def test_should_override_training_options(self):
+        _, default = DenseOperation.get_training_options(max_n_permutations=15, layer_size=0.5)
+        _, overrided = DenseOperation.get_training_options(max_n_permutations=15, layer_size=0.5,
+                                                           n_output_channels=[42, 32, 22, 11])
+
+        self.assertEqual(len(default['n_output_channels']), 15)
+        self.assertEqual(len(overrided['n_output_channels']), 4)
+
+    def test_should_not_add_more_training_options(self):
+        _, training_options = DenseOperation.get_training_options(max_n_permutations=5, layer_size=0.5,
+                                                                  mu=[-0.2, -0.1, 0.0, 0.1, 0.2])
+        for key, values in training_options.items():
+            if key is 'mu':
+                self.assertEqual(len(values), 5)
+            else:
+                self.assertEqual(len(values), 1)
+
+    def test_should_warn_if_user_breaks_max_n_permutations(self):
+        with warnings.catch_warnings(record=True) as w:
+            _, training_options = DenseOperation.get_training_options(max_n_permutations=1, layer_size=0.5,
+                                                                      mu=[-0.2, -0.1, 0.0, 0.1, 0.2])
+            self.assertEqual(len(w), 1)
+            self.assertTrue("user defined number of training options have more" in str(w[-1].message))
+
+            # But it should still work as user has defined
+            for key, values in training_options.items():
+                if key is 'mu':
+                    self.assertEqual(len(values), 5)
+                else:
+                    self.assertEqual(len(values), 1)
 
 
 class TestConv2dOperation(unittest.TestCase):
@@ -137,8 +169,8 @@ class TestConv2dOperation(unittest.TestCase):
             actual_result = sess.run(logits, feed_dict={x: in_data})
             self.assertTrue(np.allclose(actual_result, expected_result))
 
-    def test_should_provide_valid_tuning_options(self):
-        common_verification_of_tuning_options(self, Conv2dOperation)
+    def test_should_provide_valid_training_options(self):
+        common_verification_of_training_options(self, Conv2dOperation)
 
 
 class TestMaxPoolOperation(unittest.TestCase):
@@ -165,8 +197,8 @@ class TestMaxPoolOperation(unittest.TestCase):
             actual_result = sess.run(logits, feed_dict={x: in_data})
             self.assertTrue(np.allclose(actual_result, expected_result))
 
-    def test_should_provide_valid_tuning_options(self):
-        common_verification_of_tuning_options(self, MaxPoolOperation)
+    def test_should_provide_valid_training_options(self):
+        common_verification_of_training_options(self, MaxPoolOperation)
 
 
 class TestDropoutOperation(unittest.TestCase):
@@ -217,8 +249,8 @@ class TestDropoutOperation(unittest.TestCase):
             # result is close, but no cigar
             self.assertTrue(np.allclose(result, in_data))
 
-    def test_should_provide_valid_tuning_options(self):
-        common_verification_of_tuning_options(self, DropoutOperation)
+    def test_should_provide_valid_training_options(self):
+        common_verification_of_training_options(self, DropoutOperation)
 
 
 class TestExponentialFunction(unittest.TestCase):
@@ -276,9 +308,22 @@ class TestLinearDistribution(unittest.TestCase):
             self.assertTrue(np.allclose(actual, expected, rtol=1e-2))
 
 
-def common_verification_of_tuning_options(self, operation):
-    for max_n_tuning_permutations in range(1, 10):
-        (operation, tuning_options) = operation.get_training_options(max_n_tuning_permutations, layer_size=0.5)
+class TestPermutationDistribution(unittest.TestCase):
+    def test_calc_n_argument_values(self):
+
+        test_vector = [(1, [(1, [1]), (2, [1, 1]), (3, [1, 1, 1]), (4, [1, 1, 1, 1])]),
+                       (2, [(1, [2]), (2, [2, 1]), (3, [2, 1, 1]), (4, [2, 1, 1, 1])]),
+                       (25, [(1, [25]), (2, [5, 5]), (3, [4, 3, 2]), (4, [3, 2, 2, 2])]),
+                       (27, [(1, [27]), (2, [5, 5]), (3, [3, 3, 3]), (4, [3, 2, 2, 2])])]
+        for n_permutations, args_expected_list in test_vector:
+            for n_args, expected in args_expected_list:
+                actual = calc_n_argument_values(n_args, n_permutations)
+                self.assertTrue(np.array_equal(actual, expected))
+
+
+def common_verification_of_training_options(self, operation):
+    for max_n_permutations in range(1, 10):
+        (operation, tuning_options) = operation.get_training_options(max_n_permutations, layer_size=0.5)
 
         key_list = []
         values_list = []
@@ -288,7 +333,7 @@ def common_verification_of_tuning_options(self, operation):
             values_list.append(values)
             actual_n_permutations *= len(values)
 
-        self.assertLessEqual(actual_n_permutations, max_n_tuning_permutations)
+        self.assertLessEqual(actual_n_permutations, max_n_permutations)
 
         # Verify that the operation can be initialized with each permutation.
         for arg_values in itertools.product(*values_list):
