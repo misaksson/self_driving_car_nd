@@ -27,8 +27,10 @@ class TrafficSignTrainer(object):
         self.prev_nn_graph_str_repr = ""  # Used to create diff printout with current graph
 
     def train(self):
-        for nn_graph, self.x, self.y in self.nn_generator.generate():
+        for idx, (nn_graph, self.x, self.y) in enumerate(self.nn_generator.generate()):
             self._setup_training(nn_graph)
+            print(f"\nTraining ({idx + 1}/{self.nn_generator.get_n_trainings()}): {self.current_training_unique_id}")
+            self._print_diff(nn_graph)
             self._run_training(nn_graph)
 
     def _setup_training(self, nn_graph):
@@ -53,9 +55,6 @@ class TrafficSignTrainer(object):
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-
-            print(f"\nTraining id {self.current_training_unique_id}")
-            self._print_diff(nn_graph)
             pbar = tqdm(range(self.epochs))
             self._timer_start()
             for i in pbar:
@@ -71,7 +70,7 @@ class TrafficSignTrainer(object):
                     highest_accuracy = accuracy
                     highest_accuracy_epoch = i
 
-                pbar.set_description(f"Accuracy {accuracy:.03}({highest_accuracy:.03}@{highest_accuracy_epoch})")
+                pbar.set_description(f"Accuracy {accuracy:.03} ({highest_accuracy:.03}@{highest_accuracy_epoch})")
             self._timer_stop()
 
             # Todo: save session when accuracy is highest
@@ -140,11 +139,9 @@ class TrafficSignTrainer(object):
         print(output_str)
         self.prev_nn_graph_str_repr = current_str
 
-# Example:
-# The TrafficSignTrainer with NeuralNetworkGenerator configured to produce variants of the LeNet graph described in
-# the lesson.
 
 if __name__ == '__main__':
+    # Example: Run the TrafficSignTrainer with variants of the LeNet graph.
     training_list = [
         Conv2dOperation.get_training_options(max_n_permutations=3, layer_size=0.0),
         MaxPoolOperation.get_training_options(max_n_permutations=1),
