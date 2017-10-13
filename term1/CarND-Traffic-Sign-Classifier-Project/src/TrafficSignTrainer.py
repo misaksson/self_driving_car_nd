@@ -114,16 +114,16 @@ class TrafficSignTrainer(object):
     def _calc_training_stat(self):
         """Calculate some additional statistics based on the confusion matrix"""
 
-        # Num expected detections per class (sum columns)
-        expected = self.training_stat['confusion_matrix'].sum(axis=0)
+        # Num predicted detections per class (sum cols)
+        predicted = self.training_stat['confusion_matrix'].sum(axis=0)
 
-        # Num actual detections per class (sum rows)
-        actual = self.training_stat['confusion_matrix'].sum(axis=1)
+        # Num expected detections per class (sum rows)
+        expected = self.training_stat['confusion_matrix'].sum(axis=1)
 
         # Calculate metrics per class/label
         true_positives = np.diag(self.training_stat['confusion_matrix'])
         false_positives = expected - true_positives
-        false_negatives = actual - true_positives
+        false_negatives = predicted - true_positives
         true_negatives = (expected.sum() - true_positives - false_positives - false_negatives)
 
         self.training_stat['precision'] = true_positives / (true_positives + false_positives)
@@ -131,6 +131,8 @@ class TrafficSignTrainer(object):
         self.training_stat['specificity'] = true_negatives / (true_negatives + false_positives)
         self.training_stat['f1_score'] = (2. * ((self.training_stat['precision'] * self.training_stat['sensitivity']) /
                                                 (self.training_stat['precision'] + self.training_stat['sensitivity'])))
+        assert(np.allclose([true_positives.sum() / (true_positives.sum() + false_positives.sum())],
+                           [self.training_stat['accuracy']]))
 
     def _write_training_stat_to_log(self):
         with open(self.log_file_path, 'a') as f:
@@ -148,14 +150,15 @@ class TrafficSignTrainer(object):
         sign_names = pd.read_csv(os.path.join(self.project_file_path, "signnames.csv"))
         df = pd.DataFrame(self.training_stat['confusion_matrix'])
         df.columns = sign_names['SignName']
-        df.insert(0, column='', value=sign_names['SignName'])
+        df['TP + FN'] = df.sum(axis=1)
+        df.loc[df.index[-1] + 1] = df.sum(axis=0)
+        df.insert(0, column='', value=np.concatenate((sign_names['SignName'].values, ['TP + FP'])))
         df.to_csv(os.path.join(self.training_file_path, "confusion_matrix.csv"), index=False)
 
         # Write detailed training statistics to its own file
         detailed_stat = dict((k, self.training_stat[k]) for k in ('precision', 'sensitivity',
                                                                   'specificity', 'f1_score'))
         df = pd.DataFrame.from_dict(detailed_stat, orient='index')
-        print(df)
         df.columns = '' + sign_names['SignName']
         df.to_csv(os.path.join(self.training_file_path, "detailed_stat.csv"))
 
