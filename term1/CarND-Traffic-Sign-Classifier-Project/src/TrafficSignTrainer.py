@@ -31,9 +31,10 @@ class TrafficSignTrainer(object):
     def train(self):
         for idx, (nn_graph, self.x, self.y) in enumerate(self.nn_generator.generate()):
             self._setup_training(nn_graph)
-            print(f"\nTraining ({idx + 1}/{self.nn_generator.get_n_trainings()}): {self.current_training_unique_id}")
+            print(f"\nTraining ({idx + 1}/{self.nn_generator.get_n_trainings()}): {self.training_unique_id}")
             self._print_diff(nn_graph)
             self._run_training(nn_graph)
+            self._calc_training_stat()
             self._write_training_stat_to_log()
 
     def _setup_training(self, nn_graph):
@@ -65,10 +66,9 @@ class TrafficSignTrainer(object):
             feed_dict = nn_graph.get_feed_dict(training=False)
             feed_dict.update({self.x: self.ts_data.X_valid[offset:offset + self.batch_size],
                               self.y: self.ts_data.y_valid[offset:offset + self.batch_size]})
-            accuracy = sess.run(self.accuracy_operation, feed_dict=feed_dict)
+            accuracy, confusion_matrix = sess.run([self.accuracy_operation, self.confusion_matrix_operation],
+                                                  feed_dict=feed_dict)
             total_accuracy += (accuracy * len(feed_dict[self.x]))
-
-            confusion_matrix = sess.run(self.confusion_matrix_operation, feed_dict=feed_dict)
             total_confusion_matrix += confusion_matrix
 
         return total_accuracy / self.ts_data.n_valid, total_confusion_matrix
@@ -92,7 +92,7 @@ class TrafficSignTrainer(object):
                     self.training_stat['accuracy'] = accuracy
                     self.training_stat['epochs'] = i
                     self.training_stat['confusion_matrix'] = confusion_matrix
-                    tf.train.Saver().save(sess, os.path.join(self.current_training_file_path, "tensor_flow_model"))
+                    tf.train.Saver().save(sess, os.path.join(self.training_file_path, "tensor_flow_model"))
 
                 pbar.set_description(f"Accuracy {accuracy:.03} ({self.training_stat['accuracy']:.03}@"
                                      f"{self.training_stat['epochs']})")
@@ -108,30 +108,66 @@ class TrafficSignTrainer(object):
 
     def _write_header_to_log(self):
         with open(self.log_file_path, 'w') as f:
-            print(f"training-id,wall-time,cpu-time,epoch,accuracy", file=f)
+            print(("training-id,wall-time,cpu-time,epoch,accuracy,lowest precision,lowest sensitivity,"
+                   "lowest specificity,lowest f1 score"), file=f)
+
+    def _calc_training_stat(self):
+        """Calculate some additional statistics based on the confusion matrix"""
+
+        # Num expected detections per class (sum columns)
+        expected = self.training_stat['confusion_matrix'].sum(axis=0)
+
+        # Num actual detections per class (sum rows)
+        actual = self.training_stat['confusion_matrix'].sum(axis=1)
+
+        # Calculate metrics per class/label
+        true_positives = np.diag(self.training_stat['confusion_matrix'])
+        false_positives = expected - true_positives
+        false_negatives = actual - true_positives
+        true_negatives = (expected.sum() - true_positives - false_positives - false_negatives)
+
+        self.training_stat['precision'] = true_positives / (true_positives + false_positives)
+        self.training_stat['sensitivity'] = true_positives / (true_positives + false_negatives)
+        self.training_stat['specificity'] = true_negatives / (true_negatives + false_positives)
+        self.training_stat['f1_score'] = (2. * ((self.training_stat['precision'] * self.training_stat['sensitivity']) /
+                                                (self.training_stat['precision'] + self.training_stat['sensitivity'])))
 
     def _write_training_stat_to_log(self):
         with open(self.log_file_path, 'a') as f:
-            print((f"{self.current_training_unique_id},{self.training_stat['wall_time']:.01f},"
-                   f"{self.training_stat['cpu_time']:.01f},{self.training_stat['epochs']},"
-                   f"{self.training_stat['accuracy']:.04f},"), file=f)
+            print((f"{self.training_unique_id},"
+                   f"{self.training_stat['wall_time']:.01f},"
+                   f"{self.training_stat['cpu_time']:.01f},"
+                   f"{self.training_stat['epochs']},"
+                   f"{self.training_stat['accuracy']:.04f},"
+                   f"{np.amin(self.training_stat['precision']):.04f},"
+                   f"{np.amin(self.training_stat['sensitivity']):.04f},"
+                   f"{np.amin(self.training_stat['specificity']):.04f},"
+                   f"{np.amin(self.training_stat['f1_score']):.04f},"), file=f)
 
-        # Write confusion matrix to it's own file.
+        # Write confusion matrix to its own file.
         sign_names = pd.read_csv(os.path.join(self.project_file_path, "signnames.csv"))
         df = pd.DataFrame(self.training_stat['confusion_matrix'])
         df.columns = sign_names['SignName']
         df.insert(0, column='', value=sign_names['SignName'])
-        df.to_csv(os.path.join(self.current_training_file_path, "confusion_matrix.csv"), index=False)
+        df.to_csv(os.path.join(self.training_file_path, "confusion_matrix.csv"), index=False)
+
+        # Write detailed training statistics to its own file
+        detailed_stat = dict((k, self.training_stat[k]) for k in ('precision', 'sensitivity',
+                                                                  'specificity', 'f1_score'))
+        df = pd.DataFrame.from_dict(detailed_stat, orient='index')
+        print(df)
+        df.columns = '' + sign_names['SignName']
+        df.to_csv(os.path.join(self.training_file_path, "detailed_stat.csv"))
 
     def _create_training_file_path(self):
         from datetime import datetime
-        self.current_training_unique_id = datetime.now().strftime('%Y%m%d-%H%M%S')
-        self.current_training_file_path = os.path.join(self.output_file_path, self.current_training_unique_id)
-        assert(os.path.exists(self.current_training_file_path) is False)
-        os.makedirs(self.current_training_file_path)
+        self.training_unique_id = datetime.now().strftime('%Y%m%d-%H%M%S')
+        self.training_file_path = os.path.join(self.output_file_path, self.training_unique_id)
+        assert(os.path.exists(self.training_file_path) is False)
+        os.makedirs(self.training_file_path)
 
     def _write_graph_to_file(self, nn_graph):
-        with open(os.path.join(self.current_training_file_path, "NeuralNetworkOperations.txt"), 'w') as f:
+        with open(os.path.join(self.training_file_path, "NeuralNetworkOperations.txt"), 'w') as f:
             print(nn_graph, file=f)
 
     def _print_diff(self, nn_graph):
