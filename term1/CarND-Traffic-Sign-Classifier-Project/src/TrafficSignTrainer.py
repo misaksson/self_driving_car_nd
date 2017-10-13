@@ -69,12 +69,10 @@ class TrafficSignTrainer(object):
                 if accuracy > highest_accuracy:
                     highest_accuracy = accuracy
                     highest_accuracy_epoch = i
+                    tf.train.Saver().save(sess, os.path.join(self.current_training_file_path, "tensor_flow_model"))
 
                 pbar.set_description(f"Accuracy {accuracy:.03} ({highest_accuracy:.03}@{highest_accuracy_epoch})")
             self._timer_stop()
-
-            # Todo: save session when accuracy is highest
-            tf.train.Saver().save(sess, os.path.join(self.current_training_file_path, "tensor_flow_model"))
             self._write_result_to_log(highest_accuracy, highest_accuracy_epoch)
 
     def _evaluate(self, nn_graph):
