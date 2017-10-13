@@ -2,6 +2,7 @@ import tensorflow as tf
 import os.path
 import difflib
 import time
+import pandas as pd
 
 import TrafficSignData
 from NeuralNetwork import *
@@ -11,14 +12,15 @@ from NeuralNetworkGenerator import NeuralNetworkGenerator
 
 class TrafficSignTrainer(object):
     def __init__(self, training_list, epochs=10, batch_size=128, learning_rate=0.0005,
-                 l2_regulizer_beta=0.001, output_file_path="./saved_models/"):
+                 l2_regulizer_beta=0.001, project_file_path="./"):
         self.ts_data = TrafficSignData.TrafficSignData()
         self.nn_generator = NeuralNetworkGenerator(self.ts_data.n_classes, training_list, self.ts_data.image_shape)
         self.epochs = epochs
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.l2_regulizer_beta = l2_regulizer_beta
-        self.output_file_path = output_file_path
+        self.project_file_path = project_file_path
+        self.output_file_path = os.path.join(project_file_path, "./training_output/")
         if not os.path.exists(self.output_file_path):
             os.makedirs(self.output_file_path)
         self.log_file_path = os.path.join(self.output_file_path, "log_file.csv")
@@ -32,9 +34,10 @@ class TrafficSignTrainer(object):
             print(f"\nTraining ({idx + 1}/{self.nn_generator.get_n_trainings()}): {self.current_training_unique_id}")
             self._print_diff(nn_graph)
             self._run_training(nn_graph)
+            self._write_training_stat_to_log()
 
     def _setup_training(self, nn_graph):
-
+        self.training_stat = {'accuracy': -math.inf}
         self._create_training_file_path()
         self._write_graph_to_file(nn_graph)
         one_hot_y = tf.one_hot(self.y, self.ts_data.n_classes)
@@ -49,10 +52,29 @@ class TrafficSignTrainer(object):
         correct_prediction = tf.equal(tf.argmax(nn_graph.get_logits(), 1), tf.argmax(one_hot_y, 1))
         self.accuracy_operation = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+        self.confusion_matrix_operation = tf.confusion_matrix(tf.argmax(one_hot_y, 1),
+                                                              tf.argmax(nn_graph.get_logits(), 1),
+                                                              self.ts_data.n_classes)
+
+    def _evaluate(self, nn_graph):
+        total_accuracy = 0
+        total_confusion_matrix = np.zeros((self.ts_data.n_classes, self.ts_data.n_classes))
+        sess = tf.get_default_session()
+
+        for offset in range(0, self.ts_data.n_valid, self.batch_size):
+            feed_dict = nn_graph.get_feed_dict(training=False)
+            feed_dict.update({self.x: self.ts_data.X_valid[offset:offset + self.batch_size],
+                              self.y: self.ts_data.y_valid[offset:offset + self.batch_size]})
+            accuracy = sess.run(self.accuracy_operation, feed_dict=feed_dict)
+            total_accuracy += (accuracy * len(feed_dict[self.x]))
+
+            confusion_matrix = sess.run(self.confusion_matrix_operation, feed_dict=feed_dict)
+            total_confusion_matrix += confusion_matrix
+
+        return total_accuracy / self.ts_data.n_valid, total_confusion_matrix
+
     def _run_training(self, nn_graph):
         from tqdm import tqdm
-        highest_accuracy = -math.inf
-
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             pbar = tqdm(range(self.epochs))
@@ -65,44 +87,41 @@ class TrafficSignTrainer(object):
                                       self.y: self.ts_data.y_train[offset:(offset + self.batch_size)]})
                     sess.run(self.training_operation, feed_dict=feed_dict)
 
-                accuracy = self._evaluate(nn_graph)
-                if accuracy > highest_accuracy:
-                    highest_accuracy = accuracy
-                    highest_accuracy_epoch = i
+                accuracy, confusion_matrix = self._evaluate(nn_graph)
+                if accuracy > self.training_stat['accuracy']:
+                    self.training_stat['accuracy'] = accuracy
+                    self.training_stat['epochs'] = i
+                    self.training_stat['confusion_matrix'] = confusion_matrix
                     tf.train.Saver().save(sess, os.path.join(self.current_training_file_path, "tensor_flow_model"))
 
-                pbar.set_description(f"Accuracy {accuracy:.03} ({highest_accuracy:.03}@{highest_accuracy_epoch})")
+                pbar.set_description(f"Accuracy {accuracy:.03} ({self.training_stat['accuracy']:.03}@"
+                                     f"{self.training_stat['epochs']})")
             self._timer_stop()
-            self._write_result_to_log(highest_accuracy, highest_accuracy_epoch)
-
-    def _evaluate(self, nn_graph):
-        total_accuracy = 0
-        sess = tf.get_default_session()
-
-        for offset in range(0, self.ts_data.n_valid, self.batch_size):
-            feed_dict = nn_graph.get_feed_dict(training=False)
-            feed_dict.update({self.x: self.ts_data.X_valid[offset:offset + self.batch_size],
-                              self.y: self.ts_data.y_valid[offset:offset + self.batch_size]})
-            accuracy = sess.run(self.accuracy_operation, feed_dict=feed_dict)
-            total_accuracy += (accuracy * len(feed_dict[self.x]))
-        return total_accuracy / self.ts_data.n_valid
 
     def _timer_start(self):
         self.start_time = (time.time(), time.process_time())
 
     def _timer_stop(self):
         end_time = (time.time(), time.process_time())
-        self.wall_time = end_time[0] - self.start_time[0]
-        self.cpu_time = end_time[1] - self.start_time[1]
+        self.training_stat['wall_time'] = end_time[0] - self.start_time[0]
+        self.training_stat['cpu_time'] = end_time[1] - self.start_time[1]
 
     def _write_header_to_log(self):
         with open(self.log_file_path, 'w') as f:
-            print(f"training-id, wall-time, cpu-time, highest accuracy, highest accuracy epoch,", file=f)
+            print(f"training-id,wall-time,cpu-time,epoch,accuracy", file=f)
 
-    def _write_result_to_log(self, highest_accuracy, highest_accuracy_epoch):
+    def _write_training_stat_to_log(self):
         with open(self.log_file_path, 'a') as f:
-            print((f"{self.current_training_unique_id}, {self.wall_time:.01f}, {self.cpu_time:.01f}, "
-                   f"{highest_accuracy:.04f}, {highest_accuracy_epoch},"), file=f)
+            print((f"{self.current_training_unique_id},{self.training_stat['wall_time']:.01f},"
+                   f"{self.training_stat['cpu_time']:.01f},{self.training_stat['epochs']},"
+                   f"{self.training_stat['accuracy']:.04f},"), file=f)
+
+        # Write confusion matrix to it's own file.
+        sign_names = pd.read_csv(os.path.join(self.project_file_path, "signnames.csv"))
+        df = pd.DataFrame(self.training_stat['confusion_matrix'])
+        df.columns = sign_names['SignName']
+        df.insert(0, column='', value=sign_names['SignName'])
+        df.to_csv(os.path.join(self.current_training_file_path, "confusion_matrix.csv"), index=False)
 
     def _create_training_file_path(self):
         from datetime import datetime
