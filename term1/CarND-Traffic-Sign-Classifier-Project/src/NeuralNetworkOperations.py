@@ -254,7 +254,7 @@ class MaxPoolOperation(NeuralNetworkOperation):
         self.ksize = ksize
         self.strides = strides
         self.str_repr = (f"{type(self).__name__}(name=\"{name}\", input_shape={input_shape}, ksize={ksize}, "
-                         f"strides={strides}")
+                         f"strides={strides})")
 
     def get_operation(self, x):
         x = tf.nn.max_pool(x, ksize=self.ksize, strides=self.strides, padding='VALID')
