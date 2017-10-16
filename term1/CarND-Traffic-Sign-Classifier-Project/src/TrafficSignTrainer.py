@@ -112,7 +112,7 @@ class TrafficSignTrainer(object):
     def _write_header_to_log(self):
         with open(self.log_file_path, 'w') as f:
             print(("training-id,wall-time,cpu-time,epoch,accuracy,lowest precision,lowest sensitivity,"
-                   "lowest specificity,lowest f1 score"), file=f)
+                   "lowest specificity,lowest f1 score,"), file=f)
 
     def _calc_training_stat(self):
         """Calculate some additional statistics based on the confusion matrix"""
