@@ -11,6 +11,8 @@ class TrafficSignData(object):
             self._show_examples()
         self._extract_properties()
         self._normalize_input_data()
+        self._balance_training_data()
+        self._extract_properties()  # Repeat due to updated data.
 
     def _load_data(self, path):
         from os.path import join
@@ -50,8 +52,14 @@ class TrafficSignData(object):
         # Shape of an traffic sign image
         self.image_shape = self.X_train[0].shape
 
+        # Find list of all labels and count of each label in the training set
+        labels, _, label_counts = np.unique(self.y_train, return_index=True, return_counts=True)
+
         # How many unique classes/labels there are in the dataset.
-        self.n_classes = len(np.unique(self.y_train))
+        self.n_classes = len(labels)
+
+        # Weights punishing classes with many training examples.
+        self.class_weights = np.log(self.n_train / np.max((label_counts, np.ones(label_counts.shape)), axis=0)) + 1.
 
         if self.demo_mode:
             print("Number of training examples =", self.n_train)
@@ -105,6 +113,37 @@ class TrafficSignData(object):
             result.append(np.divide(np.subtract(image, 128.0), 128.0))
 
         return np.array(result)
+
+    def _balance_training_data(self):
+        """Balance training data by oversampling.
+
+        Replicate images from classes with few examples such that all gets the same count.
+        """
+        sorting_indices = np.argsort(self.y_train)
+        self.y_train = self.y_train[sorting_indices]
+        self.X_train = self.X_train[sorting_indices]
+
+        labels, label_indices, label_counts = np.unique(self.y_train, return_index=True, return_counts=True)
+        max_count = np.max(label_counts).astype(np.float64)
+        balanced_y_train = np.array([])
+        balanced_X_train = np.empty((1, 32, 32, 3))
+        for label, idx, count in zip(labels, label_indices, label_counts):
+            # labels
+            tiled = np.tile(self.y_train[idx: idx + count], np.ceil(max_count / count).astype(np.int))
+            tiled = tiled[:max_count.astype(np.int)]
+            balanced_y_train = np.concatenate((balanced_y_train, tiled))
+
+            # images
+            tiled = np.tile(self.X_train[idx: idx + count, :, :, :],
+                            (np.ceil(max_count / count).astype(np.int), 1, 1, 1))
+            tiled = tiled[:max_count.astype(np.int), :, :, :]
+            balanced_X_train = np.concatenate((balanced_X_train, tiled), axis=0)
+
+        self.y_train = balanced_y_train
+        self.X_train = balanced_X_train[1:, :, :, :]
+        if self.demo_mode:
+            # Show that there now is an equal number of images per class.
+            self._show_examples()
 
     def shuffle_training_data(self):
         from sklearn.utils import shuffle

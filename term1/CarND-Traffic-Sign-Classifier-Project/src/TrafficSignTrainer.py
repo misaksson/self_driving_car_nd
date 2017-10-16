@@ -42,6 +42,9 @@ class TrafficSignTrainer(object):
         self._create_training_file_path()
         self._write_graph_to_file(nn_graph)
         one_hot_y = tf.one_hot(self.y, self.ts_data.n_classes)
+#        class_weights = tf.constant(self.ts_data.class_weights.astype(np.float32))
+#        weighted_logits = tf.multiply(nn_graph.get_logits(), class_weights)
+#        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_y, logits=weighted_logits)
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_y, logits=nn_graph.get_logits())
 
         # Loss function using L2 Regularization
