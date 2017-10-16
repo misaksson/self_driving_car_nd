@@ -197,19 +197,3 @@ class TrafficSignTrainer(object):
 
         print(output_str)
         self.prev_nn_graph_str_repr = current_str
-
-
-if __name__ == '__main__':
-    # Example: Run the TrafficSignTrainer with variants of the LeNet graph.
-    training_list = [
-        Conv2dOperation.get_training_options(max_n_permutations=3, layer_size=0.0),
-        MaxPoolOperation.get_training_options(max_n_permutations=1),
-        Conv2dOperation.get_training_options(max_n_permutations=3, layer_size=0.2),
-        MaxPoolOperation.get_training_options(max_n_permutations=1),
-        DenseOperation.get_training_options(max_n_permutations=3, layer_size=0.05),
-        DenseOperation.get_training_options(max_n_permutations=3, layer_size=0.01),
-        DropoutOperation.get_training_options(max_n_permutations=1)
-    ]
-
-    trainer = TrafficSignTrainer(training_list=training_list, l2_regulizer_beta=0.0)
-    trainer.train()
