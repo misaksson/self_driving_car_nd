@@ -63,6 +63,7 @@ class TrafficSignData(object):
 
         if self.demo_mode:
             print("Number of training examples =", self.n_train)
+            print("Number of validation examples =", self.n_valid)
             print("Number of testing examples =", self.n_test)
             print("Image data shape =", self.image_shape)
             print("Number of classes =", self.n_classes)
