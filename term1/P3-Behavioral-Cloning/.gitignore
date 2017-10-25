@@ -1,0 +1,5 @@
+data/*
+simulator/*
+training_output/*
+model/tensor_flow_model*
+model/checkpoint
