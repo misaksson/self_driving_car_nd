@@ -12,27 +12,78 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 # command line flags
-flags.DEFINE_string('driving_log_dir', './data/data/', "Path to simulator driving log directory.")
+flags.DEFINE_string('driving_log_dir', './data/example_data/', "Path to simulator driving log directories.")
 flags.DEFINE_integer('epochs', 3, "Number of epochs to train")
 flags.DEFINE_integer('batch_size', 32, "Batch size")
 
 
-def load_driving_log():
-    driving_log_file = os.path.join(FLAGS.driving_log_dir, 'driving_log.csv')
-    assert(os.path.exists(driving_log_file))
+def load_driving_logs():
+    """Loads all logs available in driving_log_dir.
 
-    driving_log = []
-    with open(driving_log_file) as csvfile:
-        if csv.Sniffer.has_header:
-            reader = csv.DictReader(csvfile)
-        else:
-            reader = csv.DictReader(csvfile,
-                                    fieldnames=['center', 'left', 'right', 'steering', 'throttle', 'brake', 'speed'])
+    Returns:
+        Dictionary of logs, where directory names are used as keys.
+    """
+    assert(os.path.exists(FLAGS.driving_log_dir))
+    driving_logs = dict()
+    for (dir_path, dir_names, file_names) in os.walk(FLAGS.driving_log_dir):
+        if 'driving_log.csv' in file_names:
+            name, log = load_driving_log(dir_path)
+            driving_logs[name] = log
+    return driving_logs
 
+
+def load_driving_log(dir_path):
+    """Load driving log located in selected directory.
+
+    Returns:
+        name -- head of dir_path
+        log -- list of samples
+    """
+    file_path = os.path.join(dir_path, 'driving_log.csv')
+    assert(os.path.exists(file_path))
+    image_path = os.path.join(dir_path, 'IMG')
+    assert(os.path.exists(image_path))
+
+    _, name = os.path.split(dir_path)
+    print(f"Loading {name}")
+    log = []
+    with open(file_path) as csv_file:
+        reader = csv.DictReader(csv_file,
+                                fieldnames=['center', 'left', 'right', 'steering', 'throttle', 'brake', 'speed'])
         for line in reader:
-            driving_log.append(line)
+            log.append(fix_paths(line, image_path))
 
-    return driving_log
+    return name, log
+
+
+def fix_paths(csv_line, correct_path):
+    """Correct file paths in read log data.
+
+    The simulator outputs absolute paths to the log file, which becomes corrupt
+    when the log is moved to another directory.
+    """
+    _, file_name = os.path.split(csv_line['center'])
+    csv_line['center'] = os.path.join(correct_path, file_name)
+    _, file_name = os.path.split(csv_line['left'])
+    csv_line['left'] = os.path.join(correct_path, file_name)
+    _, file_name = os.path.split(csv_line['right'])
+    csv_line['right'] = os.path.join(correct_path, file_name)
+    return csv_line
+
+
+def combine_driving_logs(driving_logs):
+    """Combine several driving logs into one
+
+    Extracts a configurable number of samples from each log.
+
+    Arguments:
+        driving_logs -- Dictionary of logs, where directory names are used as keys.
+    """
+    combined_log = []
+    for name, log in driving_logs.items():
+        # For now use all available samples.
+        combined_log += log
+    return combined_log
 
 
 def batch_generator(samples):
@@ -45,9 +96,7 @@ def batch_generator(samples):
             images = []
             angles = []
             for batch_sample in batch_samples:
-                image_name = batch_sample['center'].split('/')[-1]
-                image_path = os.path.join(FLAGS.driving_log_dir, 'IMG', image_name)
-                center_image = cv2.imread(image_path)
+                center_image = cv2.imread(batch_sample['center'])
                 center_angle = float(batch_sample['steering'])
                 images.append(center_image)
                 angles.append(center_angle)
@@ -91,8 +140,9 @@ def define_model(input_shape=(160, 320, 3)):
 
 
 def main(_):
-    driving_log = load_driving_log()
-    train_samples, validation_samples = train_test_split(driving_log, test_size=0.2)
+    driving_logs = load_driving_logs()
+    combined_log = combine_driving_logs(driving_logs)
+    train_samples, validation_samples = train_test_split(combined_log, test_size=0.2)
 
     # compile and train the model using the generator function
     train_generator = batch_generator(train_samples)
