@@ -7,11 +7,14 @@ from keras.models import Sequential
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import tensorflow as tf
+from datetime import datetime
+import matplotlib.pyplot as plt
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 # command line flags
+flags.DEFINE_string('output_dir', './training_output/', "Output path for trained model and training information.")
 flags.DEFINE_string('driving_log_dir', './data/example_data/', "Path to simulator driving log directories.")
 flags.DEFINE_integer('epochs', 3, "Number of epochs to train")
 flags.DEFINE_integer('batch_size', 32, "Batch size")
@@ -139,6 +142,58 @@ def define_model(input_shape=(160, 320, 3)):
     return model
 
 
+def create_output_dir():
+    """Generate an output dir for this training
+
+    Current time-stamp is used to create a unique name for this training.
+
+    Returns:
+        Path to created directory
+    """
+    training_name = datetime.now().strftime('%Y%m%d-%H%M%S')
+    training_dir = os.path.join(FLAGS.output_dir, training_name)
+    assert(not os.path.exists(training_dir))
+    os.makedirs(training_dir)
+    print(f"Training output goes to {training_dir}")
+
+    return training_dir
+
+
+def plot_training_history_to_file(history_object, output_dir):
+    """Plot training history
+
+    Plot training and validation loss from each epoch
+
+    Arguments:
+        history_object -- provided by keras fit
+        output_dir -- the figure is output as file
+    """
+    plt.plot(history_object.history['loss'])
+    plt.plot(history_object.history['val_loss'])
+    plt.title('Mean Squared Error (MSE)')
+    plt.ylabel('MSE')
+    plt.xlabel('epoch')
+    plt.legend(['training', 'validation'], loc='upper right')
+    plt.savefig(os.path.join(output_dir, 'training_result.png'), bbox_inches='tight')
+
+
+def model_to_text_file(model, output_dir):
+    try:
+        with open(os.path.join(output_dir, 'model.txt'), 'w') as fid:
+            model.summary(print_fn=lambda x: fid.write(x + '\n'))
+    except TypeError:
+        # Model summary print_fn wasn't implemented until Keras 2.0.6.
+        print("Please update Keras library to >2.0.6 to get model summary written to file.")
+
+
+def output_result(model, history_object):
+    output_dir = create_output_dir()
+
+    model.save(os.path.join(output_dir, 'model.h5'))
+    plot_training_history_to_file(history_object, output_dir)
+    model_to_text_file(model, output_dir)
+
+
 def main(_):
     driving_logs = load_driving_logs()
     combined_log = combine_driving_logs(driving_logs)
@@ -154,10 +209,10 @@ def main(_):
 #                        steps_per_epoch=(len(train_samples) // FLAGS.epochs),
 #                        validation_data=validation_generator,
 #                        validation_steps=(len(validation_samples) // FLAGS.epochs))
-    model.fit_generator(train_generator, samples_per_epoch=len(train_samples), validation_data=validation_generator,
-                        nb_val_samples=len(validation_samples), nb_epoch=FLAGS.epochs)
-
-    model.save('model.h5')
+    history_object = model.fit_generator(train_generator, samples_per_epoch=len(train_samples),
+                                         validation_data=validation_generator, nb_val_samples=len(validation_samples),
+                                         nb_epoch=FLAGS.epochs, verbose=1)
+    output_result(model, history_object)
 
 
 if __name__ == '__main__':
