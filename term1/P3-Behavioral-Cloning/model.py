@@ -9,6 +9,7 @@ from sklearn.utils import shuffle
 import tensorflow as tf
 from datetime import datetime
 import matplotlib.pyplot as plt
+from collections import namedtuple
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -18,6 +19,7 @@ flags.DEFINE_string('output_dir', './training_output/', "Output path for trained
 flags.DEFINE_string('driving_log_dir', './data/example_data/', "Path to simulator driving log directories.")
 flags.DEFINE_integer('epochs', 3, "Number of epochs to train")
 flags.DEFINE_integer('batch_size', 32, "Batch size")
+flags.DEFINE_float('steering_offset', 0.02, "Steering offset for left and right camera images.")
 
 
 def load_driving_logs():
@@ -77,32 +79,44 @@ def fix_paths(csv_line, correct_path):
 def combine_driving_logs(driving_logs):
     """Combine several driving logs into one
 
-    Extracts a configurable number of samples from each log.
+    Extracts a configurable number of entries from each log.
 
     Arguments:
         driving_logs -- Dictionary of logs, where directory names are used as keys.
     """
     combined_log = []
     for name, log in driving_logs.items():
-        # For now use all available samples.
+        # For now use all available entries.
         combined_log += log
     return combined_log
 
 
+Sample = namedtuple('Sample', ['image_path', 'steering'])
+
+
+def log_to_samples(log):
+    samples = []
+    for log_entry in log:
+        samples.append(Sample(image_path=log_entry['center'],
+                              steering=float(log_entry['steering'])))
+        samples.append(Sample(image_path=log_entry['left'],
+                              steering=float(log_entry['steering']) + FLAGS.steering_offset))
+        samples.append(Sample(image_path=log_entry['right'],
+                              steering=float(log_entry['steering']) - FLAGS.steering_offset))
+    return samples
+
+
 def batch_generator(samples):
-    num_samples = len(samples)
     while 1:  # Loop forever so the generator never terminates
         shuffle(samples)
-        for offset in range(0, num_samples, FLAGS.batch_size):
+        for offset in range(0, len(samples), FLAGS.batch_size):
             batch_samples = samples[offset:offset + FLAGS.batch_size]
 
             images = []
             angles = []
             for batch_sample in batch_samples:
-                center_image = cv2.imread(batch_sample['center'])
-                center_angle = float(batch_sample['steering'])
-                images.append(center_image)
-                angles.append(center_angle)
+                images.append(cv2.imread(batch_sample.image_path))
+                angles.append(batch_sample.steering)
 
             X_train = np.array(images)
             y_train = np.array(angles)
@@ -185,6 +199,11 @@ def model_to_text_file(model, output_dir):
         # Model summary print_fn wasn't implemented until Keras 2.0.6.
         print("Please update Keras library to >2.0.6 to get model summary written to file.")
 
+    with open(os.path.join(output_dir, 'model.txt'), 'a') as fid:
+        print("\nArguments:", file=fid)
+        for key, value in FLAGS.__flags.items():
+            print(key, value, file=fid)
+
 
 def output_result(model, history_object):
     output_dir = create_output_dir()
@@ -197,18 +216,16 @@ def output_result(model, history_object):
 def main(_):
     driving_logs = load_driving_logs()
     combined_log = combine_driving_logs(driving_logs)
-    train_samples, validation_samples = train_test_split(combined_log, test_size=0.2)
+    train_log, validation_log = train_test_split(combined_log, test_size=0.2)
 
-    # compile and train the model using the generator function
+    train_samples = log_to_samples(train_log)
+    validation_samples = log_to_samples(validation_log)
+
     train_generator = batch_generator(train_samples)
     validation_generator = batch_generator(validation_samples)
 
     model = define_model()
     model.compile(loss='mse', optimizer='adam')
-#    model.fit_generator(train_generator, epochs=FLAGS.epochs,
-#                        steps_per_epoch=(len(train_samples) // FLAGS.epochs),
-#                        validation_data=validation_generator,
-#                        validation_steps=(len(validation_samples) // FLAGS.epochs))
     history_object = model.fit_generator(train_generator, samples_per_epoch=len(train_samples),
                                          validation_data=validation_generator, nb_val_samples=len(validation_samples),
                                          nb_epoch=FLAGS.epochs, verbose=1)
