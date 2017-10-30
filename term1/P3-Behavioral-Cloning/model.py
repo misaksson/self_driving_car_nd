@@ -21,6 +21,8 @@ flags.DEFINE_string('driving_log_dir', './data/example_data/', "Path to simulato
 flags.DEFINE_integer('epochs', 3, "Number of epochs to train")
 flags.DEFINE_integer('batch_size', 32, "Batch size")
 flags.DEFINE_float('steering_offset', 0.02, "Steering offset for left and right camera images.")
+flags.DEFINE_float('sharp_turn_threshold', 0.05, ("A steering value greater than this during normal driving is",
+                                                  "assumed to be in a sharp curve."))
 
 
 def load_driving_logs():
@@ -77,33 +79,37 @@ def fix_paths(csv_line, correct_path):
     return csv_line
 
 
-def combine_driving_logs(driving_logs):
-    """Combine several driving logs into one
+Sample = namedtuple('Sample', ['image_path', 'steering'])
 
-    Extracts a configurable number of entries from each log.
+
+def driving_logs_to_samples(driving_logs):
+    """Combine several driving logs into one list of samples
 
     Arguments:
         driving_logs -- Dictionary of logs, where directory names are used as keys.
     """
-    combined_log = []
+    samples = []
     for name, log in driving_logs.items():
-        # For now use all available entries.
-        combined_log += log
-    return combined_log
+        # Use all available log entries.
+        samples += log_to_samples(log, name)
+
+    return samples
 
 
-Sample = namedtuple('Sample', ['image_path', 'steering'])
-
-
-def log_to_samples(log):
+def log_to_samples(log, name):
     samples = []
     for log_entry in log:
+        steering = float(log_entry['steering'])
         samples.append(Sample(image_path=log_entry['center'],
-                              steering=float(log_entry['steering'])))
-        samples.append(Sample(image_path=log_entry['left'],
-                              steering=float(log_entry['steering']) + FLAGS.steering_offset))
-        samples.append(Sample(image_path=log_entry['right'],
-                              steering=float(log_entry['steering']) - FLAGS.steering_offset))
+                              steering=steering))
+
+        # Only use left and right camera to stabilize when going fairly straight during normal driving.
+        if (name in ['normal_driving', 'reversed_driving'] and
+                abs(steering) < FLAGS.sharp_turn_threshold):
+            samples.append(Sample(image_path=log_entry['left'],
+                                  steering=steering + FLAGS.steering_offset))
+            samples.append(Sample(image_path=log_entry['right'],
+                                  steering=steering - FLAGS.steering_offset))
     return samples
 
 
@@ -222,11 +228,8 @@ def output_result(output_path, model, history_object):
 def main(_):
     output_path = create_output_dir()
     driving_logs = load_driving_logs()
-    combined_log = combine_driving_logs(driving_logs)
-    train_log, validation_log = train_test_split(combined_log, test_size=0.2)
-
-    train_samples = log_to_samples(train_log)
-    validation_samples = log_to_samples(validation_log)
+    samples = driving_logs_to_samples(driving_logs)
+    train_samples, validation_samples = train_test_split(samples, test_size=0.2)
 
     train_generator = batch_generator(train_samples)
     validation_generator = batch_generator(validation_samples)
