@@ -317,9 +317,11 @@ def main(_):
     model.compile(loss='mse', optimizer='adam')
 
     callbacks_list = setup_callbacks_list(output_path)
-    history_object = model.fit_generator(train_generator, samples_per_epoch=len(train_samples),
-                                         validation_data=validation_generator, nb_val_samples=len(validation_samples),
-                                         nb_epoch=FLAGS.epochs, callbacks=callbacks_list, verbose=1)
+    history_object = model.fit_generator(train_generator, epochs=FLAGS.epochs,
+                                         steps_per_epoch=(len(train_samples) // FLAGS.batch_size),
+                                         validation_data=validation_generator,
+                                         validation_steps=(len(validation_samples) // FLAGS.batch_size),
+                                         callbacks=callbacks_list, verbose=1)
     output_result(output_path, model, history_object)
 
 
