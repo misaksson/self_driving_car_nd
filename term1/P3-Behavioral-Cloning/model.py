@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from keras.layers import Lambda, Cropping2D, Conv2D, Flatten, Dense
 from keras.models import Sequential
+from keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import tensorflow as tf
@@ -173,6 +174,13 @@ def create_output_dir():
     return training_dir
 
 
+def setup_callbacks_list(output_path):
+    """Setup a list of training callbacks"""
+    file_path = os.path.join(output_path, "weights-improvement-{epoch:02d}-{val_loss:.5f}.hdf5")
+    checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
+    return [checkpoint]  # Currently only one callback
+
+
 def plot_training_history_to_file(history_object, output_dir):
     """Plot training history
 
@@ -205,15 +213,14 @@ def model_to_text_file(model, output_dir):
             print(key, value, file=fid)
 
 
-def output_result(model, history_object):
-    output_dir = create_output_dir()
-
-    model.save(os.path.join(output_dir, 'model.h5'))
-    plot_training_history_to_file(history_object, output_dir)
-    model_to_text_file(model, output_dir)
+def output_result(output_path, model, history_object):
+    model.save(os.path.join(output_path, 'model.h5'))
+    plot_training_history_to_file(history_object, output_path)
+    model_to_text_file(model, output_path)
 
 
 def main(_):
+    output_path = create_output_dir()
     driving_logs = load_driving_logs()
     combined_log = combine_driving_logs(driving_logs)
     train_log, validation_log = train_test_split(combined_log, test_size=0.2)
@@ -226,10 +233,12 @@ def main(_):
 
     model = define_model()
     model.compile(loss='mse', optimizer='adam')
+
+    callbacks_list = setup_callbacks_list(output_path)
     history_object = model.fit_generator(train_generator, samples_per_epoch=len(train_samples),
                                          validation_data=validation_generator, nb_val_samples=len(validation_samples),
-                                         nb_epoch=FLAGS.epochs, verbose=1)
-    output_result(model, history_object)
+                                         nb_epoch=FLAGS.epochs, callbacks=callbacks_list, verbose=1)
+    output_result(output_path, model, history_object)
 
 
 if __name__ == '__main__':
