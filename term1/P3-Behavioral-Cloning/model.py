@@ -1,4 +1,5 @@
 import os
+import sys
 import csv
 import cv2
 import numpy as np
@@ -11,6 +12,7 @@ import tensorflow as tf
 from datetime import datetime
 import matplotlib.pyplot as plt
 from collections import namedtuple
+import enum
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -25,6 +27,19 @@ flags.DEFINE_float('sharp_turn_threshold', 0.05, ("A steering value greater than
                                                   "assumed to be in a sharp curve."))
 
 
+class SequenceType(enum.Enum):
+    NORMAL = 1,
+    OTHER_DIRECTION = 2,
+    RECOVERY_ACTION = 3,
+    TIGHT_CURVE = 4,
+
+
+class CamType(enum.Enum):
+    CENTER = 1,
+    LEFT = 2,
+    RIGHT = 3,
+
+
 def load_driving_logs():
     """Loads all logs available in driving_log_dir.
 
@@ -35,8 +50,8 @@ def load_driving_logs():
     driving_logs = dict()
     for (dir_path, dir_names, file_names) in os.walk(FLAGS.driving_log_dir):
         if 'driving_log.csv' in file_names:
-            name, log = load_driving_log(dir_path)
-            driving_logs[name] = log
+            sequence_type, log = load_driving_log(dir_path)
+            driving_logs[sequence_type] = log
     return driving_logs
 
 
@@ -44,7 +59,7 @@ def load_driving_log(dir_path):
     """Load driving log located in selected directory.
 
     Returns:
-        name -- head of dir_path
+        sequence_type -- defined by dir name
         log -- list of samples
     """
     file_path = os.path.join(dir_path, 'driving_log.csv')
@@ -53,7 +68,8 @@ def load_driving_log(dir_path):
     assert(os.path.exists(image_path))
 
     _, name = os.path.split(dir_path)
-    print(f"Loading {name}")
+    sequence_type = dir_name_to_sequence_type(name)
+    print(f"Loading {name} as {sequence_type}")
     log = []
     with open(file_path) as csv_file:
         reader = csv.DictReader(csv_file,
@@ -61,7 +77,24 @@ def load_driving_log(dir_path):
         for line in reader:
             log.append(fix_paths(line, image_path))
 
-    return name, log
+    return sequence_type, log
+
+
+def dir_name_to_sequence_type(name):
+    # Map directory names to SequenceType
+    sequence_type_lookup = {
+        'normal': SequenceType.NORMAL,
+        'other_direction': SequenceType.OTHER_DIRECTION,
+        'recovery': SequenceType.RECOVERY_ACTION,
+        'tight_curves': SequenceType.TIGHT_CURVE,
+    }
+    try:
+        sequence_type = sequence_type_lookup[name]
+    except KeyError:
+        print(f"Please name driving log directory {name} one of {list(sequence_type_lookup.keys())}")
+        sys.exit(1)
+
+    return sequence_type
 
 
 def fix_paths(csv_line, correct_path):
@@ -79,7 +112,7 @@ def fix_paths(csv_line, correct_path):
     return csv_line
 
 
-Sample = namedtuple('Sample', ['image_path', 'steering'])
+Sample = namedtuple('Sample', ['image_path', 'steering', 'sequence_type', 'cam_type'])
 
 
 def driving_logs_to_samples(driving_logs):
@@ -89,27 +122,72 @@ def driving_logs_to_samples(driving_logs):
         driving_logs -- Dictionary of logs, where directory names are used as keys.
     """
     samples = []
-    for name, log in driving_logs.items():
+    for sequence_type, log in driving_logs.items():
         # Use all available log entries.
-        samples += log_to_samples(log, name)
+        samples += log_to_samples(log, sequence_type)
 
     return samples
 
 
-def log_to_samples(log, name):
+def log_to_samples(log, sequence_type):
     samples = []
     for log_entry in log:
         steering = float(log_entry['steering'])
         samples.append(Sample(image_path=log_entry['center'],
-                              steering=steering))
+                              steering=steering,
+                              sequence_type=sequence_type,
+                              cam_type=CamType.CENTER))
+        samples.append(Sample(image_path=log_entry['left'],
+                              steering=steering,
+                              sequence_type=sequence_type,
+                              cam_type=CamType.LEFT))
+        samples.append(Sample(image_path=log_entry['right'],
+                              steering=steering,
+                              sequence_type=sequence_type,
+                              cam_type=CamType.RIGHT))
 
-        # Only use left and right camera to stabilize when going fairly straight during normal driving.
-        if (name in ['normal_driving', 'reversed_driving'] and
-                abs(steering) < FLAGS.sharp_turn_threshold):
-            samples.append(Sample(image_path=log_entry['left'],
-                                  steering=steering + FLAGS.steering_offset))
-            samples.append(Sample(image_path=log_entry['right'],
-                                  steering=steering - FLAGS.steering_offset))
+    return samples
+
+
+def filter_samples(samples):
+    """Remove samples causing worse result.
+
+    Arguments:
+        samples -- List of samples
+
+    Returns:
+        samples -- Filtered list of samples
+    """
+    # Use left and right camera only to stabilize when going fairly straight during normal driving.
+    samples = list(filter(lambda sample:
+                          (sample.cam_type is CamType.CENTER or
+                           (sample.sequence_type in [SequenceType.NORMAL, SequenceType.OTHER_DIRECTION] and
+                            abs(sample.steering) < FLAGS.sharp_turn_threshold)),
+                          samples))
+
+    return samples
+
+
+def adjust_steering(samples):
+    """Adjust steering angles
+
+    Apply a steering offset to left and right camera samples towards center.
+
+    Arguments:
+        samples -- List of samples to be adjusted.
+
+    Returns:
+        samples -- Adjusted list of samples
+    """
+    for i in range(len(samples)):
+        steering = samples[i].steering
+        if samples[i].cam_type is CamType.LEFT:
+            samples[i] = samples[i]._replace(steering=steering + FLAGS.steering_offset)
+        elif samples[i].cam_type is CamType.RIGHT:
+            samples[i] = samples[i]._replace(steering=steering - FLAGS.steering_offset)
+        else:
+            # Do nothing for center camera.
+            pass
     return samples
 
 
@@ -139,7 +217,6 @@ def define_model(input_shape=(160, 320, 3)):
     Returns:
         A Keras model
     """
-
     model = Sequential()
 
     # Preprocess incoming data, centered around zero with small standard deviation
@@ -220,7 +297,6 @@ def model_to_text_file(model, output_dir):
 
 
 def output_result(output_path, model, history_object):
-    model.save(os.path.join(output_path, 'model.h5'))
     plot_training_history_to_file(history_object, output_path)
     model_to_text_file(model, output_path)
 
@@ -229,6 +305,9 @@ def main(_):
     output_path = create_output_dir()
     driving_logs = load_driving_logs()
     samples = driving_logs_to_samples(driving_logs)
+    samples = filter_samples(samples)
+    samples = adjust_steering(samples)
+
     train_samples, validation_samples = train_test_split(samples, test_size=0.2)
 
     train_generator = batch_generator(train_samples)
