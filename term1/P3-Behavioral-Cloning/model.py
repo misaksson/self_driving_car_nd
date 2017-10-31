@@ -13,6 +13,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from collections import namedtuple
 import enum
+import itertools
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -112,7 +113,7 @@ def fix_paths(csv_line, correct_path):
     return csv_line
 
 
-Sample = namedtuple('Sample', ['image_path', 'steering', 'sequence_type', 'cam_type'])
+Sample = namedtuple('Sample', ['image_path', 'steering', 'sequence_type', 'cam_type', 'flip'])
 
 
 def driving_logs_to_samples(driving_logs):
@@ -123,7 +124,6 @@ def driving_logs_to_samples(driving_logs):
     """
     samples = []
     for sequence_type, log in driving_logs.items():
-        # Use all available log entries.
         samples += log_to_samples(log, sequence_type)
 
     return samples
@@ -132,19 +132,14 @@ def driving_logs_to_samples(driving_logs):
 def log_to_samples(log, sequence_type):
     samples = []
     for log_entry in log:
-        steering = float(log_entry['steering'])
-        samples.append(Sample(image_path=log_entry['center'],
-                              steering=steering,
-                              sequence_type=sequence_type,
-                              cam_type=CamType.CENTER))
-        samples.append(Sample(image_path=log_entry['left'],
-                              steering=steering,
-                              sequence_type=sequence_type,
-                              cam_type=CamType.LEFT))
-        samples.append(Sample(image_path=log_entry['right'],
-                              steering=steering,
-                              sequence_type=sequence_type,
-                              cam_type=CamType.RIGHT))
+        cam_variants = [[('center', CamType.CENTER), ('left', CamType.LEFT), ('right', CamType.RIGHT)]]
+        flip_variants = [[False, True]]
+        for cam, flip in itertools.product(*(cam_variants + flip_variants)):
+            samples.append(Sample(image_path=log_entry[cam[0]],
+                                  steering=float(log_entry['steering']),
+                                  sequence_type=sequence_type,
+                                  cam_type=cam[1],
+                                  flip=flip))
 
     return samples
 
@@ -199,9 +194,16 @@ def batch_generator(samples):
 
             images = []
             angles = []
-            for batch_sample in batch_samples:
-                images.append(cv2.imread(batch_sample.image_path))
-                angles.append(batch_sample.steering)
+            for sample in batch_samples:
+                image = cv2.imread(sample.image_path)
+                angle = sample.steering
+
+                if sample.flip:
+                    image = np.fliplr(image)
+                    angle = -angle
+
+                images.append(image)
+                angles.append(angle)
 
             X_train = np.array(images)
             y_train = np.array(angles)
