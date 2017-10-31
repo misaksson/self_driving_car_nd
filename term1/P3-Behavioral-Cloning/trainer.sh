@@ -1,0 +1,22 @@
+#!/bin/bash
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.000
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.006
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.010
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.014
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.018
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.020
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.021
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.022
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.023
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.024
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.025
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.026
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.027
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.028
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.029
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.030
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.031
+#python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.032
+python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.0235
+python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.0245
+python model.py --driving_log_dir ./data/my_data/ --epochs 20 --batch_size 32 --steering_offset 0.0255

@@ -22,7 +22,7 @@ flags.DEFINE_string('output_dir', './training_output/', "Output path for trained
 flags.DEFINE_string('driving_log_dir', './data/example_data/', "Path to simulator driving log directories.")
 flags.DEFINE_integer('epochs', 3, "Number of epochs to train")
 flags.DEFINE_integer('batch_size', 32, "Batch size")
-flags.DEFINE_float('steering_offset', 0.02, "Steering offset for left and right camera images.")
+flags.DEFINE_float('steering_offset', 0.0245, "Steering offset for left and right camera images.")
 flags.DEFINE_float('sharp_turn_threshold', 0.05, ("A steering value greater than this during normal driving is",
                                                   "assumed to be in a sharp curve."))
 
