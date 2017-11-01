@@ -29,10 +29,9 @@ flags.DEFINE_float('sharp_turn_threshold', 0.05, ("A steering value greater than
 
 
 class SequenceType(enum.Enum):
-    NORMAL = 1,
-    OTHER_DIRECTION = 2,
-    RECOVERY_ACTION = 3,
-    TIGHT_CURVE = 4,
+    NO_LANE = 1,
+    RIGHT_LANE = 2,
+    LEFT_LANE = 3,
 
 
 class CamType(enum.Enum):
@@ -52,7 +51,10 @@ def load_driving_logs():
     for (dir_path, dir_names, file_names) in os.walk(FLAGS.driving_log_dir):
         if 'driving_log.csv' in file_names:
             sequence_type, log = load_driving_log(dir_path)
-            driving_logs[sequence_type] = log
+            if sequence_type in driving_logs.keys():
+                driving_logs[sequence_type] += log
+            else:
+                driving_logs[sequence_type] = log
     return driving_logs
 
 
@@ -84,10 +86,17 @@ def load_driving_log(dir_path):
 def dir_name_to_sequence_type(name):
     # Map directory names to SequenceType
     sequence_type_lookup = {
-        'normal': SequenceType.NORMAL,
-        'other_direction': SequenceType.OTHER_DIRECTION,
-        'recovery': SequenceType.RECOVERY_ACTION,
-        'tight_curves': SequenceType.TIGHT_CURVE,
+        'no_lane_cw': SequenceType.NO_LANE,
+        'no_lane_ccw': SequenceType.NO_LANE,
+        'no_lane_ccw_recovery': SequenceType.NO_LANE,
+        'right_lane_cw': SequenceType.RIGHT_LANE,
+        'right_lane_ccw': SequenceType.RIGHT_LANE,
+        'right_lane_cw_recovery': SequenceType.RIGHT_LANE,
+        'right_lane_ccw_recovery': SequenceType.RIGHT_LANE,
+        'left_lane_cw': SequenceType.LEFT_LANE,
+        'left_lane_ccw': SequenceType.LEFT_LANE,
+        'left_lane_cw_recovery': SequenceType.LEFT_LANE,
+        'left_lane_ccw_recovery': SequenceType.LEFT_LANE,
     }
     try:
         sequence_type = sequence_type_lookup[name]
@@ -122,11 +131,13 @@ def driving_logs_to_samples(driving_logs):
     Arguments:
         driving_logs -- Dictionary of logs, where directory names are used as keys.
     """
-    samples = []
+    all_samples = []
     for sequence_type, log in driving_logs.items():
-        samples += log_to_samples(log, sequence_type)
+        samples = log_to_samples(log, sequence_type)
+        print(sequence_type, len(samples))
+        all_samples += samples
 
-    return samples
+    return all_samples
 
 
 def log_to_samples(log, sequence_type):
@@ -153,13 +164,24 @@ def filter_samples(samples):
     Returns:
         samples -- Filtered list of samples
     """
-    # Use left and right camera only to stabilize when going fairly straight during normal driving.
+
+    # Use left and right camera only to stabilize when going fairly straight.
     samples = list(filter(lambda sample:
                           (sample.cam_type is CamType.CENTER or
-                           (sample.sequence_type in [SequenceType.NORMAL, SequenceType.OTHER_DIRECTION] and
-                            abs(sample.steering) < FLAGS.sharp_turn_threshold)),
+                           abs(sample.steering) < FLAGS.sharp_turn_threshold),
                           samples))
 
+    # The model being trained shall drive in the right lane or just centered on the road when there is no lane. So left
+    # lane sequences are only to be used with image flip, and right lane sequences without flip. It would be logical to
+    # also flip the no-lane sequences to create additional data that generalize the model, but it appears like the
+    # texture on the bridge in track 1 confuses the model when using flipped images. And for now, there is no (other)
+    # easy way to separate this data.
+    samples = list(filter(lambda sample:
+                          ((sample.sequence_type is SequenceType.LEFT_LANE and
+                            sample.flip) or
+                           (sample.sequence_type in [SequenceType.RIGHT_LANE, SequenceType.NO_LANE] and
+                            not sample.flip)),
+                          samples))
     return samples
 
 
