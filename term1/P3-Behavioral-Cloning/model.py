@@ -3,7 +3,7 @@ import sys
 import csv
 import cv2
 import numpy as np
-from keras.layers import Lambda, Cropping2D, Conv2D, Flatten, Dense
+from keras.layers import Lambda, Cropping2D, Conv2D, Flatten, Dense, Dropout
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
@@ -257,8 +257,11 @@ def define_model(input_shape=(160, 320, 3)):
     model.add(Conv2D(64, (3, 3), strides=(1, 1), activation='relu'))
     model.add(Flatten())
     model.add(Dense(100, activation='relu'))
+    model.add(Dropout(rate=0.1))
     model.add(Dense(50, activation='relu'))
+    model.add(Dropout(rate=0.1))
     model.add(Dense(10, activation='relu'))
+    model.add(Dropout(rate=0.1))
     model.add(Dense(1, activation='tanh'))
 
     return model
