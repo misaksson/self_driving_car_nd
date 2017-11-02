@@ -195,6 +195,7 @@ def adjust_steering(samples):
         samples -- Adjusted list of samples
     """
     for i in range(len(samples)):
+        # Adjust for left and right cam
         steering = samples[i].steering
         if samples[i].cam_type is CamType.LEFT:
             samples[i] = samples[i]._replace(steering=steering + FLAGS.steering_offset)
@@ -203,7 +204,52 @@ def adjust_steering(samples):
         else:
             # Do nothing for center camera.
             pass
+
+        # Adjust for horizontal flip
+        steering = samples[i].steering
+        if samples[i].flip:
+            samples[i] = samples[i]._replace(steering=-steering)
+
     return samples
+
+
+def equalize_samples(samples):
+    """Over- and under-sample the training set to equalize the angles"""
+    angles = np.array([sample.steering for sample in samples[:]])
+    abs_max = np.max(np.abs(angles))
+    hist, bin_edges = np.histogram(angles, bins=21, range=(-abs_max, abs_max))
+    bin_edges[-1] += 0.00001
+
+    print(hist)
+    print(bin_edges)
+    print(hist.mean())
+    print(hist.min())
+    print(hist.max())
+
+    keep_rates = hist.mean() / hist
+    print(keep_rates)
+
+    samples_out = []
+    for sample in samples:
+        keep_rate = keep_rates[np.digitize(sample.steering, bin_edges) - 1]
+        if keep_rate < 1.0:
+            if keep_rate > np.random.random():
+                count = 1
+            else:
+                count = 0
+        else:
+            count = int(np.round(keep_rate * (np.random.random() + 0.5)))
+        for i in range(count):
+            samples_out.append(sample)
+
+    angles_out = np.array([sample.steering for sample in samples_out[:]])
+    plt.figure()
+    plt.hist(angles, bins=21, alpha=0.5, label='in')
+    plt.hist(angles_out, bins=21, alpha=0.5, label='out')
+    plt.legend(loc='upper right')
+    plt.show()
+
+    return samples_out
 
 
 def batch_generator(samples):
@@ -216,14 +262,11 @@ def batch_generator(samples):
             angles = []
             for sample in batch_samples:
                 image = cv2.imread(sample.image_path)
-                angle = sample.steering
-
                 if sample.flip:
                     image = np.fliplr(image)
-                    angle = -angle
 
                 images.append(image)
-                angles.append(angle)
+                angles.append(sample.steering)
 
             X_train = np.array(images)
             y_train = np.array(angles)
@@ -334,7 +377,7 @@ def main(_):
     samples = adjust_steering(samples)
 
     train_samples, validation_samples = train_test_split(samples, test_size=0.2)
-
+    train_samples = equalize_samples(train_samples)
     train_generator = batch_generator(train_samples)
     validation_generator = batch_generator(validation_samples)
 
