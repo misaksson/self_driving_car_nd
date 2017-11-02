@@ -172,12 +172,10 @@ def filter_samples(samples):
                           samples))
 
     # The model being trained shall drive in the right lane or just centered on the road when there is no lane. So left
-    # lane sequences are only to be used with image flip, and right lane sequences without flip. It would be logical to
-    # also flip the no-lane sequences to create additional data that generalize the model, but it appears like the
-    # texture on the bridge in track 1 confuses the model when using flipped images. And for now, there is no (other)
-    # easy way to separate this data.
+    # lane sequences are only to be used with image flip, and right lane sequences without flip. No-lane sequences are
+    # used both w/ and w/o flip.
     samples = list(filter(lambda sample:
-                          ((sample.sequence_type is SequenceType.LEFT_LANE and
+                          ((sample.sequence_type in [SequenceType.LEFT_LANE, SequenceType.NO_LANE] and
                             sample.flip) or
                            (sample.sequence_type in [SequenceType.RIGHT_LANE, SequenceType.NO_LANE] and
                             not sample.flip)),
