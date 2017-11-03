@@ -122,7 +122,7 @@ def fix_paths(csv_line, correct_path):
     return csv_line
 
 
-Sample = namedtuple('Sample', ['image_path', 'steering', 'sequence_type', 'cam_type', 'flip'])
+Sample = namedtuple('Sample', ['image_path', 'steering', 'sequence_type', 'cam_type', 'flip', 'shadow'])
 
 
 def driving_logs_to_samples(driving_logs):
@@ -145,12 +145,14 @@ def log_to_samples(log, sequence_type):
     for log_entry in log:
         cam_variants = [[('center', CamType.CENTER), ('left', CamType.LEFT), ('right', CamType.RIGHT)]]
         flip_variants = [[False, True]]
-        for cam, flip in itertools.product(*(cam_variants + flip_variants)):
+        shadow_variants = [[False, True]]
+        for cam, flip, shadow in itertools.product(*(cam_variants + flip_variants + shadow_variants)):
             samples.append(Sample(image_path=log_entry[cam[0]],
                                   steering=float(log_entry['steering']),
                                   sequence_type=sequence_type,
                                   cam_type=cam[1],
-                                  flip=flip))
+                                  flip=flip,
+                                  shadow=shadow))
 
     return samples
 
@@ -180,6 +182,13 @@ def filter_samples(samples):
                            (sample.sequence_type in [SequenceType.RIGHT_LANE, SequenceType.NO_LANE] and
                             not sample.flip)),
                           samples))
+
+    # Augment track 1 with shadows. To avoid stacking shadows, this can't be done on track 2 (without a shadow
+    # detector).
+    samples = list(filter(lambda sample:
+                          ((sample.sequence_type is SequenceType.NO_LANE and sample.shadow) or not sample.shadow),
+                          samples))
+
     return samples
 
 
@@ -252,6 +261,74 @@ def equalize_samples(samples):
     return samples_out
 
 
+def augment_shadow(bgr_image):
+    """Augment a shadow into the image.
+
+    A shadow is randomly generated and drawn into the image. This by dividing
+    the image into two parts by a straight line, where one side is darkened.
+    The darkening is done without affecting the colors very much, which is
+    achieved by first converting color-space from BGR to HSV, and then only
+    modify the V-channel. The image is then converted back to BGR.
+
+    Arguments:
+        bgr_image - The BGR image to be augmented with a shadow.
+
+    Returns:
+        bgr_image - The augmented BGR image.
+    """
+
+    # This is an attempt to reverse engineer the shadows in track 2. The gray-scale value from different materials have
+    # been sampled both in shadow and sunlight. A scatter plot showed that the measurements roughly are on a straight
+    # line intercepting (0, 0) which is reasonable since black should be black also when applying a shadow. The
+    # straight line is then estimated by the mean ratio from all measurements.
+    shadow_ratios = {'lane': 51 / 160, 'pavement': 40 / 125, 'grass': 20 / 60, 'dark_cliff': 5 / 22}
+    shadow_factor = np.mean([value for value in shadow_ratios.values()])
+    shadow_types = {0: 'left', 1: 'right', 2: 'bottom', 3: 'top'}
+    height, width, _ = bgr_image.shape
+
+    # Convert to HSV to easily add shadow without changing color.
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+
+    # Randomly select which side to apply shadow on.
+    shadow_type = shadow_types[np.floor(np.random.random() * len(shadow_types)).astype(int)]
+
+    # Two points are randomly generated on the image border, and one side is then darkened by applying the shadow
+    # factor on the V-channel.
+    if shadow_type is 'left':
+        x_top, x_bottom = np.floor(np.random.random(2) * width).astype(int)
+        delta = (x_bottom - x_top) / height
+        for y_idx in range(height):
+            hsv_image[y_idx, :(x_top + np.round(delta * y_idx).astype(np.int)), 2] = \
+                (hsv_image[y_idx, :(x_top + np.round(delta * y_idx).astype(np.int)), 2] *
+                 shadow_factor).astype(np.int8)
+    elif shadow_type is 'right':
+        x_top, x_bottom = np.floor(np.random.random(2) * width).astype(int)
+        delta = (x_bottom - x_top) / height
+        for y_idx in range(height):
+            hsv_image[y_idx, (x_top + np.round(delta * y_idx).astype(np.int)):, 2] = \
+                (hsv_image[y_idx, (x_top + np.round(delta * y_idx).astype(np.int)):, 2] *
+                 shadow_factor).astype(np.int8)
+    elif shadow_type is 'bottom':
+        y_left, y_right = np.floor(np.random.random(2) * height).astype(int)
+        delta = (y_right - y_left) / width
+        for x_idx in range(width):
+            hsv_image[(y_left + np.round(delta * x_idx).astype(np.int)):, x_idx, 2] = \
+                (hsv_image[(y_left + np.round(delta * x_idx).astype(np.int)):, x_idx, 2] *
+                 shadow_factor).astype(np.int8)
+    elif shadow_type is 'top':
+        y_left, y_right = np.floor(np.random.random(2) * height).astype(int)
+        delta = (y_right - y_left) / width
+        for x_idx in range(width):
+            hsv_image[:(y_left + np.round(delta * x_idx).astype(np.int)), x_idx, 2] = \
+                (hsv_image[:(y_left + np.round(delta * x_idx).astype(np.int)), x_idx, 2] *
+                 shadow_factor).astype(np.int8)
+
+    # Convert back the augmented image to BGR.
+    bgr_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+
+    return bgr_image
+
+
 def batch_generator(samples):
     while 1:  # Loop forever so the generator never terminates
         shuffle(samples)
@@ -264,6 +341,8 @@ def batch_generator(samples):
                 image = cv2.imread(sample.image_path)
                 if sample.flip:
                     image = np.fliplr(image)
+                if sample.shadow:
+                    image = augment_shadow(image)
 
                 images.append(image)
                 angles.append(sample.steering)
