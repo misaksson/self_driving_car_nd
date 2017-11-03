@@ -24,6 +24,9 @@ flags.DEFINE_string('driving_log_dir', './data/example_data/', "Path to simulato
 flags.DEFINE_integer('epochs', 3, "Number of epochs to train")
 flags.DEFINE_integer('batch_size', 32, "Batch size")
 flags.DEFINE_float('steering_offset', 0.0245, "Steering offset for left and right camera images.")
+flags.DEFINE_float('steering_equality_factor', 0.3, ("Equalization factor for angle distribution in the training set. ",
+                                                     "This value should be in the range [0, 1], where 0 gives equal ",
+                                                     "distribution, and 1 keeps the distribution imbalanced."))
 flags.DEFINE_float('sharp_turn_threshold', 0.05, ("A steering value greater than this during normal driving is",
                                                   "assumed to be in a sharp curve."))
 
@@ -223,20 +226,21 @@ def adjust_steering(samples):
 
 
 def equalize_samples(samples):
-    """Over- and under-sample the training set to equalize the angles"""
+    """Equalize the angles in the training set by over and under sampling.
+
+    The equality of output angles is controlled by the application argument
+    steering_equality_factor. This value should be in range [0, 1], where
+    0 makes it equal, and 1 keeps the imbalanced distribution.
+    """
     angles = np.array([sample.steering for sample in samples[:]])
     abs_max = np.max(np.abs(angles))
-    hist, bin_edges = np.histogram(angles, bins=21, range=(-abs_max, abs_max))
+    input_hist, bin_edges = np.histogram(angles, bins=21, range=(-abs_max, abs_max))
     bin_edges[-1] += 0.00001
 
-    print(hist)
-    print(bin_edges)
-    print(hist.mean())
-    print(hist.min())
-    print(hist.max())
-
-    keep_rates = hist.mean() / hist
-    print(keep_rates)
+    # Calculate the output histogram, which should be the result after over and under sampling the input samples.
+    # Large bins are reduced and small ones increased to achieve equality as regulated by steering_equality_factor.
+    output_hist = (input_hist - input_hist.mean()) * FLAGS.steering_equality_factor + input_hist.mean()
+    keep_rates = output_hist / input_hist
 
     samples_out = []
     for sample in samples:
