@@ -35,6 +35,7 @@ class SequenceType(enum.Enum):
     NO_LANE = 1,
     RIGHT_LANE = 2,
     LEFT_LANE = 3,
+    SHADOWS = 4
 
 
 class CamType(enum.Enum):
@@ -100,6 +101,7 @@ def dir_name_to_sequence_type(name):
         'left_lane_ccw': SequenceType.LEFT_LANE,
         'left_lane_cw_recovery': SequenceType.LEFT_LANE,
         'left_lane_ccw_recovery': SequenceType.LEFT_LANE,
+        'righ_lane_shadows': SequenceType.SHADOWS,
     }
     try:
         sequence_type = sequence_type_lookup[name]
@@ -125,7 +127,7 @@ def fix_paths(csv_line, correct_path):
     return csv_line
 
 
-Sample = namedtuple('Sample', ['image_path', 'steering', 'sequence_type', 'cam_type', 'flip', 'shadow'])
+Sample = namedtuple('Sample', ['image_path', 'steering', 'sequence_type', 'cam_type', 'flip', 'augment'])
 
 
 def driving_logs_to_samples(driving_logs):
@@ -148,15 +150,30 @@ def log_to_samples(log, sequence_type):
     for log_entry in log:
         cam_variants = [[('center', CamType.CENTER), ('left', CamType.LEFT), ('right', CamType.RIGHT)]]
         flip_variants = [[False, True]]
-        shadow_variants = [[False, True]]
-        for cam, flip, shadow in itertools.product(*(cam_variants + flip_variants + shadow_variants)):
+        augment_variants = [[False, True]]
+        for cam, flip, augment in itertools.product(*(cam_variants + flip_variants + augment_variants)):
             samples.append(Sample(image_path=log_entry[cam[0]],
                                   steering=float(log_entry['steering']),
                                   sequence_type=sequence_type,
                                   cam_type=cam[1],
                                   flip=flip,
-                                  shadow=shadow))
+                                  augment=augment))
 
+    return samples
+
+
+def oversample_shadows(samples):
+    """Oversample sequence type shadow"""
+
+    # Oversample every shadow example by this count.
+    oversample_count = 5
+
+    extra_samples = []
+    for sample in samples:
+        if sample.sequence_type is SequenceType.SHADOWS:
+            for i in range(oversample_count):
+                extra_samples.append(sample)
+    samples += extra_samples
     return samples
 
 
@@ -182,14 +199,14 @@ def filter_samples(samples):
     samples = list(filter(lambda sample:
                           ((sample.sequence_type in [SequenceType.LEFT_LANE, SequenceType.NO_LANE] and
                             sample.flip) or
-                           (sample.sequence_type in [SequenceType.RIGHT_LANE, SequenceType.NO_LANE] and
+                           (sample.sequence_type is not SequenceType.LEFT_LANE and
                             not sample.flip)),
                           samples))
 
     # Augment track 1 with shadows. To avoid stacking shadows, this can't be done on track 2 (without a shadow
     # detector).
     samples = list(filter(lambda sample:
-                          ((sample.sequence_type is SequenceType.NO_LANE and sample.shadow) or not sample.shadow),
+                          ((sample.sequence_type is SequenceType.NO_LANE and sample.augment) or not sample.augment),
                           samples))
 
     return samples
@@ -345,7 +362,7 @@ def batch_generator(samples):
                 image = cv2.imread(sample.image_path)
                 if sample.flip:
                     image = np.fliplr(image)
-                if sample.shadow:
+                if sample.augment:
                     image = augment_shadow(image)
 
                 images.append(image)
@@ -460,6 +477,7 @@ def main(_):
     samples = adjust_steering(samples)
 
     train_samples, validation_samples = train_test_split(samples, test_size=0.2)
+    train_samples = oversample_shadows(train_samples)
     train_samples = equalize_samples(train_samples)
     train_generator = batch_generator(train_samples)
     validation_generator = batch_generator(validation_samples)
