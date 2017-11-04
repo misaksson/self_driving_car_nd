@@ -427,7 +427,7 @@ def create_output_dir():
 
 def setup_callbacks_list(output_path):
     """Setup a list of training callbacks"""
-    file_path = os.path.join(output_path, "weights-improvement-{epoch:02d}-{val_loss:.5f}.hdf5")
+    file_path = os.path.join(output_path, "model-{epoch:02d}-{val_loss:.5f}.hdf5")
     checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
     return [checkpoint]  # Currently only one callback
 
