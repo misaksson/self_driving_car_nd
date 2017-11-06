@@ -6,6 +6,7 @@ import numpy as np
 from keras.layers import Lambda, Cropping2D, Conv2D, Flatten, Dense, Dropout
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint
+from keras.utils import plot_model
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import tensorflow as tf
@@ -294,8 +295,11 @@ def equalize_samples(samples):
 
     angles_out = np.array([sample.steering for sample in samples_out[:]])
     plt.figure()
-    plt.hist(angles, bins=21, alpha=0.5, label='in')
-    plt.hist(angles_out, bins=21, alpha=0.5, label='out')
+    plt.hist(angles, bins=21, alpha=0.5, label='Input samples')
+    plt.hist(angles_out, bins=21, alpha=0.5, label='Output samples')
+    plt.title('Equalization of steering angles')
+    plt.xlabel('Steering angles')
+    plt.ylabel('Number of samples')
     plt.legend(loc='upper right')
     plt.show()
 
@@ -485,8 +489,52 @@ def model_to_text_file(model, output_dir):
 
 
 def output_result(output_path, model, history_object):
+    # Plot training and validation loss from each epoch
     plot_training_history_to_file(history_object, output_path)
+
+    # Visualize the model in a text file
     model_to_text_file(model, output_path)
+
+    # Visualize the model as a graph
+    plot_model(model, show_shapes=True, to_file=os.path.join(output_path, 'model.png'))
+
+
+def count_sample_variants(samples):
+    cam_type_count = dict()
+    for cam_type in CamType:
+        cam_type_count[cam_type] = 0
+
+    flip_type_count = dict()
+    for flip_type in [True, False]:
+        flip_type_count[flip_type] = 0
+
+    augment_type_count = dict()
+    for augment_type in [True, False]:
+        augment_type_count[augment_type] = 0
+
+    sequence_type_count = dict()
+    for sequence_type in SequenceType:
+        sequence_type_count[sequence_type] = {'count': 0,
+                                              'cam_count': cam_type_count.copy(),
+                                              'flip_count': flip_type_count.copy(),
+                                              'augment_count': augment_type_count.copy()
+                                              }
+
+    for sample in samples:
+        sequence_type_count[sample.sequence_type]['count'] += 1
+        sequence_type_count[sample.sequence_type]['cam_count'][sample.cam_type] += 1
+        sequence_type_count[sample.sequence_type]['flip_count'][sample.flip] += 1
+        sequence_type_count[sample.sequence_type]['augment_count'][sample.augment] += 1
+
+    import pandas as pd
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.max_colwidth', 70)
+    pd.set_option('display.width', 1000)
+    pd.set_option('display.expand_frame_repr', False)
+
+    df = pd.DataFrame(sequence_type_count)
+    print(df)
 
 
 def main(_):
@@ -500,6 +548,8 @@ def main(_):
     train_samples = oversample_shadows(train_samples)
     train_samples = oversample_center_driving(train_samples)
     train_samples = equalize_samples(train_samples)
+    count_sample_variants(train_samples)
+    count_sample_variants(validation_samples)
     train_generator = batch_generator(train_samples)
     validation_generator = batch_generator(validation_samples)
 
