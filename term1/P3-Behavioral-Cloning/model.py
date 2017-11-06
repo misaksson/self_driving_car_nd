@@ -22,10 +22,10 @@ FLAGS = flags.FLAGS
 # command line flags
 flags.DEFINE_string('output_dir', './training_output/', "Output path for trained model and training information.")
 flags.DEFINE_string('driving_log_dir', './data/example_data/', "Path to simulator driving log directories.")
-flags.DEFINE_integer('epochs', 3, "Number of epochs to train")
-flags.DEFINE_integer('batch_size', 32, "Batch size")
+flags.DEFINE_integer('epochs', 60, "Number of epochs to train")
+flags.DEFINE_integer('batch_size', 64, "Batch size")
 flags.DEFINE_float('steering_offset', 0.0245, "Steering offset for left and right camera images.")
-flags.DEFINE_float('steering_equality_factor', 0.3, ("Equalization factor for angle distribution in the training set. ",
+flags.DEFINE_float('steering_equality_factor', 0.1, ("Equalization factor for angle distribution in the training set. ",
                                                      "This value should be in the range [0, 1], where 0 gives equal ",
                                                      "distribution, and 1 keeps the distribution imbalanced."))
 flags.DEFINE_float('sharp_turn_threshold', 0.05, ("A steering value greater than this during normal driving is",
