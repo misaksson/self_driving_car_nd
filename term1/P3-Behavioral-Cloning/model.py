@@ -166,11 +166,23 @@ def oversample_shadows(samples):
     """Oversample sequence type shadow"""
 
     # Oversample every shadow example by this count.
-    oversample_count = 5
+    oversample_count = 2
 
     extra_samples = []
     for sample in samples:
         if sample.sequence_type is SequenceType.SHADOWS:
+            for i in range(oversample_count):
+                extra_samples.append(sample)
+    samples += extra_samples
+    return samples
+
+
+def oversample_center_driving(samples):
+    oversample_count = 1
+
+    extra_samples = []
+    for sample in samples:
+        if sample.sequence_type is SequenceType.NO_LANE:
             for i in range(oversample_count):
                 extra_samples.append(sample)
     samples += extra_samples
@@ -209,7 +221,15 @@ def filter_samples(samples):
                           ((sample.sequence_type is SequenceType.NO_LANE and sample.augment) or not sample.augment),
                           samples))
 
-    return samples
+    samples_out = []
+    for sample in samples:
+        if sample.augment:
+            if np.random.random() > 0.5:
+                samples_out.append(sample)
+        else:
+            samples_out.append(sample)
+
+    return samples_out
 
 
 def adjust_steering(samples):
@@ -478,6 +498,7 @@ def main(_):
 
     train_samples, validation_samples = train_test_split(samples, test_size=0.2)
     train_samples = oversample_shadows(train_samples)
+    train_samples = oversample_center_driving(train_samples)
     train_samples = equalize_samples(train_samples)
     train_generator = batch_generator(train_samples)
     validation_generator = batch_generator(validation_samples)
