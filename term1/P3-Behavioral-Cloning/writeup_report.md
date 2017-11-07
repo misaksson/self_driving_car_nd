@@ -232,4 +232,21 @@ The Adam optimizer was used so it wasn't necessary to tune the learning rate. Th
 
 
 ### Final result
-Video files showing the final model drive around [track 1](./video.mp4) and [track 2](./track2.mp4) are available in the repository. The vehicle speed is set to 30 resp. 15 mph. For the second track, the model seems to be able keep the right lane up to ~20 mph without that much problem. Forcing it to drive faster shows that the model is quite good at recovering into the right lane, but when the speed reach ~23 mph it will sooner or later crash.
+Video files showing the model drive around [track 1](./video.mp4) and [track 2](./track2.mp4) are available in the repository. The vehicle speed is set to 30 resp. 15 mph.
+
+For the more challenging second track, the model seems to be able keep the right lane up to 20 mph without that much problem. Forcing it to drive faster shows that the model is quite good at recovering back into the right lane, but when the speed reach 25 mph it will sooner or later crash.
+
+Here are links to Youtube videos showing the model behavior at different speeds:
+
+<table style="width:100%">
+  <tr>
+    <th>Track 2 at 15 mph</th>
+    <th>Track 2 at 20 mph</th>
+    <th>Track 2 at 25 mph</th>
+  </tr>
+  <tr>
+    <td><a href="http://www.youtube.com/watch?feature=player_embedded&v=Vu0Zsx_vIMg" target="_blank"><img src="http://img.youtube.com/vi/Vu0Zsx_vIMg/0.jpg" alt="Track 2 @ 15 mph" width="360" height="180" border="10" /></a></td>
+    <td><a href="http://www.youtube.com/watch?feature=player_embedded&v=5x9LUTdXDcM" target="_blank"><img src="http://img.youtube.com/vi/5x9LUTdXDcM/0.jpg" alt="Track 2 @ 20 mph" width="360" height="180" border="10" /></a></td>
+    <td><a href="http://www.youtube.com/watch?feature=player_embedded&v=C3KF7665GfM" target="_blank"><img src="http://img.youtube.com/vi/C3KF7665GfM/0.jpg" alt="Track 2 @ 25 mph" width="360" height="180" border="10" /></a></td>
+  </tr>
+</table>
