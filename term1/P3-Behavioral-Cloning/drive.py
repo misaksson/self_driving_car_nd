@@ -31,28 +31,28 @@ class SimplePIDController:
         self.Ki = Ki
         self.Kd = Kd
         self.set_point = 0.
-        self.error = 0.
-        self.integral = 0.
+        self.errors = [0] * 29
 
     def set_desired(self, desired):
         self.set_point = desired
 
     def update(self, measurement):
-        previous_error = self.error
 
-        # proportional error
-        self.error = self.set_point - measurement
+        self.errors.append(self.set_point - measurement)
 
-        # integral error
-        self.integral += self.error
+        output = (self.Kp * self.errors[-2] +
+                  self.Ki * sum(self.errors) +
+                  self.Kd * (self.errors[-1] - self.errors[-2]))
 
-        # differential error
-        diff_error = previous_error - self.error
+        if output > -0.4 and output < 0.0:
+            output = 0.0  # Just release the throttle instead of breaking.
 
-        return self.Kp * self.error + self.Ki * self.integral + self.Kd * diff_error
+        self.errors.pop(0)
+
+        return output
 
 
-controller = SimplePIDController(0.2, 0.001, 0.1)
+controller = SimplePIDController(0.6, 0.005, 1.0)
 set_speed = 15
 controller.set_desired(set_speed)
 
