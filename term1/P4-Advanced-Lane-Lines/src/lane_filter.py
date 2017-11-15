@@ -76,7 +76,6 @@ class SobelDirection(ImageFilter):
         self.ksize = ksize
         scaled_threshold = (np.uint8(thresh[0] * 255 / (np.pi / 2)),
                             np.uint8(thresh[1] * 255 / (np.pi / 2)))
-        print(scaled_threshold)
         ImageFilter.__init__(self, thresh=scaled_threshold)
 
     def apply(self, images):

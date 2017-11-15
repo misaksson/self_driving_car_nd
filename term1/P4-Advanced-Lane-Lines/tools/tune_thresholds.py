@@ -1,3 +1,4 @@
+import numpy as np
 import cv2
 from moviepy.editor import VideoFileClip
 import sys
@@ -8,14 +9,14 @@ from src.lane_filter import LaneFilter
 # constants
 window_settings = {
     'INPUT_WIDTH': 640,
-    'INPUT_HEIGHT': 360,
+    'INPUT_HEIGHT': 420,
     'INPUT_POS_X': 0,
     'INPUT_POS_Y': 0,
 
     'OUTPUT_WIDTH': 640,
     'OUTPUT_HEIGHT': 360,
     'OUTPUT_POS_X': 0,
-    'OUTPUT_POS_Y': 360,
+    'OUTPUT_POS_Y': 420,
 
     'FILTERS_GRID_ROWS': 3,
     'FILTERS_GRID_COLS': 3,
@@ -27,7 +28,8 @@ window_settings = {
 ascii_dict = {'esc': 27, 'space': 32}
 
 
-def update(lane_filter):
+def update():
+    rgb_image = clip.get_frame(clip_time)
     images = {
         'rgb': rgb_image,
         'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
@@ -39,10 +41,10 @@ def update(lane_filter):
     lane_filter.show()
 
 
-def process_image(rgb_image):
+def process_image():
     pause = False
     while 1:
-        update(lane_filter)
+        update()
         k = cv2.waitKey(20) & 0xff
         if k == ascii_dict['space']:
             pause = not pause  # toggle boolean
@@ -53,6 +55,11 @@ def process_image(rgb_image):
     return False
 
 
+def frame_slider_callback(value):
+    global clip_time
+    clip_time = value / clip.fps
+
+
 lane_filter = LaneFilter()
 lane_filter.init_show(window_settings)
 
@@ -60,19 +67,18 @@ win_input_image = 'Input image'
 cv2.namedWindow(win_input_image, cv2.WINDOW_NORMAL)
 cv2.moveWindow(win_input_image, window_settings['INPUT_POS_X'], window_settings['INPUT_POS_Y'])
 cv2.resizeWindow(win_input_image, window_settings['INPUT_WIDTH'], window_settings['INPUT_HEIGHT'])
-# clip = VideoFileClip('../input/project_video.mp4')
+clip = VideoFileClip('../input/project_video.mp4')
 # clip = VideoFileClip('../input/challenge_video.mp4')
-clip = VideoFileClip('../input/harder_challenge_video.mp4')
-
-for rgb_image in clip.iter_frames():
-    quit = process_image(rgb_image)
+# clip = VideoFileClip('../input/harder_challenge_video.mp4')
+n_frames = np.round(clip.fps * clip.duration).astype(np.int)
+cv2.createTrackbar('frame', win_input_image, 0, n_frames - 1, frame_slider_callback)
+clip_time = 0
+while 1:
+    quit = process_image()
+    if clip_time < clip.duration:
+        clip_time += 1.0 / clip.fps
+    cv2.setTrackbarPos('frame', win_input_image, np.round(clip.fps * clip_time).astype(np.int))
     if quit:
         break
-else:
-    # Pause at last frame
-    while 1:
-        quit = process_image(rgb_image)
-        if quit:
-            break
 
 cv2.destroyAllWindows()
