@@ -24,13 +24,18 @@ window_settings = {
     'FILTERS_GRID_POS_X': 640,  # Position of first filter window.
     'FILTERS_GRID_POS_Y': 0,  # Position of first filter window.
 }
+ascii_dict = {'esc': 27, 'space': 32}
 
 
 def update(lane_filter):
-    bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
-    gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY)
-    lane_filter.apply(gray_image)
-    cv2.imshow(win_input_image, bgr_image)
+    images = {
+        'rgb': rgb_image,
+        'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
+        'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
+        'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
+    }
+    lane_filter.apply(images)
+    cv2.imshow(win_input_image, images['bgr'])
     lane_filter.show()
 
 
@@ -55,11 +60,19 @@ win_input_image = 'Input image'
 cv2.namedWindow(win_input_image, cv2.WINDOW_NORMAL)
 cv2.moveWindow(win_input_image, window_settings['INPUT_POS_X'], window_settings['INPUT_POS_Y'])
 cv2.resizeWindow(win_input_image, window_settings['INPUT_WIDTH'], window_settings['INPUT_HEIGHT'])
-clip = VideoFileClip('../input/project_video.mp4')
+# clip = VideoFileClip('../input/project_video.mp4')
+# clip = VideoFileClip('../input/challenge_video.mp4')
+clip = VideoFileClip('../input/harder_challenge_video.mp4')
 
-ascii_dict = {'esc': 27, 'space': 32}
 for rgb_image in clip.iter_frames():
     quit = process_image(rgb_image)
     if quit:
         break
-cv2.getWindowProperty
+else:
+    # Pause at last frame
+    while 1:
+        quit = process_image(rgb_image)
+        if quit:
+            break
+
+cv2.destroyAllWindows()

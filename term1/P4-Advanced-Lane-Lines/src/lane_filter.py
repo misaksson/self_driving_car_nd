@@ -9,8 +9,7 @@ class ImageFilter(object):
         self.upper_th = thresh[1]
 
     def apply(self, image):
-        scaled = ((image * 255.0) / np.max(image)).astype(np.uint8)
-        self.mask = (scaled > self.lower_th) & (scaled < self.upper_th)
+        self.mask = (image >= self.lower_th) & (image <= self.upper_th)
         return self.mask
 
     def init_show(self, pos_x=0, pos_y=0, width=640, height=500, thresh_slider=True):
@@ -39,10 +38,11 @@ class SobelX(ImageFilter):
         self.ksize = ksize
         ImageFilter.__init__(self, thresh=thresh)
 
-    def apply(self, image):
-        sobel = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=self.ksize)
+    def apply(self, images):
+        sobel = cv2.Sobel(images['gray'], cv2.CV_64F, 1, 0, ksize=self.ksize)
         abs_sobel = np.abs(sobel)
-        return ImageFilter.apply(self, abs_sobel)
+        scaled = ((abs_sobel * 255.0) / np.max(abs_sobel)).astype(np.uint8)
+        return ImageFilter.apply(self, scaled)
 
 
 class SobelY(ImageFilter):
@@ -50,22 +50,109 @@ class SobelY(ImageFilter):
         self.ksize = ksize
         ImageFilter.__init__(self, thresh=thresh)
 
-    def apply(self, image):
-        sobel = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=self.ksize)
+    def apply(self, images):
+        sobel = cv2.Sobel(images['gray'], cv2.CV_64F, 0, 1, ksize=self.ksize)
         abs_sobel = np.abs(sobel)
-        return ImageFilter.apply(self, abs_sobel)
+        scaled = ((abs_sobel * 255.0) / np.max(abs_sobel)).astype(np.uint8)
+        return ImageFilter.apply(self, scaled)
+
+
+class SobelMagnitude(ImageFilter):
+    def __init__(self, ksize=9, thresh=(30, 100)):
+        self.ksize = ksize
+        ImageFilter.__init__(self, thresh=thresh)
+
+    def apply(self, images):
+        # ToDo: Cache sobel results (should be possible to reuse if same ksize).
+        sobelx = cv2.Sobel(images['gray'], cv2.CV_64F, 1, 0, ksize=self.ksize)
+        sobely = cv2.Sobel(images['gray'], cv2.CV_64F, 0, 1, ksize=self.ksize)
+        magnitude = np.sqrt(np.square(sobelx) + np.square(sobely))
+        scaled = ((magnitude * 255.0) / np.max(magnitude)).astype(np.uint8)
+        return ImageFilter.apply(self, scaled)
+
+
+class SobelDirection(ImageFilter):
+    def __init__(self, ksize=15, thresh=(0.7, 1.3)):
+        self.ksize = ksize
+        scaled_threshold = (np.uint8(thresh[0] * 255 / (np.pi / 2)),
+                            np.uint8(thresh[1] * 255 / (np.pi / 2)))
+        print(scaled_threshold)
+        ImageFilter.__init__(self, thresh=scaled_threshold)
+
+    def apply(self, images):
+        sobelx = cv2.Sobel(images['gray'], cv2.CV_64F, 1, 0, ksize=self.ksize)
+        sobely = cv2.Sobel(images['gray'], cv2.CV_64F, 0, 1, ksize=self.ksize)
+        grad_direction = np.arctan2(np.abs(sobely), np.abs(sobelx))
+        scaled = ((grad_direction * 255.0) / (np.pi / 2)).astype(np.uint8)
+        return ImageFilter.apply(self, scaled)
+
+
+class Hue(ImageFilter):
+    def __init__(self, thresh=(0, 255)):
+        ImageFilter.__init__(self, thresh=thresh)
+
+    def apply(self, images):
+        return ImageFilter.apply(self, images['hls'][:, :, 0])
+
+
+class Lightness(ImageFilter):
+    def __init__(self, thresh=(0, 255)):
+        ImageFilter.__init__(self, thresh=thresh)
+
+    def apply(self, images):
+        return ImageFilter.apply(self, images['hls'][:, :, 1])
+
+
+class Saturation(ImageFilter):
+    def __init__(self, thresh=(0, 255)):
+        ImageFilter.__init__(self, thresh=thresh)
+
+    def apply(self, images):
+        return ImageFilter.apply(self, images['hls'][:, :, 2])
+
+
+class Red(ImageFilter):
+    def __init__(self, thresh=(0, 255)):
+        ImageFilter.__init__(self, thresh=thresh)
+
+    def apply(self, images):
+        return ImageFilter.apply(self, images['rgb'][:, :, 0])
+
+
+class Green(ImageFilter):
+    def __init__(self, thresh=(0, 255)):
+        ImageFilter.__init__(self, thresh=thresh)
+
+    def apply(self, images):
+        return ImageFilter.apply(self, images['rgb'][:, :, 0])
+
+
+class Blue(ImageFilter):
+    def __init__(self, thresh=(0, 255)):
+        ImageFilter.__init__(self, thresh=thresh)
+
+    def apply(self, images):
+        return ImageFilter.apply(self, images['rgb'][:, :, 0])
 
 
 class LaneFilter(ImageFilter):
     def __init__(self):
         self.image_filters = []
+        self.image_filters.append(Hue())
+        self.image_filters.append(Lightness())
+        self.image_filters.append(Saturation())
+        self.image_filters.append(Red())
+        self.image_filters.append(Green())
+        self.image_filters.append(Blue())
         self.image_filters.append(SobelX())
         self.image_filters.append(SobelY())
+        self.image_filters.append(SobelMagnitude())
+        self.image_filters.append(SobelDirection())
 
-    def apply(self, image):
+    def apply(self, images):
         masks = []
         for image_filter in self.image_filters:
-            masks.append(image_filter.apply(image))
+            masks.append(image_filter.apply(images))
 
         self.mask = reduce((lambda mask1, mask2: mask1 & mask2), masks).astype(np.uint8)
         return self.mask
