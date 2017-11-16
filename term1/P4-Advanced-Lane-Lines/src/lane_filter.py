@@ -32,6 +32,9 @@ class ImageFilter(object):
     def _adjust_upper_th(self, value):
         self.upper_th = value
 
+    def get_thresholds(self):
+        return (self.lower_th, self.upper_th)
+
 
 class SobelX(ImageFilter):
     def __init__(self, ksize=9, thresh=(20, 100)):
@@ -135,18 +138,25 @@ class Blue(ImageFilter):
 
 
 class LaneFilter(ImageFilter):
-    def __init__(self):
+    def __init__(self, thresholds=dict()):
+        self.thresholds = thresholds
         self.image_filters = []
-        self.image_filters.append(Hue())
-        self.image_filters.append(Lightness())
-        self.image_filters.append(Saturation())
-        self.image_filters.append(Red())
-        self.image_filters.append(Green())
-        self.image_filters.append(Blue())
-        self.image_filters.append(SobelX())
-        self.image_filters.append(SobelY())
-        self.image_filters.append(SobelMagnitude())
-        self.image_filters.append(SobelDirection())
+        self._append(Hue)
+        self._append(Lightness)
+        self._append(Saturation)
+        self._append(Red)
+        self._append(Green)
+        self._append(Blue)
+        self._append(SobelX)
+        self._append(SobelY)
+        self._append(SobelMagnitude)
+        self._append(SobelDirection)
+
+    def _append(self, image_filter):
+        if image_filter.__name__ in self.thresholds:
+            self.image_filters.append(image_filter(thresh=self.thresholds[image_filter.__name__]))
+        else:
+            self.image_filters.append(image_filter())  # Use default thresholds.
 
     def apply(self, images):
         masks = []
@@ -176,3 +186,11 @@ class LaneFilter(ImageFilter):
         for image_filter in self.image_filters:
             image_filter.show()
         ImageFilter.show(self)
+
+    def get_thresholds(self):
+        thresholds = dict()
+        for image_filter in self.image_filters:
+            thresholds[image_filter.__class__.__name__] = image_filter.get_thresholds()
+
+        return thresholds
+

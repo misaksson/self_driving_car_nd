@@ -1,7 +1,11 @@
 import numpy as np
 import cv2
-from moviepy.editor import VideoFileClip
+import pickle
+import os
 import sys
+import pandas as pd
+from moviepy.editor import VideoFileClip
+
 sys.path.append("../")
 from src.lane_filter import LaneFilter
 
@@ -26,6 +30,23 @@ window_settings = {
     'FILTERS_GRID_POS_Y': 0,  # Position of first filter window.
 }
 ascii_dict = {'esc': 27, 'space': 32}
+
+
+def load_thresholds():
+    if not os.path.isfile('./thresholds.p'):
+        return dict()
+
+    with open('./thresholds.p', 'rb') as fid:
+        thresholds = pickle.load(fid)
+    df = pd.DataFrame(thresholds)
+    df.rename(index={0: 'Lower_th', 1: 'Upper_th'}, inplace=True)
+    print(df)
+    return thresholds
+
+
+def save_thresholds(thresholds):
+    with open('./thresholds.p', 'wb') as fid:
+        pickle.dump(thresholds, fid)
 
 
 def update():
@@ -60,7 +81,7 @@ def frame_slider_callback(value):
     clip_time = value / clip.fps
 
 
-lane_filter = LaneFilter()
+lane_filter = LaneFilter(load_thresholds())
 lane_filter.init_show(window_settings)
 
 win_input_image = 'Input image'
@@ -81,4 +102,5 @@ while 1:
     if quit:
         break
 
+save_thresholds(lane_filter.get_thresholds())
 cv2.destroyAllWindows()
