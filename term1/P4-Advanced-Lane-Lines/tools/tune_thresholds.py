@@ -3,7 +3,6 @@ import cv2
 import pickle
 import os
 import sys
-import pandas as pd
 from moviepy.editor import VideoFileClip
 
 sys.path.append("../")
@@ -11,96 +10,109 @@ from src.lane_filter import LaneFilter
 
 
 # constants
-window_settings = {
-    'INPUT_WIDTH': 640,
-    'INPUT_HEIGHT': 420,
-    'INPUT_POS_X': 0,
-    'INPUT_POS_Y': 0,
 
-    'OUTPUT_WIDTH': 640,
-    'OUTPUT_HEIGHT': 360,
-    'OUTPUT_POS_X': 0,
-    'OUTPUT_POS_Y': 420,
+clip_path = '../input/project_video.mp4'
+# clip_path = '../input/challenge_video.mp4'
+# clip_path = '../input/harder_challenge_video.mp4'
 
-    'FILTERS_GRID_ROWS': 3,
-    'FILTERS_GRID_COLS': 3,
-    'FILTERS_GRID_WIDTH': 640,
-    'FILTERS_GRID_HEIGHT': 480,  # Extra space for sliders
-    'FILTERS_GRID_POS_X': 640,  # Position of first filter window.
-    'FILTERS_GRID_POS_Y': 0,  # Position of first filter window.
-}
+thresholds_path = './thresholds.p'
+
 ascii_dict = {'esc': 27, 'space': 32}
 
-
-def load_thresholds():
-    if not os.path.isfile('./thresholds.p'):
-        return dict()
-
-    with open('./thresholds.p', 'rb') as fid:
-        thresholds = pickle.load(fid)
-    df = pd.DataFrame(thresholds)
-    df.rename(index={0: 'Lower_th', 1: 'Upper_th'}, inplace=True)
-    print(df)
-    return thresholds
+window_settings = {
+    'GRID_ROWS': 3,
+    'GRID_COLS': 4,
+    'GRID_WIDTH': 640,
+    'GRID_HEIGHT': 460,  # Extra space for sliders
+    'GRID_POS_X': 0,
+    'GRID_POS_Y': 0,
+}
 
 
-def save_thresholds(thresholds):
-    with open('./thresholds.p', 'wb') as fid:
-        pickle.dump(thresholds, fid)
+class WindowGrid(object):
+    def __init__(self):
+        self.grid_idx = 0
+
+    def next(self):
+        grid_col = self.grid_idx // window_settings['GRID_ROWS']
+        grid_row = self.grid_idx % window_settings['GRID_ROWS']
+        pos_x = window_settings['GRID_POS_X'] + grid_col * window_settings['GRID_WIDTH']
+        pos_y = window_settings['GRID_POS_Y'] + grid_row * window_settings['GRID_HEIGHT']
+        self.grid_idx += 1
+        return pos_x, pos_y, window_settings['GRID_WIDTH'], window_settings['GRID_HEIGHT']
 
 
-def update():
-    rgb_image = clip.get_frame(clip_time)
-    images = {
-        'rgb': rgb_image,
-        'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
-        'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
-        'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
-    }
-    lane_filter.apply(images)
-    cv2.imshow(win_input_image, images['bgr'])
-    lane_filter.show()
+class LaneFilterPlayer(object):
+    def __init__(self, file_path):
+        self.clip = VideoFileClip(file_path)
+        self.n_frames = np.round(self.clip.fps * self.clip.duration).astype(np.int)
+        self.clip_time = 0
+        self.lane_filter = LaneFilter(thresh=self._load_thresholds(), th_change_callback=self.th_change_callback)
+        self._create_display_windows()
+
+    def _create_display_windows(self):
+        window_grid = WindowGrid()
+        pos_x, pos_y, width, height = window_grid.next()
+        self.win_input_image = 'Input image'
+        cv2.namedWindow(self.win_input_image, cv2.WINDOW_NORMAL)
+        cv2.moveWindow(self.win_input_image, pos_x, pos_y)
+        cv2.resizeWindow(self.win_input_image, width, height)
+        cv2.createTrackbar('frame', self.win_input_image, 0, self.n_frames - 1, self.frame_slider_callback)
+        self.lane_filter.init_show(window_grid)
+
+    def _process_frame(self):
+        rgb_image = self.clip.get_frame(self.clip_time)
+        images = {
+            'rgb': rgb_image,
+            'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
+            'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
+            'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
+        }
+        self.lane_filter.apply(images)
+        cv2.imshow(self.win_input_image, images['bgr'])
+        self.lane_filter.show()
+
+    def process(self):
+        pause = False
+        while 1:
+            if not pause and (self.clip_time < self.clip.duration):
+                self._process_frame()
+                frame_idx = np.round(self.clip.fps * self.clip_time).astype(np.int)
+                cv2.setTrackbarPos('frame', self.win_input_image, frame_idx)
+                self.clip_time += 1.0 / self.clip.fps
+
+            k = cv2.waitKey(20) & 0xff
+            if k == ascii_dict['space']:
+                pause = not pause  # toggle
+            elif k == ascii_dict['esc']:
+                break
+
+        self._save_thresholds()
+        cv2.destroyAllWindows()
+
+    def frame_slider_callback(self, value):
+        self.clip_time = value / self.clip.fps
+        self._process_frame()
+
+    def th_change_callback(self):
+        self._process_frame()
+
+    def _load_thresholds(self):
+        if not os.path.isfile(thresholds_path):
+            return dict()
+
+        with open(thresholds_path, 'rb') as fid:
+            thresholds = pickle.load(fid)
+        print("Loaded thresholds:")
+        print(thresholds)
+        return thresholds
+
+    def _save_thresholds(self):
+        thresholds = self.lane_filter.get_thresholds()
+        with open(thresholds_path, 'wb') as fid:
+            pickle.dump(thresholds, fid)
 
 
-def process_image():
-    pause = False
-    while 1:
-        update()
-        k = cv2.waitKey(20) & 0xff
-        if k == ascii_dict['space']:
-            pause = not pause  # toggle boolean
-        if k == ascii_dict['esc']:
-            return True  # quit
-        if not pause:
-            break
-    return False
-
-
-def frame_slider_callback(value):
-    global clip_time
-    clip_time = value / clip.fps
-
-
-lane_filter = LaneFilter(load_thresholds())
-lane_filter.init_show(window_settings)
-
-win_input_image = 'Input image'
-cv2.namedWindow(win_input_image, cv2.WINDOW_NORMAL)
-cv2.moveWindow(win_input_image, window_settings['INPUT_POS_X'], window_settings['INPUT_POS_Y'])
-cv2.resizeWindow(win_input_image, window_settings['INPUT_WIDTH'], window_settings['INPUT_HEIGHT'])
-clip = VideoFileClip('../input/project_video.mp4')
-# clip = VideoFileClip('../input/challenge_video.mp4')
-# clip = VideoFileClip('../input/harder_challenge_video.mp4')
-n_frames = np.round(clip.fps * clip.duration).astype(np.int)
-cv2.createTrackbar('frame', win_input_image, 0, n_frames - 1, frame_slider_callback)
-clip_time = 0
-while 1:
-    quit = process_image()
-    if clip_time < clip.duration:
-        clip_time += 1.0 / clip.fps
-    cv2.setTrackbarPos('frame', win_input_image, np.round(clip.fps * clip_time).astype(np.int))
-    if quit:
-        break
-
-save_thresholds(lane_filter.get_thresholds())
-cv2.destroyAllWindows()
+if __name__ == '__main__':
+    player = LaneFilterPlayer(clip_path)
+    player.process()
