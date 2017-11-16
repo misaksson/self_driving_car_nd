@@ -73,7 +73,7 @@ class MultiFilter(ImageFilter):
             self.image_filters.append(image_filter(thresh=self.thresh[image_filter.__name__],
                                                    parent_name=self.name, th_change_callback=self.th_change_callback))
         else:
-            # Use default thresholds
+            print(f"Using default thresholds for {self.name}:{image_filter.__name__}")
             self.image_filters.append(image_filter(parent_name=self.name, th_change_callback=self.th_change_callback))
 
     def apply(self, images):
