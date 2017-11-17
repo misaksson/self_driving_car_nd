@@ -17,26 +17,43 @@ class ImageFilter(object):
         else:
             self.name = parent_name + ":" + self.__class__.__name__
         self.th_change_callback = th_change_callback
+        self.show_result = True
 
     def apply(self, image):
+        # There is some sporadic bug where the thresholds seems to be linked between instances.
+        # I verified that the bug not is in the OpenCV trackbar callback mechanism by printing
+        # self.name in the callback function, and only one instance is called. So there seems to
+        # be some magic connection between ImageFilter instances, and as far as I noticed this
+        # only happens when the thresholds are initialized to the exact same values in two or more
+        # instances. Maybe python do some optimization by grouping what's considered to be const
+        # values together between instances, not realizing that the thresholds are updated by the
+        # OpenCV callback. The bug is present both in python 3.6.1 and 3.6.2. It does however
+        # seem very unlikely that this is a python bug considering the number of users.
+        #
+        # This bug is easier to notice when the trackbars position are continuously updated to
+        # actual (incorrect) value so lets do it here:
+        cv2.setTrackbarPos("lower_th", self.name, self.thresh[0])
+        cv2.setTrackbarPos("upper_th", self.name, self.thresh[1])
+
         self.mask = (image >= self.thresh[0]) & (image <= self.thresh[1])
         return self.mask
 
     def init_show(self, window_grid, thresh_slider=True):
+        if not self.suppress_show:
+            pos_x, pos_y, width, height = window_grid.next()
+            cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
+            cv2.moveWindow(self.name, pos_x, pos_y)
+            cv2.resizeWindow(self.name, width, height)
 
-        pos_x, pos_y, width, height = window_grid.next()
-        cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
-        cv2.moveWindow(self.name, pos_x, pos_y)
-        cv2.resizeWindow(self.name, width, height)
-
-        if thresh_slider:
-            cv2.createTrackbar("lower_th", self.name, self.thresh[0], 255,
-                               self._adjust_lower_th)
-            cv2.createTrackbar("upper_th", self.name, self.thresh[1], 255,
-                               self._adjust_upper_th)
+            if thresh_slider:
+                cv2.createTrackbar("lower_th", self.name, self.thresh[0], 255,
+                                   self._adjust_lower_th)
+                cv2.createTrackbar("upper_th", self.name, self.thresh[1], 255,
+                                   self._adjust_upper_th)
 
     def show(self):
-        cv2.imshow(self.name, self.mask.astype(np.uint8) * 255)
+        if not self.suppress_show:
+            cv2.imshow(self.name, self.mask.astype(np.uint8) * 255)
 
     def _adjust_lower_th(self, value):
         self.thresh[0] = value
@@ -109,20 +126,20 @@ class MultiFilter(ImageFilter):
 
 class MultiFilter_AND(MultiFilter):
     def combine(self, masks):
-        self.mask = reduce((lambda mask1, mask2: mask1 & mask2), masks).astype(np.uint8)
+        self.mask = reduce((lambda mask1, mask2: mask1 & mask2), masks)
         return self.mask
 
 
 class MultiFilter_OR(MultiFilter):
     def combine(self, masks):
-        self.mask = reduce((lambda mask1, mask2: mask1 | mask2), masks).astype(np.uint8)
+        self.mask = reduce((lambda mask1, mask2: mask1 | mask2), masks)
         return self.mask
 
 
 class KernelFilters(ImageFilter):
     """Provides common initialization for kernel filters."""
 
-    def __init__(self, ksize=9, **kwargs):
+    def __init__(self, ksize=5, **kwargs):
         self.ksize = ksize
         ImageFilter.__init__(self, **kwargs)
 
@@ -149,17 +166,11 @@ class SobelMagnitude(KernelFilters):
         sobelx = cv2.Sobel(images['gray'], cv2.CV_64F, 1, 0, ksize=self.ksize)
         sobely = cv2.Sobel(images['gray'], cv2.CV_64F, 0, 1, ksize=self.ksize)
         magnitude = np.sqrt(np.square(sobelx) + np.square(sobely))
-        scaled = ((magnitude * 255.0) / np.max(magnitude)).astype(np.uint8)
+        scaled = (magnitude / sobel_gain_factor(self.ksize)).astype(np.uint8)
         return ImageFilter.apply(self, scaled)
 
 
 class SobelDirection(KernelFilters):
-    def __init__(self, ksize=15, thresh=[0.7, 1.3], **kwargs):
-        self.ksize = ksize
-        scaled_threshold = (np.uint8(thresh[0] * 255 / (np.pi / 2)),
-                            np.uint8(thresh[1] * 255 / (np.pi / 2)))
-        ImageFilter.__init__(self, thresh=scaled_threshold, **kwargs)
-
     def apply(self, images):
         # ToDo: Cache sobel results (should be possible to reuse if same ksize).
         sobelx = cv2.Sobel(images['gray'], cv2.CV_64F, 1, 0, ksize=self.ksize)
@@ -199,16 +210,65 @@ class Blue(ImageFilter):
         return ImageFilter.apply(self, images['rgb'][:, :, 2])
 
 
-class YellowLine(MultiFilter_AND):
+class YellowLineShadow(MultiFilter_AND):
     def __init__(self, **kwargs):
         MultiFilter.__init__(self, **kwargs)
-        self.append(Red)
+        self.show_result = False
+        self.append(SobelX)
         self.append(SobelY)
 
 
-class LaneFilter(MultiFilter_OR):
+class YellowLineSunlight(MultiFilter_AND):
     def __init__(self, **kwargs):
         MultiFilter.__init__(self, **kwargs)
+        self.show_result = False
         self.append(Hue)
+        self.append(Saturation)
+        self.append(Lightness)
+
+
+class WhiteLine(MultiFilter_AND):
+    def __init__(self, **kwargs):
+        MultiFilter.__init__(self, **kwargs)
+        self.show_result = False
         self.append(Red)
-        self.append(YellowLine)
+
+
+class Lines(MultiFilter_OR):
+    def __init__(self, **kwargs):
+        MultiFilter.__init__(self, **kwargs)
+        self.show_result = False
+        self.append(WhiteLine)
+        self.append(YellowLineSunlight)
+        self.append(YellowLineShadow)
+
+
+class RoiMask(ImageFilter):
+    """Region-of-interest mask
+
+    Implemented as a ImageFilter, e.g. this is a hack using "thresholds" to
+    select ROI size.
+    """
+
+    def apply(self, images):
+        top = (255 - self.thresh[0]) / 255
+        width = (255 - self.thresh[1]) / 255
+        x1 = 0.5 - width
+        x2 = 0.5 + width
+        roi_vertices = np.array([[(0.1, 0.91),
+                                  (x1, top),
+                                  (x2, top),
+                                  (0.9, 0.91)]],
+                                dtype=np.float)
+        roi_vertices = np.round(roi_vertices * images['gray'].shape[1::-1]).astype(int)
+        mask = np.zeros_like(images['gray'])
+        cv2.fillPoly(mask, roi_vertices, 1)
+        self.mask = mask.astype(np.bool)
+        return self.mask
+
+
+class LaneFilter(MultiFilter_AND):
+    def __init__(self, **kwargs):
+        MultiFilter.__init__(self, **kwargs)
+        self.append(Lines)
+        self.append(RoiMask)

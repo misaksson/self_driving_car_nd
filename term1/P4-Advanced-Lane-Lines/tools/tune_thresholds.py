@@ -22,10 +22,12 @@ ascii_dict = {'esc': 27, 'space': 32}
 window_settings = {
     'GRID_ROWS': 3,
     'GRID_COLS': 4,
-    'GRID_WIDTH': 640,
-    'GRID_HEIGHT': 460,  # Extra space for sliders
+    'GRID_WIDTH': 600,
+    'GRID_HEIGHT': 400,
+    'GRID_RECT_X_OFFSET': 3,
+    'GRID_RECT_Y_OFFSET': 25,
     'GRID_POS_X': 0,
-    'GRID_POS_Y': 0,
+    'GRID_POS_Y': 25,
 }
 
 
@@ -36,8 +38,10 @@ class WindowGrid(object):
     def next(self):
         grid_col = self.grid_idx // window_settings['GRID_ROWS']
         grid_row = self.grid_idx % window_settings['GRID_ROWS']
-        pos_x = window_settings['GRID_POS_X'] + grid_col * window_settings['GRID_WIDTH']
-        pos_y = window_settings['GRID_POS_Y'] + grid_row * window_settings['GRID_HEIGHT']
+        pos_x = (window_settings['GRID_POS_X'] +
+                 grid_col * (window_settings['GRID_WIDTH'] + window_settings['GRID_RECT_X_OFFSET']))
+        pos_y = (window_settings['GRID_POS_Y'] +
+                 grid_row * (window_settings['GRID_HEIGHT'] + window_settings['GRID_RECT_Y_OFFSET']))
         self.grid_idx += 1
         return pos_x, pos_y, window_settings['GRID_WIDTH'], window_settings['GRID_HEIGHT']
 
@@ -109,6 +113,8 @@ class LaneFilterPlayer(object):
 
     def _save_thresholds(self):
         thresholds = self.lane_filter.get_thresholds()
+        print("Saving thresholds:")
+        print(thresholds)
         with open(thresholds_path, 'wb') as fid:
             pickle.dump(thresholds, fid)
 
