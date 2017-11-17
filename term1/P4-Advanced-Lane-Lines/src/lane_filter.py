@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from functools import reduce
+from src.sobel_kernels import sobel_gain_factor
 
 
 class ImageFilter(object):
@@ -148,7 +149,7 @@ class SobelX(KernelFilters):
     def apply(self, images):
         sobel = cv2.Sobel(images['gray'], cv2.CV_64F, 1, 0, ksize=self.ksize)
         abs_sobel = np.abs(sobel)
-        scaled = ((abs_sobel * 255.0) / np.max(abs_sobel)).astype(np.uint8)
+        scaled = (abs_sobel / sobel_gain_factor(self.ksize)).astype(np.uint8)
         return ImageFilter.apply(self, scaled)
 
 
@@ -156,7 +157,7 @@ class SobelY(KernelFilters):
     def apply(self, images):
         sobel = cv2.Sobel(images['gray'], cv2.CV_64F, 0, 1, ksize=self.ksize)
         abs_sobel = np.abs(sobel)
-        scaled = ((abs_sobel * 255.0) / np.max(abs_sobel)).astype(np.uint8)
+        scaled = (abs_sobel / sobel_gain_factor(self.ksize)).astype(np.uint8)
         return ImageFilter.apply(self, scaled)
 
 
