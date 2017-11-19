@@ -3,11 +3,10 @@ import cv2
 from moviepy.editor import VideoFileClip
 import pickle
 import os
-import matplotlib.pyplot as plt
 
 from camera_calibration import Calibrate
 from extractor import Extractor
-from detector import Detector
+from detector import Detector, Line
 
 camera_calibration_path = "./calibration.p"
 thresholds_path = "./thresholds.p"
@@ -60,32 +59,35 @@ else:
 
 extractor = Extractor(thresh=load_thresholds())
 transformation_matrix = load_perspective_transform()
-
+detector = Detector()
 
 clip_path = '../input/project_video.mp4'
 clip = VideoFileClip(clip_path)
-rgb_image = clip.get_frame(20)
-#cv2.imshow('input', rgb_image)
-rgb_image = calibration.undistort(rgb_image)
-#cv2.imshow('undistort', rgb_image)
+for rgb_image in clip.iter_frames():
+    rgb_image = calibration.undistort(rgb_image)
 
-images = {
-    'rgb': rgb_image,
-    'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
-    'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
-    'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
-}
+    images = {
+        'rgb': rgb_image,
+        'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
+        'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
+        'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
+    }
 
+    # Extract possible lane lines pixels into a binary image.
+    extracted_image = extractor.apply(images).astype(np.uint8)
+    h, w = extracted_image.shape
 
-lane_image = extractor.apply(images).astype(np.uint8)
-#cv2.imshow('lane extracted', lane_image * 255)
+    # Warp perspective to birds-eye-view
+    perspective_image = cv2.warpPerspective(extracted_image, transformation_matrix, (w, h), flags=cv2.INTER_LINEAR)
 
-h, w = lane_image.shape
-perspective_image = cv2.warpPerspective(lane_image, transformation_matrix, (w, h), flags=cv2.INTER_LINEAR)
-#cv2.imshow('perspective', perspective_image * 255)
+    # Fit lines to extracted lane line pixels.
+    detector.find(perspective_image)
+    cv2.imshow("Input", images['bgr'])
+    cv2.imshow("Lines", Line.demo_image)
+    k = cv2.waitKey(20) & 0xff
+    if k == 27:
+        break
+else:
+    cv2.waitKey()
 
-detector = Detector()
-detector.find(perspective_image)
-cv2.waitKey()
-#plt.show()
 cv2.destroyAllWindows()

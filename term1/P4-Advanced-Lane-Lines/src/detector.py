@@ -19,7 +19,7 @@ class Line(object):
 
     def __init__(self, location):
         self.location = location
-        self.search_needed = True
+        self.line_coeffs_history = []
 
     def find(self, image):
         """Find line
@@ -29,7 +29,7 @@ class Line(object):
         Arguments:
             image - birds-eye-view perspective of a binary image with extracted pixels.
         """
-        if self.search_needed:
+        if not self.line_coeffs_history:
             self._search(image)
         else:
             self._refine(image)
@@ -132,6 +132,7 @@ class Line(object):
 
         # Least squares polynomial fit.
         self.line_coeffs = np.polyfit(line_y_coords, line_x_coords, deg=2)
+        self.line_coeffs_history.append(self.line_coeffs)
 
         # Calculate line coordinates for demo.
         fitted_line_y_coords = np.linspace(0, h - 1, h)
@@ -140,10 +141,6 @@ class Line(object):
                                 self.line_coeffs[2])
         Line.demo_image[fitted_line_y_coords.astype(np.int32),
                         np.round(fitted_line_x_coords).astype(np.int32), :] = np.array([0, 255, 255])
-#        pts = np.column_stack((np.round(fitted_line_x_coords).astype(np.int32), fitted_line_y_coords.astype(np.int32)))
-#        cv2.polylines(Line.demo_image, [pts], False, (0, 255, 255), 2)
-
-        self.search_needed = False
 
     def _refine(self, image):
         """Refine previous detection using this frame.
@@ -155,6 +152,11 @@ class Line(object):
         """
         h, w = image.shape
 
+        # The minimum number of extracted pixels that must be found within the search boundary to consider the result
+        # as a valid line detection.
+        min_n_pixels_of_a_valid_detection = 300
+
+        # Defines search area boundary, e.g. x-distance from previous line detection.
         boundary_margin = 100
         all_y_coords = np.linspace(0, h - 1, h)
         left_boundary = (self.line_coeffs[0] * all_y_coords**2 +
@@ -165,6 +167,7 @@ class Line(object):
         # Get x and y coordinates of pixels that previously been identified to possibly belong to lane lines.
         extracted_y_coords, extracted_x_coords = image.nonzero()
 
+        # Identify extracted pixel coordinates within search boundary
         line_indices = np.where(np.logical_and(extracted_x_coords >= left_boundary[extracted_y_coords],
                                                extracted_x_coords <= right_boundary[extracted_y_coords]))[0]
 
@@ -173,12 +176,20 @@ class Line(object):
         line_y_coords = extracted_y_coords[line_indices]
 
         # Least squares polynomial fit.
-        self.line_coeffs = np.polyfit(line_y_coords, line_x_coords, deg=2)
+        line_coeffs = np.polyfit(line_y_coords, line_x_coords, deg=2)
 
-        boundary_x = np.concatenate((left_boundary, np.flipud(right_boundary)))
+        if len(line_x_coords) >= min_n_pixels_of_a_valid_detection:
+            # Add this detection to history and calculate average detection.
+            self.line_coeffs = self._average_line_coeffs(line_coeffs)
+        else:
+            # Use average from previous detections.
+            self.line_coeffs = self._average_line_coeffs()
+
+        # The code below are only for demo visualization.
+        # Create polygon of search boundary for drawing.
+        boundary_x = np.clip(np.concatenate((left_boundary, np.flipud(right_boundary))), 0, w - 1)
         boundary_y = np.concatenate((all_y_coords, np.flipud(all_y_coords)))
         Line.demo_image[boundary_y.astype(np.int32), np.round(boundary_x).astype(np.int32), 1] = 255
-
 #        pts = np.column_stack((np.round(boundary_x).astype(np.int32), boundary_y.astype(np.int32)))
 #        cv2.fillPoly(Line.demo_image, [pts], (0, 255, 0))
 
@@ -187,11 +198,46 @@ class Line(object):
 
         # Draw fitted line coordinates in yellow.
         fitted_line_y_coords = np.linspace(0, h - 1, h)
-        fitted_line_x_coords = (self.line_coeffs[0] * fitted_line_y_coords**2 +
-                                self.line_coeffs[1] * fitted_line_y_coords +
-                                self.line_coeffs[2])
+        fitted_line_x_coords = (line_coeffs[0] * fitted_line_y_coords**2 +
+                                line_coeffs[1] * fitted_line_y_coords +
+                                line_coeffs[2])
+        fitted_line_x_coords = np.clip(fitted_line_x_coords, 0, w - 1)
         Line.demo_image[fitted_line_y_coords.astype(np.int32),
                         np.round(fitted_line_x_coords).astype(np.int32), :] = np.array([0, 255, 255])
+
+        # Draw fitted average line coordinates in cyan.
+        fitted_avg_line_x_coords = (self.line_coeffs[0] * fitted_line_y_coords**2 +
+                                    self.line_coeffs[1] * fitted_line_y_coords +
+                                    self.line_coeffs[2])
+        fitted_avg_line_x_coords = np.clip(fitted_avg_line_x_coords, 0, w - 1)
+        Line.demo_image[fitted_line_y_coords.astype(np.int32),
+                        np.round(fitted_avg_line_x_coords).astype(np.int32), :] = np.array([255, 255, 0])
+
+    def _average_line_coeffs(self, line_coeffs=None):
+        """Calculate average line coefficients.
+
+        Use detection history from a few frames to calculate average line coefficients.
+
+        Arguments:
+            line_coeffs - Line detection in this frame, or None when a valid detection is missing.
+
+        Returns:
+            Average line coefficients.
+        """
+        max_history_length = 10
+
+        if line_coeffs is not None:
+            self.line_coeffs_history.append(line_coeffs)
+
+        # Calculate the average of each coefficient individually.
+        avg_line_coeffs = np.average(self.line_coeffs_history, axis=0)
+
+        # Limit history length by removing oldest detection. This is also done when detections are missing in current
+        # frame, such that a new search eventually will be triggered when losing track of the line.
+        if len(self.line_coeffs_history) > max_history_length or line_coeffs is None:
+            self.line_coeffs_history.pop(0)
+
+        return avg_line_coeffs
 
 
 class Detector(object):
@@ -203,10 +249,3 @@ class Detector(object):
         Line.init_frame(image)
         for line in self.lines:
             line.find(image)
-            print(line.line_coeffs)
-        cv2.imshow("Searched lines", Line.demo_image)
-        Line.init_frame(image)
-        for line in self.lines:
-            line.find(image)
-            print(line.line_coeffs)
-        cv2.imshow("Refined lines", Line.demo_image)
