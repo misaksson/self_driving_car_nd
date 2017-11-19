@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 from functools import reduce
-from src.sobel_kernels import sobel_gain_factor
+from sobel_kernels import sobel_gain_factor
 
 
 class ImageFilter(object):
@@ -18,7 +18,9 @@ class ImageFilter(object):
         else:
             self.name = parent_name + ":" + self.__class__.__name__
         self.th_change_callback = th_change_callback
-        self.show_result = True
+        self.suppress_show = False
+        self.trackbar_available = False
+
 
     def apply(self, image):
         # There is some sporadic bug where the thresholds seems to be linked between instances.
@@ -33,8 +35,9 @@ class ImageFilter(object):
         #
         # This bug is easier to notice when the trackbars position are continuously updated to
         # actual (incorrect) value so lets do it here:
-        cv2.setTrackbarPos("lower_th", self.name, self.thresh[0])
-        cv2.setTrackbarPos("upper_th", self.name, self.thresh[1])
+        if self.trackbar_available:
+            cv2.setTrackbarPos("lower_th", self.name, self.thresh[0])
+            cv2.setTrackbarPos("upper_th", self.name, self.thresh[1])
 
         self.mask = (image >= self.thresh[0]) & (image <= self.thresh[1])
         return self.mask
@@ -51,6 +54,7 @@ class ImageFilter(object):
                                    self._adjust_lower_th)
                 cv2.createTrackbar("upper_th", self.name, self.thresh[1], 255,
                                    self._adjust_upper_th)
+                self.trackbar_available = True
 
     def show(self):
         if not self.suppress_show:
@@ -214,7 +218,7 @@ class Blue(ImageFilter):
 class YellowLineShadow(MultiFilter_AND):
     def __init__(self, **kwargs):
         MultiFilter.__init__(self, **kwargs)
-        self.show_result = False
+        self.suppress_show = True
         self.append(SobelX)
         self.append(SobelY)
 
@@ -222,7 +226,7 @@ class YellowLineShadow(MultiFilter_AND):
 class YellowLineSunlight(MultiFilter_AND):
     def __init__(self, **kwargs):
         MultiFilter.__init__(self, **kwargs)
-        self.show_result = False
+        self.suppress_show = True
         self.append(Hue)
         self.append(Saturation)
         self.append(Lightness)
@@ -231,14 +235,14 @@ class YellowLineSunlight(MultiFilter_AND):
 class WhiteLine(MultiFilter_AND):
     def __init__(self, **kwargs):
         MultiFilter.__init__(self, **kwargs)
-        self.show_result = False
+        self.suppress_show = True
         self.append(Red)
 
 
 class Lines(MultiFilter_OR):
     def __init__(self, **kwargs):
         MultiFilter.__init__(self, **kwargs)
-        self.show_result = False
+        self.suppress_show = True
         self.append(WhiteLine)
         self.append(YellowLineSunlight)
         self.append(YellowLineShadow)
@@ -268,7 +272,7 @@ class RoiMask(ImageFilter):
         return self.mask
 
 
-class LaneFilter(MultiFilter_AND):
+class Extractor(MultiFilter_AND):
     def __init__(self, **kwargs):
         MultiFilter.__init__(self, **kwargs)
         self.append(Lines)

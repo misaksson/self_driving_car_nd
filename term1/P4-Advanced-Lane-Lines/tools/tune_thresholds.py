@@ -5,8 +5,8 @@ import os
 import sys
 from moviepy.editor import VideoFileClip
 
-sys.path.append("../")
-from src.lane_filter import LaneFilter
+sys.path.append("../src/")
+from extractor import Extractor
 
 
 # constants
@@ -46,12 +46,12 @@ class WindowGrid(object):
         return pos_x, pos_y, window_settings['GRID_WIDTH'], window_settings['GRID_HEIGHT']
 
 
-class LaneFilterPlayer(object):
+class ExtractorPlayer(object):
     def __init__(self, file_path):
         self.clip = VideoFileClip(file_path)
         self.n_frames = np.round(self.clip.fps * self.clip.duration).astype(np.int)
         self.clip_time = 0
-        self.lane_filter = LaneFilter(thresh=self._load_thresholds(), th_change_callback=self.th_change_callback)
+        self.extractor = Extractor(thresh=self._load_thresholds(), th_change_callback=self.th_change_callback)
         self._create_display_windows()
 
     def _create_display_windows(self):
@@ -62,7 +62,7 @@ class LaneFilterPlayer(object):
         cv2.moveWindow(self.win_input_image, pos_x, pos_y)
         cv2.resizeWindow(self.win_input_image, width, height)
         cv2.createTrackbar('frame', self.win_input_image, 0, self.n_frames - 1, self.frame_slider_callback)
-        self.lane_filter.init_show(window_grid)
+        self.extractor.init_show(window_grid)
 
     def _process_frame(self):
         rgb_image = self.clip.get_frame(self.clip_time)
@@ -72,9 +72,9 @@ class LaneFilterPlayer(object):
             'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
             'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
         }
-        self.lane_filter.apply(images)
+        self.extractor.apply(images)
         cv2.imshow(self.win_input_image, images['bgr'])
-        self.lane_filter.show()
+        self.extractor.show()
 
     def process(self):
         pause = False
@@ -112,7 +112,7 @@ class LaneFilterPlayer(object):
         return thresholds
 
     def _save_thresholds(self):
-        thresholds = self.lane_filter.get_thresholds()
+        thresholds = self.extractor.get_thresholds()
         print("Saving thresholds:")
         print(thresholds)
         with open(thresholds_path, 'wb') as fid:
@@ -120,5 +120,5 @@ class LaneFilterPlayer(object):
 
 
 if __name__ == '__main__':
-    player = LaneFilterPlayer(clip_path)
+    player = ExtractorPlayer(clip_path)
     player.process()
