@@ -142,6 +142,10 @@ class Line(object):
         Line.demo_image[fitted_line_y_coords.astype(np.int32),
                         np.round(fitted_line_x_coords).astype(np.int32), :] = np.array([0, 255, 255])
 
+        # Keep line for later lane boundary drawing.
+        self.line_x_coords = np.round(fitted_line_x_coords).astype(np.int32)
+        self.line_y_coords = fitted_line_y_coords.astype(np.int32)
+
     def _refine(self, image):
         """Refine previous detection using this frame.
 
@@ -213,6 +217,10 @@ class Line(object):
         Line.demo_image[fitted_line_y_coords.astype(np.int32),
                         np.round(fitted_avg_line_x_coords).astype(np.int32), :] = np.array([255, 255, 0])
 
+        # Keep line for later lane boundary drawing.
+        self.line_x_coords = np.round(fitted_avg_line_x_coords).astype(np.int32)
+        self.line_y_coords = fitted_line_y_coords.astype(np.int32)
+
     def _average_line_coeffs(self, line_coeffs=None):
         """Calculate average line coefficients.
 
@@ -249,3 +257,8 @@ class Detector(object):
         Line.init_frame(image)
         for line in self.lines:
             line.find(image)
+
+    def get_lane_boundary(self):
+        boundary_x = np.concatenate((self.lines[0].line_x_coords, np.flipud(self.lines[1].line_x_coords)))
+        boundary_y = np.concatenate((self.lines[0].line_y_coords, np.flipud(self.lines[1].line_y_coords)))
+        return [np.column_stack((boundary_x, boundary_y))]

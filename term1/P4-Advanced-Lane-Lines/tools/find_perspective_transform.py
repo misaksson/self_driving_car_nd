@@ -123,6 +123,7 @@ dst = np.float32([[(w - dst_width) // 2, h],
                   [(w + dst_width) // 2, h]])
 
 transformation_matrix = cv2.getPerspectiveTransform(src, dst)
+inv_transformation_matrix = cv2.getPerspectiveTransform(dst, src)
 final_transformed_image = cv2.warpPerspective(input_image, transformation_matrix, (w, h), flags=cv2.INTER_LINEAR)
 
 result_win = 'Final perspective'
@@ -136,6 +137,7 @@ visual_length_in_meters = h * y_meter_per_pixel
 visual_width_in_meters = w * x_meter_per_pixel
 
 print("transformation matrix", transformation_matrix)
+print("inv_transformation_matrix", inv_transformation_matrix)
 print(f"x resolution {x_meter_per_pixel:.03f} meters/pixel")
 print(f"y resolution {y_meter_per_pixel:.03f} meters/pixel")
 print(f"adjusted visual length {visual_length_in_meters:.03f} meters")
@@ -144,6 +146,7 @@ print(f"adjusted visual width {visual_width_in_meters:.03f} meters")
 with open('../output/perspective_transform.p', 'wb') as fid:
     output = {
         "transformation_matrix": transformation_matrix,
+        "inv_transformation_matrix": inv_transformation_matrix,
         "x_meter_per_pixel": x_meter_per_pixel,
         "y_meter_per_pixel": y_meter_per_pixel,
         "visual_length_in_meters": visual_length_in_meters,

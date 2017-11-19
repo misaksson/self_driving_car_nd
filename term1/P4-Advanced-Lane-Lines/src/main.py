@@ -43,9 +43,31 @@ def load_thresholds():
 
 def load_perspective_transform():
     with open(perspective_transform_path, 'rb') as fid:
-        data = pickle.load(fid)
-        transformation_matrix = data['transformation_matrix']
-    return transformation_matrix
+        return pickle.load(fid)
+
+
+def draw_lane_detection(bgr_image):
+    """Draw detected lane boundary in camera image
+
+    Create an temporary birds-eye-view image where only the lane boundary is
+    drawn as a green filled polygon. This image is then warped to camera view,
+    and blended into the original camera image.
+
+    Arguments:
+        bgr_image - Camera image in BGR color space (for opencv).
+
+    Returns:
+        Camera image augmented with detected lane boundary as a green filled polygon.
+    """
+    # Draw the lane onto a temporary birds-eye-view warped image.
+    warped_draw_image = np.zeros_like(bgr_image).astype(np.uint8)
+    cv2.fillPoly(warped_draw_image, detector.get_lane_boundary(), (0, 255, 0))
+
+    # Warp birds-eye-view warped image to camera image space using the inverse transformation matrix.
+    draw_image = cv2.warpPerspective(warped_draw_image, perspective_transform['inv_transformation_matrix'],
+                                     (bgr_image.shape[1], bgr_image.shape[0]))
+    # Blend the drawing image into the camera image.
+    return cv2.addWeighted(bgr_image, 1, draw_image, 0.3, 0)
 
 
 if camera_calibration_available():
@@ -58,7 +80,7 @@ else:
 
 
 extractor = Extractor(thresh=load_thresholds())
-transformation_matrix = load_perspective_transform()
+perspective_transform = load_perspective_transform()
 detector = Detector()
 
 clip_path = '../input/project_video.mp4'
@@ -78,10 +100,12 @@ for rgb_image in clip.iter_frames():
     h, w = extracted_image.shape
 
     # Warp perspective to birds-eye-view
-    perspective_image = cv2.warpPerspective(extracted_image, transformation_matrix, (w, h), flags=cv2.INTER_LINEAR)
+    perspective_image = cv2.warpPerspective(extracted_image, perspective_transform['transformation_matrix'], (w, h),
+                                            flags=cv2.INTER_LINEAR)
 
     # Fit lines to extracted lane line pixels.
     detector.find(perspective_image)
+    images['bgr'] = draw_lane_detection(images['bgr'])
     cv2.imshow("Input", images['bgr'])
     cv2.imshow("Lines", Line.demo_image)
     k = cv2.waitKey(20) & 0xff
