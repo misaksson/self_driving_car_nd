@@ -71,8 +71,8 @@ def overlay_lane_detection(bgr_image):
 
 
 def overlay_lane_curvature(bgr_image, lines_curvature):
-    left_line_str = f"Left radius: {lines_curvature[0]:4.0f} m"
-    right_line_str = f"Right radius: {lines_curvature[1]:4.0f} m"
+    left_line_str = f"Left curve: {lines_curvature[0]:4.0f} m"
+    right_line_str = f"Right curve: {lines_curvature[1]:4.0f} m"
     cv2.putText(bgr_image, left_line_str, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
     cv2.putText(bgr_image, right_line_str, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
     return bgr_image

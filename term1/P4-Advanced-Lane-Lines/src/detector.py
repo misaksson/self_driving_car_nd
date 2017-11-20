@@ -248,7 +248,10 @@ class Line(object):
         return avg_line_coeffs
 
     def calc_real_world_curvature(self, x_meter_per_pixel, y_meter_per_pixel):
-        """Calculate line curve radius in meters
+        """Calculate line curvature
+
+        The line curvature radius is calculated just in front of the vehicle. The sign of the returned value indicates
+        the curvature direction, where left is negative.
 
         Use pixel resolution in meters to fit a second degree polynomial in real-world coordinates. The line radius is
         then calculated near to the vehicle using this formula:
@@ -260,7 +263,7 @@ class Line(object):
             y_meter_per_pixel - measured when finding perspective transform
 
         Returns:
-            Line curve radius in meters.
+            Line curve radius measured in meters. The sign indicates if it's left (negative) or right (positive).
         """
         line_coeffs = np.polyfit(self.line_y_coords * y_meter_per_pixel, self.line_x_coords * x_meter_per_pixel, 2)
         A = line_coeffs[0]
@@ -269,6 +272,11 @@ class Line(object):
         # Evaluate curve radius at the bottom of warped image, e.g. just in front of the vehicle.
         y_eval = np.max(self.line_y_coords) * y_meter_per_pixel
         curve_radius = ((1 + (2 * A * y_eval + B)**2)**(3 / 2)) / np.absolute(2 * A)
+
+        # Set negative value on the curvature when it's turning left, that is when f"(y) = 2 * A is negative.
+        if A < 0:
+            curve_radius = -curve_radius
+
         return curve_radius
 
 
