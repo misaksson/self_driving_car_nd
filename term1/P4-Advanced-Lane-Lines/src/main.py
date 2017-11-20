@@ -46,7 +46,7 @@ def load_perspective():
         return pickle.load(fid)
 
 
-def overlay_lane_detection(bgr_image):
+def overlay_lane_detection(bgr_image, detector):
     """Draw detected lane boundary in camera image
 
     Create an temporary birds-eye-view image where only the lane boundary is
@@ -71,19 +71,70 @@ def overlay_lane_detection(bgr_image):
 
 
 def overlay_lane_curvature(bgr_image, lines_curvature):
+    """Write left and right lane lines curvature into the image"""
     left_line_str = f"Left curve: {lines_curvature[0]:4.0f} m"
     right_line_str = f"Right curve: {lines_curvature[1]:4.0f} m"
-    cv2.putText(bgr_image, left_line_str, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.putText(bgr_image, right_line_str, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(bgr_image, left_line_str, (20, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(bgr_image, right_line_str, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
     return bgr_image
 
 
 def overlay_lane_center_offset(bgr_image, lane_center_offset):
+    """Write lane center offset into the image"""
     position_str = f"Lane center offset: {lane_center_offset:.2f} m"
-    cv2.putText(bgr_image, position_str, (10, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(bgr_image, position_str, (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
     return bgr_image
 
 
+def overlay_extracted_image(bgr_image, extracted_image):
+    """Draw extracted image as picture in picture"""
+    h, w, _ = bgr_image.shape
+    scaled_extracted_image = cv2.resize(extracted_image, None, fx=1 / 4, fy=1 / 4, interpolation=cv2.INTER_CUBIC)
+    scaled_extracted_image *= 255
+    x_offset = 2 * w // 4 - 40
+    y_offset = 20
+    bgr_image[y_offset:y_offset + scaled_extracted_image.shape[0],
+              x_offset:x_offset + scaled_extracted_image.shape[1], :] = \
+        np.dstack((scaled_extracted_image, scaled_extracted_image, scaled_extracted_image))
+    return bgr_image
+
+
+def overlay_detection_image(bgr_image, detection_image):
+    """Draw detection image as picture in picture"""
+    h, w, _ = bgr_image.shape
+    scaled_detection_image = cv2.resize(detection_image, None, fx=1 / 4, fy=1 / 4, interpolation=cv2.INTER_CUBIC)
+    x_offset = 3 * w // 4 - 20
+    y_offset = 20
+    bgr_image[y_offset:y_offset + scaled_detection_image.shape[0],
+              x_offset:x_offset + scaled_detection_image.shape[1]] = scaled_detection_image
+    return bgr_image
+
+
+def overlay_perspective_image(bgr_image, transformation_matrix):
+    """Draw perspective image as picture in picture"""
+    h, w, _ = bgr_image.shape
+    transformed_image = cv2.warpPerspective(bgr_image, transformation_matrix, (w, h),
+                                            flags=cv2.INTER_LINEAR)
+    scaled_transformed_image = cv2.resize(transformed_image, None, fx=1 / 4, fy=1 / 4, interpolation=cv2.INTER_CUBIC)
+    x_offset = 3 * w // 4 - 20
+    y_offset = h // 4 + 40
+    bgr_image[y_offset:y_offset + scaled_transformed_image.shape[0],
+              x_offset:x_offset + scaled_transformed_image.shape[1]] = scaled_transformed_image
+    return bgr_image
+
+
+def draw_overlays(bgr_image, detector, lines_curvature, lane_center_offset, extracted_image, detection_image,
+                  transformation_matrix):
+    bgr_image = overlay_lane_detection(bgr_image, detector)
+    bgr_image = overlay_lane_curvature(bgr_image, lines_curvature)
+    bgr_image = overlay_lane_center_offset(bgr_image, lane_center_offset)
+    bgr_image = overlay_extracted_image(bgr_image, extracted_image)
+    bgr_image = overlay_detection_image(bgr_image, detection_image)
+    bgr_image = overlay_perspective_image(bgr_image, transformation_matrix)
+    return bgr_image
+
+
+# Image processing pipeline
 if camera_calibration_available():
     print("Loading camera calibration")
     calibration = load_camera_calibration()
@@ -119,12 +170,11 @@ for rgb_image in clip.iter_frames():
 
     # Fit lines to extracted lane line pixels and return real-world radius curvature in meter.
     lines_curvature, lane_center_offset = detector.find(perspective_image)
-    images['bgr'] = overlay_lane_detection(images['bgr'])
-    images['bgr'] = overlay_lane_curvature(images['bgr'], lines_curvature)
-    images['bgr'] = overlay_lane_center_offset(images['bgr'], lane_center_offset)
+
+    images['bgr'] = draw_overlays(images['bgr'], detector, lines_curvature, lane_center_offset, extracted_image,
+                                  Line.demo_image, perspective['transformation_matrix'])
 
     cv2.imshow("Input", images['bgr'])
-    cv2.imshow("Lines", Line.demo_image)
     k = cv2.waitKey(20) & 0xff
     if k == 27:
         break  # Quit by pressing Esc
