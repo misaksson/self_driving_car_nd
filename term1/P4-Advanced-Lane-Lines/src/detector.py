@@ -142,7 +142,7 @@ class Line(object):
         Line.demo_image[fitted_line_y_coords.astype(np.int32),
                         np.round(fitted_line_x_coords).astype(np.int32), :] = np.array([0, 255, 255])
 
-        # Keep line for later lane boundary drawing.
+        # Keep line for real-world curvature estimation etc.
         self.line_x_coords = np.round(fitted_line_x_coords).astype(np.int32)
         self.line_y_coords = fitted_line_y_coords.astype(np.int32)
 
@@ -217,7 +217,7 @@ class Line(object):
         Line.demo_image[fitted_line_y_coords.astype(np.int32),
                         np.round(fitted_avg_line_x_coords).astype(np.int32), :] = np.array([255, 255, 0])
 
-        # Keep line for later lane boundary drawing.
+        # Keep line for real-world curvature estimation etc.
         self.line_x_coords = np.round(fitted_avg_line_x_coords).astype(np.int32)
         self.line_y_coords = fitted_line_y_coords.astype(np.int32)
 
@@ -247,16 +247,45 @@ class Line(object):
 
         return avg_line_coeffs
 
+    def calc_real_world_curvature(self, x_meter_per_pixel, y_meter_per_pixel):
+        """Calculate line curve radius in meters
+
+        Use pixel resolution in meters to fit a second degree polynomial in real-world coordinates. The line radius is
+        then calculated near to the vehicle using this formula:
+        R = (1 + f'(y)^2)^(3/2) / abs(f"(y)), where a second degree polynomial f(y) = Ay^2 + By + C
+        have f'(y)= 2Ay + B and f"(y) = 2A, resulting in R = ((1 + (2Ay + B))^2)^(3/2) / abs(2A)
+
+        Arguments:
+            x_meter_per_pixel - measured when finding perspective transform
+            y_meter_per_pixel - measured when finding perspective transform
+
+        Returns:
+            Line curve radius in meters.
+        """
+        line_coeffs = np.polyfit(self.line_y_coords * y_meter_per_pixel, self.line_x_coords * x_meter_per_pixel, 2)
+        A = line_coeffs[0]
+        B = line_coeffs[1]
+
+        # Evaluate curve radius at the bottom of warped image, e.g. just in front of the vehicle.
+        y_eval = np.max(self.line_y_coords) * y_meter_per_pixel
+        curve_radius = ((1 + (2 * A * y_eval + B)**2)**(3 / 2)) / np.absolute(2 * A)
+        return curve_radius
+
 
 class Detector(object):
-    def __init__(self):
+    def __init__(self, perspective):
+        self.perspective = perspective
         self.lines = [Line(Line.Location.LEFT),
                       Line(Line.Location.RIGHT)]
 
     def find(self, image):
+        lines_curvature = []
         Line.init_frame(image)
         for line in self.lines:
             line.find(image)
+            lines_curvature.append(line.calc_real_world_curvature(self.perspective['x_meter_per_pixel'],
+                                                                  self.perspective['y_meter_per_pixel']))
+        return lines_curvature
 
     def get_lane_boundary(self):
         boundary_x = np.concatenate((self.lines[0].line_x_coords, np.flipud(self.lines[1].line_x_coords)))

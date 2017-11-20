@@ -10,7 +10,7 @@ from detector import Detector, Line
 
 camera_calibration_path = "./calibration.p"
 thresholds_path = "./thresholds.p"
-perspective_transform_path = "./perspective_transform.p"
+perspective_path = "./perspective_transform.p"
 
 
 def camera_calibration_available():
@@ -41,12 +41,12 @@ def load_thresholds():
     return thresholds
 
 
-def load_perspective_transform():
-    with open(perspective_transform_path, 'rb') as fid:
+def load_perspective():
+    with open(perspective_path, 'rb') as fid:
         return pickle.load(fid)
 
 
-def draw_lane_detection(bgr_image):
+def overlay_lane_detection(bgr_image):
     """Draw detected lane boundary in camera image
 
     Create an temporary birds-eye-view image where only the lane boundary is
@@ -64,10 +64,18 @@ def draw_lane_detection(bgr_image):
     cv2.fillPoly(warped_draw_image, detector.get_lane_boundary(), (0, 255, 0))
 
     # Warp birds-eye-view warped image to camera image space using the inverse transformation matrix.
-    draw_image = cv2.warpPerspective(warped_draw_image, perspective_transform['inv_transformation_matrix'],
+    draw_image = cv2.warpPerspective(warped_draw_image, perspective['inv_transformation_matrix'],
                                      (bgr_image.shape[1], bgr_image.shape[0]))
     # Blend the drawing image into the camera image.
     return cv2.addWeighted(bgr_image, 1, draw_image, 0.3, 0)
+
+
+def overlay_lane_curvature(bgr_image, lines_curvature):
+    left_line_str = f"Left radius: {lines_curvature[0]:4.0f} m"
+    right_line_str = f"Right radius: {lines_curvature[1]:4.0f} m"
+    cv2.putText(bgr_image, left_line_str, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(bgr_image, right_line_str, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    return bgr_image
 
 
 if camera_calibration_available():
@@ -80,8 +88,8 @@ else:
 
 
 extractor = Extractor(thresh=load_thresholds())
-perspective_transform = load_perspective_transform()
-detector = Detector()
+perspective = load_perspective()
+detector = Detector(perspective)
 
 clip_path = '../input/project_video.mp4'
 clip = VideoFileClip(clip_path)
@@ -100,17 +108,21 @@ for rgb_image in clip.iter_frames():
     h, w = extracted_image.shape
 
     # Warp perspective to birds-eye-view
-    perspective_image = cv2.warpPerspective(extracted_image, perspective_transform['transformation_matrix'], (w, h),
+    perspective_image = cv2.warpPerspective(extracted_image, perspective['transformation_matrix'], (w, h),
                                             flags=cv2.INTER_LINEAR)
 
-    # Fit lines to extracted lane line pixels.
-    detector.find(perspective_image)
-    images['bgr'] = draw_lane_detection(images['bgr'])
+    # Fit lines to extracted lane line pixels and return real-world radius curvature in meter.
+    lines_curvature = detector.find(perspective_image)
+    images['bgr'] = overlay_lane_detection(images['bgr'])
+    images['bgr'] = overlay_lane_curvature(images['bgr'], lines_curvature)
+
     cv2.imshow("Input", images['bgr'])
     cv2.imshow("Lines", Line.demo_image)
     k = cv2.waitKey(20) & 0xff
     if k == 27:
-        break
+        break  # Quit by pressing Esc
+    if k == 32:
+        cv2.waitKey()  # Pause by pressing space
 else:
     cv2.waitKey()
 
