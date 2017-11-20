@@ -15,7 +15,7 @@ clip_path = '../input/project_video.mp4'
 # clip_path = '../input/challenge_video.mp4'
 # clip_path = '../input/harder_challenge_video.mp4'
 
-thresholds_path = './thresholds.p'
+thresholds_path = '../src/thresholds.p'
 
 ascii_dict = {'esc': 27, 'space': 32}
 
@@ -29,6 +29,11 @@ window_settings = {
     'GRID_POS_X': 0,
     'GRID_POS_Y': 25,
 }
+
+
+def load_camera_calibration():
+    with open("./calibration.p", 'rb') as fid:
+        return pickle.load(fid)
 
 
 class WindowGrid(object):
@@ -47,7 +52,8 @@ class WindowGrid(object):
 
 
 class ExtractorPlayer(object):
-    def __init__(self, file_path):
+    def __init__(self, file_path, calibration):
+        self.calibration = calibration
         self.clip = VideoFileClip(file_path)
         self.n_frames = np.round(self.clip.fps * self.clip.duration).astype(np.int)
         self.clip_time = 0
@@ -66,6 +72,7 @@ class ExtractorPlayer(object):
 
     def _process_frame(self):
         rgb_image = self.clip.get_frame(self.clip_time)
+        rgb_image = self.calibration.undistort(rgb_image)
         images = {
             'rgb': rgb_image,
             'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
@@ -120,5 +127,6 @@ class ExtractorPlayer(object):
 
 
 if __name__ == '__main__':
-    player = ExtractorPlayer(clip_path)
+    cam_calibration = load_camera_calibration()
+    player = ExtractorPlayer(clip_path, cam_calibration)
     player.process()

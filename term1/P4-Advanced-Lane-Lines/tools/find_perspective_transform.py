@@ -12,7 +12,8 @@ import numpy as np
 import cv2
 from moviepy.editor import VideoFileClip
 import pickle
-
+import sys
+sys.path.append("../src/")
 
 # Constants
 dash_length_in_meters = 3.048   # 10 feet
@@ -38,8 +39,16 @@ def get_coord(event, x, y, flags, param):
             cv2.line(temp_image, coords[-1], (x, y), color=(0, 0, 255), thickness=1)
 
 
+def load_camera_calibration():
+    with open("../src/calibration.p", 'rb') as fid:
+        return pickle.load(fid)
+
+
+calibration = load_camera_calibration()
+
 # Get a frame 17 seconds into the sequence, where the road is fairly straight.
 input_image = VideoFileClip('../input/project_video.mp4').get_frame(17)
+input_image = calibration.undistort(input_image)
 input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2BGR)
 h, w, _ = input_image.shape
 
