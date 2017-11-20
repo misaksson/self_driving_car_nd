@@ -78,6 +78,12 @@ def overlay_lane_curvature(bgr_image, lines_curvature):
     return bgr_image
 
 
+def overlay_lane_center_offset(bgr_image, lane_center_offset):
+    position_str = f"Lane center offset: {lane_center_offset:.2f} m"
+    cv2.putText(bgr_image, position_str, (10, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    return bgr_image
+
+
 if camera_calibration_available():
     print("Loading camera calibration")
     calibration = load_camera_calibration()
@@ -112,9 +118,10 @@ for rgb_image in clip.iter_frames():
                                             flags=cv2.INTER_LINEAR)
 
     # Fit lines to extracted lane line pixels and return real-world radius curvature in meter.
-    lines_curvature = detector.find(perspective_image)
+    lines_curvature, lane_center_offset = detector.find(perspective_image)
     images['bgr'] = overlay_lane_detection(images['bgr'])
     images['bgr'] = overlay_lane_curvature(images['bgr'], lines_curvature)
+    images['bgr'] = overlay_lane_center_offset(images['bgr'], lane_center_offset)
 
     cv2.imshow("Input", images['bgr'])
     cv2.imshow("Lines", Line.demo_image)

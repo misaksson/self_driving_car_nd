@@ -279,6 +279,21 @@ class Line(object):
 
         return curve_radius
 
+    def calc_vehicle_center_to_line_offset(self, x_meter_per_pixel, image_width):
+        """Calculate vehicle offset from lane line
+
+        Arguments:
+            x_meter_per_pixel - measured when finding perspective transform
+            image_width - perspective image width in pixels
+
+        Returns:
+
+        """
+        vehicle_center_pixel = (image_width / 2)
+        offset_pixels = vehicle_center_pixel - self.line_x_coords[-1]
+        offset_meters = offset_pixels * x_meter_per_pixel
+        return offset_meters
+
 
 class Detector(object):
     def __init__(self, perspective):
@@ -287,15 +302,24 @@ class Detector(object):
                       Line(Line.Location.RIGHT)]
 
     def find(self, image):
-        lines_curvature = []
+        """Detect lane lines curvature and position"""
+        curvatures = []
+        distances = []
         Line.init_frame(image)
         for line in self.lines:
             line.find(image)
-            lines_curvature.append(line.calc_real_world_curvature(self.perspective['x_meter_per_pixel'],
-                                                                  self.perspective['y_meter_per_pixel']))
-        return lines_curvature
+            curvatures.append(line.calc_real_world_curvature(self.perspective['x_meter_per_pixel'],
+                                                             self.perspective['y_meter_per_pixel']))
+            distances.append(line.calc_vehicle_center_to_line_offset(self.perspective['x_meter_per_pixel'],
+                                                                     image_width=image.shape[1]))
+
+        lane_width = 3.7
+        vehicle_lane_center_offset = distances[0] - distances[1] - lane_width
+
+        return curvatures, vehicle_lane_center_offset
 
     def get_lane_boundary(self):
+        """Provides lane boundary for drawing"""
         boundary_x = np.concatenate((self.lines[0].line_x_coords, np.flipud(self.lines[1].line_x_coords)))
         boundary_y = np.concatenate((self.lines[0].line_y_coords, np.flipud(self.lines[1].line_y_coords)))
         return [np.column_stack((boundary_x, boundary_y))]
