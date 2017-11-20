@@ -46,7 +46,7 @@ def load_perspective():
         return pickle.load(fid)
 
 
-def overlay_lane_detection(bgr_image, detector):
+def overlay_lane_detection(bgr_image, detector, inv_transformation_matrix):
     """Draw detected lane boundary in camera image
 
     Create an temporary birds-eye-view image where only the lane boundary is
@@ -64,7 +64,7 @@ def overlay_lane_detection(bgr_image, detector):
     cv2.fillPoly(warped_draw_image, detector.get_lane_boundary(), (0, 255, 0))
 
     # Warp birds-eye-view warped image to camera image space using the inverse transformation matrix.
-    draw_image = cv2.warpPerspective(warped_draw_image, perspective['inv_transformation_matrix'],
+    draw_image = cv2.warpPerspective(warped_draw_image, inv_transformation_matrix,
                                      (bgr_image.shape[1], bgr_image.shape[0]))
     # Blend the drawing image into the camera image.
     return cv2.addWeighted(bgr_image, 1, draw_image, 0.3, 0)
@@ -123,64 +123,81 @@ def overlay_perspective_image(bgr_image, transformation_matrix):
     return bgr_image
 
 
-def draw_overlays(bgr_image, detector, lines_curvature, lane_center_offset, extracted_image, detection_image,
-                  transformation_matrix):
-    bgr_image = overlay_lane_detection(bgr_image, detector)
-    bgr_image = overlay_lane_curvature(bgr_image, lines_curvature)
-    bgr_image = overlay_lane_center_offset(bgr_image, lane_center_offset)
-    bgr_image = overlay_extracted_image(bgr_image, extracted_image)
-    bgr_image = overlay_detection_image(bgr_image, detection_image)
-    bgr_image = overlay_perspective_image(bgr_image, transformation_matrix)
-    return bgr_image
+class LaneFindingPipeline(object):
+    def __init__(self):
+        if camera_calibration_available():
+            print("Loading camera calibration")
+            self.calibration = load_camera_calibration()
+        else:
+            print("Running camera calibration")
+            self.calibration = Calibrate()
+            store_camera_calibration(self.calibration)
+
+        self.extractor = Extractor(thresh=load_thresholds())
+        self.perspective = load_perspective()
+        self.detector = Detector(self.perspective)
+
+    def player(self, video_path='../input/project_video.mp4'):
+        for rgb_image in VideoFileClip(video_path).iter_frames():
+            bgr_image = self.process_frame(rgb_image)
+
+            cv2.imshow("Lane Detection", bgr_image)
+            k = cv2.waitKey(20) & 0xff
+            if k == 27:
+                break  # Quit by pressing Esc
+            if k == 32:
+                cv2.waitKey()  # Pause by pressing space
+        else:
+            cv2.waitKey()
+
+        cv2.destroyAllWindows()
+
+    def create_video(self, video_path='../input/project_video.mp4', output_video_path='../output/project_video.mp4'):
+        clip = VideoFileClip(video_path).fl_image(self.process_frame_rgb)
+        clip.write_videofile(output_video_path, audio=False)
+
+    def process_frame(self, rgb_image):
+        rgb_image = self.calibration.undistort(rgb_image)
+
+        # Calculate images
+        images = {
+            'rgb': rgb_image,
+            'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
+            'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
+            'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
+        }
+
+        # Extract possible lane lines pixels into a binary image.
+        extracted_image = self.extractor.apply(images).astype(np.uint8)
+
+        # Warp perspective to birds-eye-view
+        h, w = extracted_image.shape
+        perspective_image = cv2.warpPerspective(extracted_image, self.perspective['transformation_matrix'], (w, h),
+                                                flags=cv2.INTER_LINEAR)
+
+        # Fit lines to extracted lane line pixels and calculate curvature and vehicle lane position.
+        lines_curvature, lane_center_offset = self.detector.find(perspective_image)
+
+        # Draw information directly into the visualized image.
+        images['bgr'] = self.draw_overlays(images['bgr'], lines_curvature, lane_center_offset, extracted_image)
+        return images['bgr']
+
+    def process_frame_rgb(self, rgb_image):
+        """Process frame and convert output to RGB format"""
+        bgr_image = self.process_frame(rgb_image)
+        return cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+
+    def draw_overlays(self, bgr_image, lines_curvature, lane_center_offset, extracted_image):
+        bgr_image = overlay_lane_detection(bgr_image, self.detector,
+                                           self.perspective['inv_transformation_matrix'])
+        bgr_image = overlay_lane_curvature(bgr_image, lines_curvature)
+        bgr_image = overlay_lane_center_offset(bgr_image, lane_center_offset)
+        bgr_image = overlay_extracted_image(bgr_image, extracted_image)
+        bgr_image = overlay_detection_image(bgr_image, Line.demo_image)
+        bgr_image = overlay_perspective_image(bgr_image, self.perspective['transformation_matrix'])
+        return bgr_image
 
 
-# Image processing pipeline
-if camera_calibration_available():
-    print("Loading camera calibration")
-    calibration = load_camera_calibration()
-else:
-    print("Running camera calibration")
-    calibration = Calibrate()
-    store_camera_calibration(calibration)
-
-
-extractor = Extractor(thresh=load_thresholds())
-perspective = load_perspective()
-detector = Detector(perspective)
-
-clip_path = '../input/project_video.mp4'
-clip = VideoFileClip(clip_path)
-for rgb_image in clip.iter_frames():
-    rgb_image = calibration.undistort(rgb_image)
-
-    images = {
-        'rgb': rgb_image,
-        'gray': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY),
-        'hls': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HLS),
-        'bgr': cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR),
-    }
-
-    # Extract possible lane lines pixels into a binary image.
-    extracted_image = extractor.apply(images).astype(np.uint8)
-    h, w = extracted_image.shape
-
-    # Warp perspective to birds-eye-view
-    perspective_image = cv2.warpPerspective(extracted_image, perspective['transformation_matrix'], (w, h),
-                                            flags=cv2.INTER_LINEAR)
-
-    # Fit lines to extracted lane line pixels and return real-world radius curvature in meter.
-    lines_curvature, lane_center_offset = detector.find(perspective_image)
-
-    images['bgr'] = draw_overlays(images['bgr'], detector, lines_curvature, lane_center_offset, extracted_image,
-                                  Line.demo_image, perspective['transformation_matrix'])
-
-    cv2.imshow("Input", images['bgr'])
-    k = cv2.waitKey(20) & 0xff
-    if k == 27:
-        break  # Quit by pressing Esc
-    if k == 32:
-        cv2.waitKey()  # Pause by pressing space
-else:
-    cv2.waitKey()
-
-cv2.destroyAllWindows()
+if __name__ == '__main__':
+    LaneFindingPipeline().player()
+    # LaneFindingPipeline().create_video()
