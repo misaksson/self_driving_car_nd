@@ -37,8 +37,7 @@ class GridGenerator(object):
             bottom = top + self.window_size.height - 1
             for left in range(start_x, end_x + 1, step_length_x):
                 right = left + self.window_size.width - 1
-
-                yield SearchWindow(top=top, left=left, bottom=bottom, right=right), self.color, self.roi
+                yield SearchWindow(top=top, left=left, bottom=bottom, right=right)
 
 
 class GridGenerators(object):
