@@ -18,25 +18,44 @@ class VehicleDetectionPipeline(object):
         self.classifier = Classifier(force_train=False)
 
     def player(self):
-        for rgb_image in VideoFileClip(self.video_path).iter_frames():
-            bgr_image = self.process_frame(rgb_image)
+        self.clip = VideoFileClip(self.video_path)
+        self.clip_time = 0
+        self.win_name = "Vehicle Detection"
+        cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
+        height, width, _ = self.clip.get_frame(0).shape
+        cv2.resizeWindow(self.win_name, width, height)
+        n_frames = np.round(self.clip.fps * self.clip.duration).astype(np.int)
+        cv2.createTrackbar('frame', self.win_name, 0, n_frames - 1, self._frame_slider_callback)
+        pause = False
+        while 1:
+            if not pause and (self.clip_time < self.clip.duration):
+                self._read_and_process_frame()
+                frame_idx = np.round(self.clip.fps * self.clip_time).astype(np.int)
+                cv2.setTrackbarPos('frame', self.win_name, frame_idx)
+                self.clip_time += 1.0 / self.clip.fps
 
-            cv2.imshow("Vehicle Detection", bgr_image)
             k = cv2.waitKey(20) & 0xff
             if k == 27:
                 break  # Quit by pressing Esc
             if k == 32:
-                cv2.waitKey()  # Pause by pressing space
-        else:
-            cv2.waitKey()
+                pause = not pause  # toggle
 
         cv2.destroyAllWindows()
 
+    def _frame_slider_callback(self, value):
+        self.clip_time = value / self.clip.fps
+        self._read_and_process_frame()
+
+    def _read_and_process_frame(self):
+        rgb_image = self.clip.get_frame(self.clip_time)
+        bgr_image = self._process_frame(rgb_image)
+        cv2.imshow(self.win_name, bgr_image)
+
     def create_video(self, output_video_path='../output/project_video.mp4'):
-        clip = VideoFileClip(self.video_path).fl_image(self.process_frame_rgb)
+        clip = VideoFileClip(self.video_path).fl_image(self._process_frame_rgb)
         clip.write_videofile(output_video_path, audio=False)
 
-    def process_frame(self, rgb_image):
+    def _process_frame(self, rgb_image):
         bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
         draw_image = np.copy(bgr_image)
         self.draw.colorbar(draw_image, ticks=np.arange(self.confidence_range[0], self.confidence_range[1] + 1))
@@ -50,9 +69,9 @@ class VehicleDetectionPipeline(object):
 
         return draw_image
 
-    def process_frame_rgb(self, rgb_image):
+    def _process_frame_rgb(self, rgb_image):
         """Process frame and convert output to RGB format"""
-        bgr_image = self.process_frame(rgb_image)
+        bgr_image = self._process_frame(rgb_image)
         return cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
 
 if __name__ == '__main__':
