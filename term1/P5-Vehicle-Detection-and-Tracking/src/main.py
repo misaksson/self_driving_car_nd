@@ -2,20 +2,27 @@ import cv2
 import numpy as np
 from colormap import cmap_builder
 from moviepy.editor import VideoFileClip
+from collections import namedtuple
 
 from grid_generator import GridGenerators
 from classifier import Classifier
+from cluster import Cluster
 from draw import Draw
+
+
+ClassifiedObject = namedtuple('ClassifiedObject', ['search_window', 'confidence'])
 
 
 class VehicleDetectionPipeline(object):
     def __init__(self, video_path='../input/project_video.mp4'):
         self.video_path = video_path
+        image_height, image_width, _ = VideoFileClip(self.video_path).get_frame(0).shape
         confidence_cmap = cmap_builder('yellow', 'lime (w3c)', 'cyan')
         self.confidence_range = np.array([0.0, 5.0])
         self.draw = Draw(cmap=confidence_cmap, value_range=self.confidence_range)
-        self.search_windows = GridGenerators(VideoFileClip(self.video_path).get_frame(0))
+        self.search_windows = GridGenerators(image_height, image_width)
         self.classifier = Classifier(force_train=False)
+        self.cluster = Cluster(image_height, image_width)
 
     def player(self):
         self.clip = VideoFileClip(self.video_path)
@@ -60,19 +67,27 @@ class VehicleDetectionPipeline(object):
         draw_image = np.copy(bgr_image)
         self.draw.colorbar(draw_image, ticks=np.arange(self.confidence_range[0], self.confidence_range[1] + 1))
 
+        classified_objects = []
         for search_window in self.search_windows.next():
             patch = cv2.resize(bgr_image[search_window.top:search_window.bottom,
                                          search_window.left:search_window.right], (64, 64))
             prediction, confidence = self.classifier.classify(patch)
             if prediction:
-                self.draw.box(draw_image, box=search_window, value=confidence)
+                classified_objects.append(ClassifiedObject(search_window=search_window, confidence=confidence))
+                #  self.draw.box(draw_image, box=search_window, value=confidence)
 
+        clustered_objects, heatmap = self.cluster.cluster(classified_objects)
+        cv2.imshow("Heatmap", cv2.applyColorMap((heatmap * 10).astype(np.uint8), cv2.COLORMAP_HOT))
+
+        for obj in clustered_objects:
+            self.draw.box(draw_image, box=obj.bbox, value=obj.confidence)
         return draw_image
 
     def _process_frame_rgb(self, rgb_image):
         """Process frame and convert output to RGB format"""
         bgr_image = self._process_frame(rgb_image)
         return cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+
 
 if __name__ == '__main__':
     VehicleDetectionPipeline().player()

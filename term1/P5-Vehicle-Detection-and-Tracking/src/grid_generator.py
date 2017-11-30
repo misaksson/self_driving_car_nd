@@ -41,11 +41,8 @@ class GridGenerator(object):
 
 
 class GridGenerators(object):
-    def __init__(self, image, camera_params=CameraParams(horizontal_fov=35.0, vertical_fov=24.0, z=1.5, pitch=-5.5)):
-        image_height, image_width, _ = image.shape
-        self.init_generators(image_height, image_width, camera_params)
-
-    def init_generators(self, image_height, image_width, camera_params):
+    def __init__(self, image_height, image_width,
+                 camera_params=CameraParams(horizontal_fov=35.0, vertical_fov=24.0, z=1.5, pitch=-5.5)):
         """Create grid generator for each scale
 
         A search corridor in front of the vehicle is defined, Multiple grid
