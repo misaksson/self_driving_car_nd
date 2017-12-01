@@ -7,6 +7,7 @@ from collections import namedtuple
 from grid_generator import GridGenerators
 from classifier import Classifier
 from cluster import Cluster
+from tracker import Tracker
 from draw import Draw
 
 
@@ -23,6 +24,7 @@ class VehicleDetectionPipeline(object):
         self.search_windows = GridGenerators(image_height, image_width)
         self.classifier = Classifier(force_train=False)
         self.cluster = Cluster(image_height, image_width)
+        self.tracker = Tracker()
 
     def player(self):
         self.clip = VideoFileClip(self.video_path)
@@ -51,7 +53,6 @@ class VehicleDetectionPipeline(object):
 
     def _frame_slider_callback(self, value):
         self.clip_time = value / self.clip.fps
-        self._read_and_process_frame()
 
     def _read_and_process_frame(self):
         rgb_image = self.clip.get_frame(self.clip_time)
@@ -77,9 +78,10 @@ class VehicleDetectionPipeline(object):
                 #  self.draw.box(draw_image, box=search_window, value=confidence)
 
         clustered_objects, heatmap = self.cluster.cluster(classified_objects)
-        cv2.imshow("Heatmap", cv2.applyColorMap((heatmap * 10).astype(np.uint8), cv2.COLORMAP_HOT))
+        #cv2.imshow("Heatmap", cv2.applyColorMap((heatmap * 10).astype(np.uint8), cv2.COLORMAP_HOT))
+        tracked_objects = self.tracker.track(clustered_objects)
 
-        for obj in clustered_objects:
+        for obj in tracked_objects:
             self.draw.box(draw_image, box=obj.bbox, value=obj.confidence)
         return draw_image
 
