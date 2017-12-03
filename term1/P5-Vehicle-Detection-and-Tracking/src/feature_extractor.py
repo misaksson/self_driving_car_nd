@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from skimage.feature import hog
+from tqdm import tqdm
 
 
 def get_hog_features(img, orient, pix_per_cell, cell_per_block,
@@ -48,7 +49,7 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
 
 def extract_features(bgr_image, color_space='BGR', spatial_size=(32, 32),
                      hist_bins=32, orient=9,
-                     pix_per_cell=8, cell_per_block=2, hog_channel=0,
+                     pix_per_cell=8, cell_per_block=2, hog_channels=[0],
                      spatial_feat=True, hist_feat=True, hog_feat=True):
 
     # apply color conversion if other than 'BGR'
@@ -80,16 +81,13 @@ def extract_features(bgr_image, color_space='BGR', spatial_size=(32, 32),
         image_features.append(hist_features)
 
     if hog_feat:
-        if hog_channel == 'ALL':
-            hog_features = []
-            for channel in range(image.shape[2]):
-                hog_features.append(get_hog_features(image[:, :, channel],
-                                                     orient, pix_per_cell, cell_per_block,
-                                                     vis=False, feature_vec=True))
-            hog_features = np.ravel(hog_features)
-        else:
-            hog_features = get_hog_features(image[:, :, hog_channel], orient,
-                                            pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+        hog_features = []
+        for channel in hog_channels:
+            hog_features.append(get_hog_features(image[:, :, channel],
+                                                 orient, pix_per_cell, cell_per_block,
+                                                 vis=False, feature_vec=True))
+        hog_features = np.ravel(hog_features)
+
         image_features.append(hog_features)
 
     return np.concatenate(image_features)
@@ -107,9 +105,10 @@ def extract_features_from_files(image_files, **kwargs):
     Returns:
         List of feature vectors, one fore each image.
     """
-    all_features = []
     # Iterate through the list of images
-    for file in image_files:
+    pbar_files = tqdm(image_files)
+    all_features = []
+    for file in pbar_files:
         image_features = []
         bgr_image = cv2.imread(file)
         image_features = extract_features(bgr_image, **kwargs)
