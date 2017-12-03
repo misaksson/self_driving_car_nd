@@ -39,10 +39,13 @@ class GridGenerator(object):
                 right = left + self.window_size.width - 1
                 yield SearchWindow(top=top, left=left, bottom=bottom, right=right)
 
+    def get_params(self):
+        return (self.roi, self.window_size, self.window_overlap, self.color)
+
 
 class GridGenerators(object):
     def __init__(self, image_height, image_width,
-                 camera_params=CameraParams(horizontal_fov=35.0, vertical_fov=24.0, z=1.5, pitch=-5.5)):
+                 camera_params=CameraParams(horizontal_fov=54.13, vertical_fov=42.01, z=1.68, pitch=-3.02, yaw=0.2)):
         """Create grid generator for each scale
 
         A search corridor in front of the vehicle is defined, Multiple grid
@@ -61,7 +64,8 @@ class GridGenerators(object):
         degrees_per_x_pixel = camera_params.horizontal_fov / image_width
         degrees_per_y_pixel = camera_params.vertical_fov / image_height
 
-        vanishing_point = (image_height / 2) - (camera_params.pitch / degrees_per_y_pixel)
+        vanishing_point_x = (image_width / 2) + (camera_params.yaw / degrees_per_x_pixel)
+        vanishing_point_y = (image_height / 2) - (camera_params.pitch / degrees_per_y_pixel)
 
         # Expected vehicle size. Note this does not need to be spot on to get detections although it might be good to
         # search for a few different sizes.
@@ -69,27 +73,40 @@ class GridGenerators(object):
         vehicle_height_meters = 3.0
 
         # Search corridor in front of vehicle.
-        roi_width_meters = 40.0
-        roi_heigth_meters = 7.0
+#        roi_width_meters = 40.0
+#        roi_heigth_meters = 7.0
+#        roi_width_meters = 3.6576
+#        roi_heigth_meters = 3.0
+
 
         # Distances for grid placements.
-        roi_distances_meters = range(20, 121, 20)
+        roi_distances_meters = [10.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0]
+        roi_widths_meters =    [26.0, 30.0, 38.0, 46.0, 54.0, 62.0, 70.0]
+        roi_heights_meters =   [7.25, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0]
+
+#        dash_length = 3.048
+#        between_dash_length = 3 * dash_length
+#        roi_distances_meters = [10, 10 + dash_length,  10 + dash_length + between_dash_length, 10 + dash_length * 2 + between_dash_length, 10 + dash_length * 2 + between_dash_length*2]
 
         self.generators = []
 
         # Calculate grid parameters for each search distance
-        for roi_distance_meters in roi_distances_meters:
+        for roi_distance_meters, roi_width_meters, roi_heigth_meters in zip(roi_distances_meters,
+                                                                            roi_widths_meters,
+                                                                            roi_heights_meters):
             degrees_per_meter = np.degrees(np.arctan(1.0 / roi_distance_meters))
 
             # Region of interest
             roi_width_pixels = roi_width_meters * degrees_per_meter / degrees_per_x_pixel
             roi_height_pixels = roi_heigth_meters * degrees_per_meter / degrees_per_y_pixel
-            roi_left = np.maximum(0, (image_width - roi_width_pixels) / 2).astype(np.int)
-            roi_right = np.minimum(image_width - 1, (image_width + roi_width_pixels) / 2).astype(np.int)
+            roi_left = (vanishing_point_x - roi_width_pixels / 2).astype(np.int)
+            roi_right = np.minimum(image_width - 1, roi_left + roi_width_pixels).astype(np.int)
+            roi_left = np.maximum(0, roi_left).astype(int)
 
             # Place 1/4 of the ROI below estimated road surface
-            roi_bottom = vanishing_point + (((roi_heigth_meters / 4) + camera_params.z) * degrees_per_meter /
-                                            degrees_per_y_pixel)
+            vertical_offset = (1*roi_heigth_meters / 4)
+            roi_bottom = vanishing_point_y + ((vertical_offset + camera_params.z) * degrees_per_meter /
+                                              degrees_per_y_pixel)
             roi_top = np.maximum(0, roi_bottom - roi_height_pixels + 1).astype(np.int)
             roi_bottom = np.minimum(image_height - 1, roi_bottom).astype(np.int)
 
@@ -106,3 +123,10 @@ class GridGenerators(object):
     def next(self):
         for generator in self.generators:
             yield from generator.next()
+
+    def get_params(self):
+        grids_params = []
+        for generator in self.generators:
+            grid_params = generator.get_params()
+            grids_params.append(grid_params)
+        return grids_params
