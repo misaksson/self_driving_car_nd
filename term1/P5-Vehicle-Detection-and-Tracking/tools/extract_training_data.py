@@ -19,7 +19,7 @@ file_path = "../object-detection-crowdai/"
 csv_path = os.path.join(file_path, 'labels.csv')
 vehicles_output_path = "../training_data/vehicles/extracted"
 non_vehicles_output_path = "../training_data/non-vehicles/extracted"
-label_paths = {'Car': vehicles_output_path, 'Background': non_vehicles_output_path}
+label_paths = {'Foreground': vehicles_output_path, 'Background': non_vehicles_output_path}
 
 with open(csv_path, 'r') as csvfile:
     csv_reader = csv.DictReader(csvfile)
@@ -60,6 +60,34 @@ for generator in grids.generators:
 
 search_params = grids.get_params()
 
+search_window_areas = [(height * width) for _, (height, width), _, _ in grids.get_params()]
+
+
+def get_foreground_labels(label):
+    """Find search windows at roughly same size and position as the label"""
+    label_height = label.bbox.bottom - label.bbox.top + 1
+    label_width = label.bbox.right - label.bbox.left + 1
+
+    foreground_labels = []
+    for search_window_area, grid_scale in zip(search_window_areas, grid_scales):
+        if abs((label_height * label_width) - search_window_area) / search_window_area < 0.3:
+            for search_window in grid_scale:
+                if ((abs(label.bbox.left - search_window.left) < (0.30 * label_width) and
+                     abs(label.bbox.right - search_window.right) < (0.30 * label_width) and
+                     abs(label.bbox.top - search_window.top) < (0.30 * label_height) and
+                     abs(label.bbox.bottom - search_window.bottom) < (0.30 * label_height))):
+                    foreground_labels.append(Label(type='Foreground', bbox=search_window))
+
+    return foreground_labels
+
+
+def add_foreground_labels(labels):
+    labels_out = list(labels)
+    for label in labels:
+        if label.type in ['Car']:
+            labels_out += get_foreground_labels(label)
+    return labels_out
+
 
 def get_background_label(labels):
     n_attempts = 100
@@ -94,7 +122,7 @@ def get_background_label(labels):
 
 def add_background_labels(labels):
     # Balance up the Car labels with background labels
-    n_background = sum([label.type == 'Car' for label in labels])
+    n_background = sum([label.type == 'Foreground' for label in labels])
     for i in range(n_background):
         background = get_background_label(labels)
         if background is not None:
@@ -106,18 +134,21 @@ color_dict = {'Car': (0, 255, 0),
               'Truck': (255, 0, 0),
               'Pedestrian': (0, 0, 255),
               'Street Lights': (0, 255, 255),
+              'Foreground': (255, 255, 0),
               'Background': (255, 255, 255)}
 
 for frame_name, labels in frame_labels.items():
 
+    labels = add_foreground_labels(labels)
     labels = add_background_labels(labels)
 
     bgr_image = cv2.imread(os.path.join(file_path, frame_name))
     for idx, label in enumerate(labels):
-        if label.type in ['Car', 'Background']:
+        if label.type in ['Foreground', 'Background']:
             patch = cv2.resize(bgr_image[label.bbox.top:label.bbox.bottom,
                                          label.bbox.left:label.bbox.right], (64, 64))
-            cv2.imwrite(os.path.join(label_paths[label.type], os.path.splitext(frame_name)[0] + str(idx) + ".png"), patch)
+            cv2.imwrite(os.path.join(label_paths[label.type], os.path.splitext(frame_name)[0] + str(idx) + ".png"),
+                        patch)
 
     for idx, label in enumerate(labels):
         cv2.rectangle(bgr_image,
