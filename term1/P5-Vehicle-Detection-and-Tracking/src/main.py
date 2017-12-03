@@ -3,15 +3,16 @@ import numpy as np
 from colormap import cmap_builder
 from moviepy.editor import VideoFileClip
 from collections import namedtuple
+import pickle
 
 from grid_generator import GridGenerators
 from classifier import Classifier
 from cluster import Cluster
 from tracker import Tracker
-from draw import Draw
+from drawer import *
 
-
-ClassifiedObject = namedtuple('ClassifiedObject', ['search_window', 'confidence'])
+# Load calibration from P4-Advanced-Lane-Lines
+camera_calibration_path = "../../P4-Advanced-Lane-Lines/src/calibration.p"
 
 
 class VehicleDetectionPipeline(object):
@@ -19,12 +20,20 @@ class VehicleDetectionPipeline(object):
         self.video_path = video_path
         image_height, image_width, _ = VideoFileClip(self.video_path).get_frame(0).shape
         confidence_cmap = cmap_builder('yellow', 'lime (w3c)', 'cyan')
-        self.confidence_range = np.array([0.0, 5.0])
-        self.draw = Draw(cmap=confidence_cmap, value_range=self.confidence_range)
-        self.search_windows = GridGenerators(image_height, image_width)
-        self.classifier = Classifier(force_train=False)
+        self.drawer = Drawer(bbox_settings=BBoxSettings(
+                             color=DynamicColor(cmap=confidence_cmap,
+                                                value_range=[0, 20],
+                                                colorbar=Colorbar(ticks=np.array([0, 10, 20]),
+                                                                  pos=np.array([0.03, 0.97]),
+                                                                  size=np.array([0.3, 0.01])))),
+                             inplace=False)
+        self.grid_generator = GridGenerators(image_height, image_width)
+        self.classifier = Classifier(self.grid_generator, force_train=False)
         self.cluster = Cluster(image_height, image_width)
         self.tracker = Tracker()
+
+        with open(camera_calibration_path, 'rb') as fid:
+            self.calibration = pickle.load(fid)
 
     def player(self):
         self.clip = VideoFileClip(self.video_path)
@@ -64,26 +73,29 @@ class VehicleDetectionPipeline(object):
         clip.write_videofile(output_video_path, audio=False)
 
     def _process_frame(self, rgb_image):
+        rgb_image = self.calibration.undistort(rgb_image)
         bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
-        draw_image = np.copy(bgr_image)
-        self.draw.colorbar(draw_image, ticks=np.arange(self.confidence_range[0], self.confidence_range[1] + 1))
 
-        classified_objects = []
-        for search_window in self.search_windows.next():
-            patch = cv2.resize(bgr_image[search_window.top:search_window.bottom,
-                                         search_window.left:search_window.right], (64, 64))
-            prediction, confidence = self.classifier.classify(patch)
-            if prediction:
-                classified_objects.append(ClassifiedObject(search_window=search_window, confidence=confidence))
-                #  self.draw.box(draw_image, box=search_window, value=confidence)
-
+        classified_objects = self.classifier.classify(bgr_image)
         clustered_objects, heatmap = self.cluster.cluster(classified_objects)
         #cv2.imshow("Heatmap", cv2.applyColorMap((heatmap * 10).astype(np.uint8), cv2.COLORMAP_HOT))
         tracked_objects = self.tracker.track(clustered_objects)
 
-        for obj in tracked_objects:
-            self.draw.box(draw_image, box=obj.bbox, value=obj.confidence)
-        return draw_image
+        cv2.imshow("Classified objects", self.drawer.draw(bgr_image, objects=classified_objects))
+        cv2.imshow("Clustered objects", self.drawer.draw(bgr_image, objects=clustered_objects))
+        tracked_image = self.drawer.draw(bgr_image, objects=tracked_objects)
+
+#        for roi, size, _, color in self.grid_generator.get_params():
+#            cv2.rectangle(tracked_image,
+#                          (roi.left, roi.top),
+#                          (roi.right, roi.bottom),
+#                          color, 2)
+#            cv2.rectangle(tracked_image,
+#                          (roi.right - size.width + 1, roi.bottom - size.height + 1),
+#                          (roi.right, roi.bottom),
+#                          color, 2)
+
+        return tracked_image
 
     def _process_frame_rgb(self, rgb_image):
         """Process frame and convert output to RGB format"""
@@ -93,4 +105,4 @@ class VehicleDetectionPipeline(object):
 
 if __name__ == '__main__':
     VehicleDetectionPipeline().player()
-    # VehicleDetectionPipeline().create_video()
+    #VehicleDetectionPipeline().create_video()
