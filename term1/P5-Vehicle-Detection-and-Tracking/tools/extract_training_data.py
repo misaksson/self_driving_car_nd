@@ -50,10 +50,15 @@ for raw_label in raw_labels:
         frame_labels[frame_name] = [label]
 
 image_height, image_width, _ = cv2.imread(os.path.join(file_path, raw_labels[0]['Frame'])).shape
-grid = GridGenerators(image_height=image_height, image_width=image_width,
-                      camera_params=CameraParams(horizontal_fov=54.13, vertical_fov=42.01, z=1.1, pitch=1, yaw=0.2))
-search_windows = [search_window for search_window in grid.next()]
-search_params = grid.get_params()
+grids = GridGenerators(image_height=image_height, image_width=image_width,
+                       camera_params=CameraParams(horizontal_fov=54.13, vertical_fov=42.01, z=1.1, pitch=1, yaw=0.2))
+
+# Extract all search windows, but keep scales separate to be able to get a equal distribution.
+grid_scales = []
+for generator in grids.generators:
+    grid_scales.append([search_window for search_window in generator.next()])
+
+search_params = grids.get_params()
 
 
 def get_background_label(labels):
@@ -63,10 +68,12 @@ def get_background_label(labels):
     # already existing 'Background' labels are also considered to be foreground.
     forground_types = ['Car', 'Truck', 'Background']
 
+    # Get a random grid scale.
+    grid_scale = grid_scales[randint(0, len(grid_scales) - 1)]
     # Try multiple times to find a valid background window.
     for i in range(n_attempts):
-        # Get a random search window from the grid generator.
-        background = search_windows[randint(0, len(search_windows) - 1)]
+        # Get a random search window from the grid scale.
+        background = grid_scale[randint(0, len(grid_scale) - 1)]
         for label in labels:
             if ((label.type not in forground_types or
                  label.bbox.left > background.right or
