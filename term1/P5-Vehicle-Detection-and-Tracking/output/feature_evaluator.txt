@@ -1,0 +1,97 @@
+0.97496 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 4, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97974 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 4, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97974 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 4, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.96849 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 8, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97721 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 8, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97496 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.96961 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 12, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.96652 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 12, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.96258 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 6, 'pix_per_cell': 12, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98312 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 4, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98593 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 4, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98678 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 4, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97862 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 8, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98537 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 8, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98087 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.96820 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 12, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97833 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 12, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97383 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 9, 'pix_per_cell': 12, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98396 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 4, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98706 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 4, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98734 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 4, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98227 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98621 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.98818 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97102 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 12, 'cell_per_block': 1, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97918 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 12, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.97411 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 12, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+---
+0.98903 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': False, 'hog_feat': True}
+0.99325 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99128 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': True, 'hist_feat': False, 'hog_feat': True}
+0.99381 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': True, 'hist_feat': True, 'hog_feat': True}
+---
+0.99212 {'color_space': 'HSV', 'spatial_size': (8, 8), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': True, 'hist_feat': True, 'hog_feat': True}
+0.99325 {'color_space': 'HSV', 'spatial_size': (16, 16), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': True, 'hist_feat': True, 'hog_feat': True}
+0.99184 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': True, 'hist_feat': True, 'hog_feat': True}
+0.99156 {'color_space': 'HSV', 'spatial_size': (48, 48), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': True, 'hist_feat': True, 'hog_feat': True}
+0.99184 {'color_space': 'HSV', 'spatial_size': (64, 64), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': True, 'hist_feat': True, 'hog_feat': True}
+---
+0.99240 {'color_space': 'HSV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.97158 {'color_space': 'BGR', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99325 {'color_space': 'LUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99156 {'color_space': 'HLS', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99381 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99240 {'color_space': 'YCrCb', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+---
+0.98255 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.93922 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [1], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.95751 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98903 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99268 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.97017 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99353 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+---
+0.99268 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 8, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99212 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 16, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99325 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99325 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 64, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99325 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 128, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+---
+0.99015 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 7, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98959 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 7, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98762 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 7, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98734 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 7, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99494 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 8, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99353 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99381 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 8, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99268 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 8, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99325 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 9, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99156 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 9, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99100 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 9, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99015 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 11, 'pix_per_cell': 9, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99240 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 7, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99156 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 7, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99100 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 7, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98959 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 7, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99494 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99268 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99212 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99212 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 8, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99353 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 9, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99184 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 9, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99240 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 9, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99268 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 12, 'pix_per_cell': 9, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99212 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 7, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99071 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 7, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98959 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 7, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98706 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 7, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99297 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 8, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99268 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 8, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99240 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 8, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99156 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 8, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99268 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 9, 'cell_per_block': 2, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.99128 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 9, 'cell_per_block': 3, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98987 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 9, 'cell_per_block': 4, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+0.98931 {'color_space': 'YUV', 'spatial_size': (32, 32), 'hist_bins': 32, 'orient': 13, 'pix_per_cell': 9, 'cell_per_block': 5, 'hog_channels': [0, 1, 2], 'spatial_feat': False, 'hist_feat': True, 'hog_feat': True}
+---

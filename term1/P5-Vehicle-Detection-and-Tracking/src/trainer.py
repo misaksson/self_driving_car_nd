@@ -19,14 +19,14 @@ class Trainer(object):
     Loads image examples, extract features and train a classifier.
     """
 
-    default_feature_extractor_args = {'color_space': 'HSV',
+    default_feature_extractor_args = {'color_space': 'YUV',
                                       'spatial_size': (32, 32),
                                       'hist_bins': 32,
-                                      'orient': 9,
+                                      'orient': 12,
                                       'pix_per_cell': 8,
                                       'cell_per_block': 2,
                                       'hog_channels': [0, 1, 2],
-                                      'spatial_feat': True,
+                                      'spatial_feat': False,
                                       'hist_feat': True,
                                       'hog_feat': True,
                                       }
@@ -220,9 +220,10 @@ class Trainer(object):
         print(round(end_time - start_time, 4), "seconds to train")
 
         # Validate
-        print("Test Accuracy of SVC = ", round(self.svc.score(self.X_test_scaled, self.y_test), 4))
+        test_accuracy = self.svc.score(self.X_test_scaled, self.y_test)
+        print("Test Accuracy of SVC = ", round(test_accuracy, 4))
 
-        return self.svc, self.X_scaler, self.feature_extractor_args
+        return self.svc, self.X_scaler, self.feature_extractor_args, test_accuracy
 
     def demo_predict(self, n_examples=6):
         start_time = time.time()
@@ -275,14 +276,15 @@ if __name__ == "__main__":
     trainer = Trainer()
     trainer.extract_features()
 
-    for C in np.exp2(range(-5, 15)):
-        print("Training with C =", C)
-        classifier, feature_scaler, feature_extractor_args = trainer.train(C=C)
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        dump_file_path = f"../output/classifier{timestamp}.p"
-        with open(dump_file_path, "wb") as fid:
-            print("Writing classifier to", dump_file_path)
-            pickle.dump((classifier, feature_scaler, feature_extractor_args), fid)
+    #for C in np.exp2(range(-5, 15)):
+    C = 1.0
+    print("Training with C =", C)
+    classifier, feature_scaler, feature_extractor_args, _ = trainer.train(C=C)
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    dump_file_path = f"../output/classifier{timestamp}.p"
+    with open(dump_file_path, "wb") as fid:
+        print("Writing classifier to", dump_file_path)
+        pickle.dump((classifier, feature_scaler, feature_extractor_args), fid)
 #    trainer.demo_predict()
 #    trainer.show_false_negatives()
 #    trainer.show_false_positives()

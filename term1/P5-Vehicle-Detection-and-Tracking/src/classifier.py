@@ -29,7 +29,7 @@ class Classifier(object):
 
     def _train_classifier(self):
         print("Training the classifier")
-        self.classifier, self.feature_scaler, self.feature_extractor_args = Trainer().train()
+        self.classifier, self.feature_scaler, self.feature_extractor_args, _ = Trainer().train()
 
     def _load_classifier(self):
         print("Loading the classifier from", classifier_path)
