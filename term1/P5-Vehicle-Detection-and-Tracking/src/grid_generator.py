@@ -72,21 +72,15 @@ class GridGenerators(object):
         vehicle_width_meters = 3.0
         vehicle_height_meters = 3.0
 
-        # Search corridor in front of vehicle.
-#        roi_width_meters = 40.0
-#        roi_heigth_meters = 7.0
-#        roi_width_meters = 3.6576
-#        roi_heigth_meters = 3.0
+        # Defines a conic search corridor in front of vehicle, with grids placed at specific distances.
+        roi_widths_meters = [28.0, 30.0, 38.0, 46.0, 54.0, 62.0, 70.0]
+        roi_heights_meters = [7.375, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0]
+        roi_distances_meters = [15.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0]
 
-
-        # Distances for grid placements.
-        roi_distances_meters = [10.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0]
-        roi_widths_meters =    [26.0, 30.0, 38.0, 46.0, 54.0, 62.0, 70.0]
-        roi_heights_meters =   [7.25, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0]
-
-#        dash_length = 3.048
-#        between_dash_length = 3 * dash_length
-#        roi_distances_meters = [10, 10 + dash_length,  10 + dash_length + between_dash_length, 10 + dash_length * 2 + between_dash_length, 10 + dash_length * 2 + between_dash_length*2]
+        # Grid settings to use when doing a manual camera alignment calibration based on lanes width and dash length.
+        # dash_length = 3.048
+        # between_dash_length = 3 * dash_length
+        # roi_distances_meters = [10, 10 + dash_length,  10 + dash_length + between_dash_length, 10 + dash_length * 2 + between_dash_length, 10 + dash_length * 2 + between_dash_length*2]
 
         self.generators = []
 
@@ -94,6 +88,9 @@ class GridGenerators(object):
         for roi_distance_meters, roi_width_meters, roi_heigth_meters in zip(roi_distances_meters,
                                                                             roi_widths_meters,
                                                                             roi_heights_meters):
+            # roi_width_meters = 3.6576
+            # roi_heigth_meters = 3.0
+
             degrees_per_meter = np.degrees(np.arctan(1.0 / roi_distance_meters))
 
             # Region of interest
@@ -103,7 +100,7 @@ class GridGenerators(object):
             roi_right = np.minimum(image_width - 1, roi_left + roi_width_pixels).astype(np.int)
             roi_left = np.maximum(0, roi_left).astype(int)
 
-            # Place 1/4 of the ROI below estimated road surface
+            # Place 1/4 of the ROI below estimated road surface, skip this when calibrating
             vertical_offset = (1*roi_heigth_meters / 4)
             roi_bottom = vanishing_point_y + ((vertical_offset + camera_params.z) * degrees_per_meter /
                                               degrees_per_y_pixel)
