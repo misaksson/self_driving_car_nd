@@ -71,6 +71,12 @@ class Drawer(object):
             self._draw_colorbar()
         return self.image
 
+    def cmap(self, image):
+        color_mapped = (self.bbox_settings.color.cmap(image / 255) * 255).astype(np.uint8)
+        self.image = cv2.cvtColor(color_mapped, cv2.COLOR_RGB2BGR)
+        self._draw_colorbar()
+        return self.image
+
     def _draw_colorbar(self):
         colorbar = self.bbox_settings.color.colorbar
         image_size = np.array(list(self.image.shape)[:2])

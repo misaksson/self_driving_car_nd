@@ -27,6 +27,13 @@ class VehicleDetectionPipeline(object):
                                                                   pos=np.array([0.03, 0.97]),
                                                                   size=np.array([0.3, 0.01])))),
                              inplace=False)
+        self.heat_drawer = Drawer(bbox_settings=BBoxSettings(
+                                  color=DynamicColor(cmap=cmap_builder('black', 'red', 'yellow'),
+                                                     value_range=[0, 255],
+                                                     colorbar=Colorbar(ticks=np.array([0, 255]),
+                                                                       pos=np.array([0.03, 0.97]),
+                                                                       size=np.array([0.3, 0.01])))),
+                                  inplace=False)
         self.grid_generator = GridGenerators(image_height, image_width)
         self.classifier = Classifier(self.grid_generator, force_train=False)
         self.cluster = Cluster(image_height, image_width)
@@ -78,11 +85,11 @@ class VehicleDetectionPipeline(object):
 
         classified_objects = self.classifier.classify(bgr_image)
         clustered_objects, heatmap = self.cluster.cluster(classified_objects)
-        #cv2.imshow("Heatmap", cv2.applyColorMap((heatmap * 10).astype(np.uint8), cv2.COLORMAP_HOT))
         tracked_objects = self.tracker.track(clustered_objects)
 
         cv2.imshow("Classified objects", self.drawer.draw(bgr_image, objects=classified_objects))
         cv2.imshow("Clustered objects", self.drawer.draw(bgr_image, objects=clustered_objects))
+        cv2.imshow("Heatmap", self.heat_drawer.cmap(heatmap))
         tracked_image = self.drawer.draw(bgr_image, objects=tracked_objects)
 
 #        for roi, size, _, color in self.grid_generator.get_params():
