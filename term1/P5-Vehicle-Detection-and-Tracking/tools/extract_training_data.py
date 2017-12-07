@@ -15,35 +15,42 @@ from random import randint
 sys.path.append("../src/")
 from grid_generator import GridGenerators, CameraParams
 
-file_path = "../object-detection-crowdai/"
+
+# file_path = "../data_sets/object-detection-crowdai/"
+file_path = "../data_sets/object-dataset/"
 csv_path = os.path.join(file_path, 'labels.csv')
 vehicles_output_path = "../training_data/vehicles/extracted"
+occluded_vehicles_output_path = "../training_data/vehicles/extracted/occluded"
 non_vehicles_output_path = "../training_data/non-vehicles/extracted"
 label_paths = {'Foreground': vehicles_output_path, 'Background': non_vehicles_output_path}
 
 with open(csv_path, 'r') as csvfile:
-    csv_reader = csv.DictReader(csvfile)
+    csv_reader = csv.DictReader(csvfile, delimiter=' ')
 
     raw_labels = [label for label in csv_reader]
 
-
 BoundingBox = namedtuple('BoundingBox', ['top', 'left', 'bottom', 'right'])
-Label = namedtuple('Label', ['type', 'bbox'])
 
 
-def label_invalid(raw_label):
+class Label(namedtuple('Label', ['class_type', 'bbox', 'occluded', 'attributes'])):
+    def __new__(cls, class_type, bbox, occluded=False, attributes=None):
+        return super(Label, cls).__new__(cls, class_type, bbox, occluded, attributes)
+
+
+def label_incorrect(raw_label):
     return (int(raw_label['ymin']) == int(raw_label['ymax']) or
             int(raw_label['xmin']) == int(raw_label['xmax']))
 
 
 frame_labels = dict()
 for raw_label in raw_labels:
-    if label_invalid(raw_label):
+    if label_incorrect(raw_label):
         continue
     frame_name = raw_label['Frame']
     bbox = BoundingBox(top=int(raw_label['ymin']), left=int(raw_label['xmin']),
                        bottom=int(raw_label['ymax']), right=int(raw_label['xmax']))
-    label = Label(type=raw_label['Label'], bbox=bbox)
+    label = Label(class_type=raw_label['Label'], bbox=bbox, occluded=raw_label['occluded'] == '1',
+                  attributes=raw_label['attributes'])
     if frame_name in frame_labels:
         frame_labels[frame_name].append(label)
     else:
@@ -76,7 +83,8 @@ def get_foreground_labels(label):
                      abs(label.bbox.right - search_window.right) < (0.30 * label_width) and
                      abs(label.bbox.top - search_window.top) < (0.30 * label_height) and
                      abs(label.bbox.bottom - search_window.bottom) < (0.30 * label_height))):
-                    foreground_labels.append(Label(type='Foreground', bbox=search_window))
+                    foreground_labels.append(Label(class_type='Foreground', bbox=search_window,
+                                                   occluded=label.occluded, attributes=label.attributes))
 
     return foreground_labels
 
@@ -84,7 +92,7 @@ def get_foreground_labels(label):
 def add_foreground_labels(labels):
     labels_out = list(labels)
     for label in labels:
-        if label.type in ['Car']:
+        if label.class_type in ['Car']:
             labels_out += get_foreground_labels(label)
     return labels_out
 
@@ -92,7 +100,7 @@ def add_foreground_labels(labels):
 def get_background_label(labels):
     n_attempts = 100
 
-    # Pedestrians and street lights are considered as background. To avoid overlapping background examples,
+    # Pedestrians, bikers and TrafficLights are considered as background. To avoid overlapping background examples,
     # already existing 'Background' labels are also considered to be foreground.
     forground_types = ['Car', 'Truck', 'Background']
 
@@ -103,7 +111,7 @@ def get_background_label(labels):
         # Get a random search window from the grid scale.
         background = grid_scale[randint(0, len(grid_scale) - 1)]
         for label in labels:
-            if ((label.type not in forground_types or
+            if ((label.class_type not in forground_types or
                  label.bbox.left > background.right or
                  label.bbox.right < background.left or
                  label.bbox.top > background.bottom or
@@ -117,12 +125,12 @@ def get_background_label(labels):
     else:
         # No valid background window was found,
         return None
-    return Label(type='Background', bbox=background)
+    return Label(class_type='Background', bbox=background)
 
 
 def add_background_labels(labels):
     # Balance up the Car labels with background labels
-    n_background = sum([label.type == 'Foreground' for label in labels])
+    n_background = sum([label.class_type == 'Foreground' for label in labels])
     for i in range(n_background):
         background = get_background_label(labels)
         if background is not None:
@@ -133,28 +141,37 @@ def add_background_labels(labels):
 color_dict = {'Car': (0, 255, 0),
               'Truck': (255, 0, 0),
               'Pedestrian': (0, 0, 255),
-              'Street Lights': (0, 255, 255),
-              'Foreground': (255, 255, 0),
+              'TrafficLight': (255, 100, 100),
+              'Biker': (0, 255, 255),
+              'Foreground': (255, 255, 100),
               'Background': (255, 255, 255)}
 
 for frame_name, labels in frame_labels.items():
-
     labels = add_foreground_labels(labels)
     labels = add_background_labels(labels)
 
     bgr_image = cv2.imread(os.path.join(file_path, frame_name))
     for idx, label in enumerate(labels):
-        if label.type in ['Foreground', 'Background']:
+        if label.class_type in ['Foreground', 'Background']:
             patch = cv2.resize(bgr_image[label.bbox.top:label.bbox.bottom,
                                          label.bbox.left:label.bbox.right], (64, 64))
-            cv2.imwrite(os.path.join(label_paths[label.type], os.path.splitext(frame_name)[0] + str(idx) + ".png"),
-                        patch)
+            dir_path = label_paths[label.class_type]
+            if label.occluded:
+                dir_path = os.path.join(dir_path, 'occluded')
+            patch_path = os.path.join(dir_path, os.path.splitext(frame_name)[0] + "_" + str(idx) + ".png")
+            cv2.imwrite(patch_path, patch)
 
     for idx, label in enumerate(labels):
         cv2.rectangle(bgr_image,
                       (label.bbox.left, label.bbox.top),
                       (label.bbox.right, label.bbox.bottom),
-                      color_dict[label.type], 2)
+                      color_dict[label.class_type], 3)
+        if label.occluded:
+            cv2.rectangle(bgr_image,
+                          (label.bbox.left, label.bbox.top),
+                          (label.bbox.right, label.bbox.bottom),
+                          (0, 0, 0), 1)
+
     for (search_roi, _, _, _) in search_params:
         cv2.rectangle(bgr_image,
                       (search_roi.left, search_roi.top),
