@@ -47,10 +47,8 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
     return hist_features
 
 
-def extract_features(bgr_image, color_space='BGR', spatial_size=(32, 32),
-                     hist_bins=32, orient=9,
-                     pix_per_cell=8, cell_per_block=2, hog_channels=[0],
-                     spatial_feat=True, hist_feat=True, hog_feat=True):
+def extract_features(bgr_image, color_space, spatial_size, hist_bins, orient, pix_per_cell, cell_per_block,
+                     hog_channels, spatial_feat, hist_feat, hog_feat):
 
     # apply color conversion if other than 'BGR'
     if color_space == 'BGR':
@@ -113,4 +111,4 @@ def extract_features_from_files(image_files, **kwargs):
         bgr_image = cv2.imread(file)
         image_features = extract_features(bgr_image, **kwargs)
         all_features.append(image_features)
-    return all_features
+    return np.array(all_features)
