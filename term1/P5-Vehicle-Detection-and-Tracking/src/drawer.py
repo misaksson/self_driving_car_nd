@@ -32,9 +32,9 @@ class StaticColor(namedtuple('StaticColor', ['color'])):
         return self.color
 
 
-class BBoxSettings(namedtuple('BBoxSettings', ['color', 'border_thickness', 'alpha_fill'])):
-    def __new__(cls, color=StaticColor(), border_thickness=3, alpha_fill=0.0):
-        return super(BBoxSettings, cls).__new__(cls, color, border_thickness, alpha_fill)
+class BBoxSettings(namedtuple('BBoxSettings', ['color', 'border_thickness', 'alpha_border', 'alpha_fill'])):
+    def __new__(cls, color=StaticColor(), border_thickness=3, alpha_border=None, alpha_fill=None):
+        return super(BBoxSettings, cls).__new__(cls, color, border_thickness, alpha_border, alpha_fill)
 
 
 class Drawer(object):
@@ -63,9 +63,8 @@ class Drawer(object):
         else:
             self.image = np.copy(image)
 
-        for bbox, value in objects:
-            color = self.bbox_settings.color.get_color(value)
-            self._draw_box(bbox, color)
+        self._draw_boxes_filled(objects)
+        self._draw_boxes_border(objects)
 
         if self.bbox_settings.color.colorbar is not None:
             self._draw_colorbar()
@@ -100,15 +99,33 @@ class Drawer(object):
             tick = colorbar.ticks[np.where(np.logical_and(colorbar.ticks > (value - step / 2),
                                                           colorbar.ticks <= (value + step / 2)))]
             if len(tick) > 0:
+                tick_str = f"{tick[0]}" if np.issubdtype(tick[0], np.integer) else f"{tick[0]:.2f}"
                 cv2.rectangle(self.image, (color_right + 2, color_top + 1), (color_right + 4, color_bottom + 1),
                               (0, 0, 0), cv2.FILLED)
                 cv2.rectangle(self.image, (color_right + 1, color_top), (color_right + 3, color_bottom),
                               (255, 255, 255), cv2.FILLED)
-                cv2.putText(self.image, f"{tick[0]:.0f}", (color_right + 6, color_top + 6), cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.putText(self.image, tick_str, (color_right + 6, color_top + 6), cv2.FONT_HERSHEY_SIMPLEX,
                             0.4, (0, 0, 0), 1, cv2.LINE_AA)
-                cv2.putText(self.image, f"{tick[0]:.0f}", (color_right + 5, color_top + 5), cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.putText(self.image, tick_str, (color_right + 5, color_top + 5), cv2.FONT_HERSHEY_SIMPLEX,
                             0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
-    def _draw_box(self, bbox, color):
-        cv2.rectangle(self.image, (bbox.left, bbox.top), (bbox.right, bbox.bottom), color,
-                      self.bbox_settings.border_thickness)
+    def _draw_boxes_border(self, objects):
+        if self.bbox_settings.alpha_border is not None:
+            draw_image = np.zeros_like(self.image)
+        else:
+            draw_image = self.image
+        for bbox, value in objects:
+            color = self.bbox_settings.color.get_color(value)
+            cv2.rectangle(draw_image, (bbox.left, bbox.top), (bbox.right, bbox.bottom), color,
+                          self.bbox_settings.border_thickness)
+        if self.bbox_settings.alpha_border is not None:
+            self.image = cv2.addWeighted(self.image, 1, draw_image, self.bbox_settings.alpha_border, 0)
+
+    def _draw_boxes_filled(self, objects):
+        if self.bbox_settings.alpha_fill is None:
+            return
+        draw_image = np.zeros_like(self.image)
+        for bbox, value in objects:
+            color = self.bbox_settings.color.get_color(value)
+            cv2.rectangle(draw_image, (bbox.left, bbox.top), (bbox.right, bbox.bottom), color, cv2.FILLED)
+        self.image = cv2.addWeighted(self.image, 1, draw_image, self.bbox_settings.alpha_fill, 0)
