@@ -1,6 +1,10 @@
 import numpy as np
+import cv2
 from scipy.ndimage.measurements import label
 from collections import namedtuple
+from colormap import cmap_builder
+
+from drawer import *
 
 BoundingBox = namedtuple('BoundingBox', ['top', 'left', 'bottom', 'right'])
 ClusteredObject = namedtuple('ClusteredObject', ['bbox', 'confidence'])
@@ -12,7 +16,38 @@ class Cluster(object):
         self.image_width = image_width
         self.heatmaps = []
         self.max_n_heatmaps = 5
-        self.heatmap_threshold = 2.5
+        self.heatmap_threshold = 10
+        self._init_heatmap_display(image_height, image_width)
+
+    def _init_heatmap_display(self, image_height, image_width):
+        self.heat_drawer = Drawer(bbox_settings=BBoxSettings(
+                                  color=DynamicColor(cmap=cmap_builder('black', 'red', 'yellow'),
+                                                     value_range=[0, 255],
+                                                     colorbar=Colorbar(ticks=np.array([0, 255]),
+                                                                       pos=np.array([0.03, 0.96]),
+                                                                       size=np.array([0.3, 0.01])))),
+                                  inplace=False)
+        self.cluster_drawer = Drawer(bbox_settings=BBoxSettings(
+                                     color=DynamicColor(cmap=cmap_builder('yellow', 'lime (w3c)', 'cyan'),
+                                                        value_range=[0, 20],
+                                                        colorbar=Colorbar(ticks=np.array([0, 10, 20]),
+                                                                          pos=np.array([0.03, 0.90]),
+                                                                          size=np.array([0.3, 0.01])))),
+                                     inplace=True)
+
+        self.win = "Heatmap"
+        cv2.namedWindow(self.win, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(self.win, image_width, image_height)
+        cv2.moveWindow(self.win, 1024, 0)
+        cv2.createTrackbar('threshold', self.win, self.heatmap_threshold, 255, self.set_heatmap_threshold)
+
+    def set_heatmap_threshold(self, value):
+        self.heatmap_threshold = value
+
+    def _display_heatmap(self, heatmap, objects):
+        cmapped_image = self.heat_drawer.cmap(heatmap)
+        cmapped_image = self.cluster_drawer.draw(cmapped_image, objects=objects)
+        cv2.imshow(self.win, cmapped_image)
 
     def cluster(self, classified_objects):
         """Group classified objects into clusters
@@ -44,7 +79,9 @@ class Cluster(object):
         # Find clustered objects in the heatmap
         clustered_objects = self._label(filtered_heatmap)
 
-        return clustered_objects, filtered_heatmap
+        # Create heatmap display image also showing clustered objects
+        display_heatmap = self._display_heatmap(accumulated_heatmap, clustered_objects)
+        return clustered_objects, display_heatmap
 
     def _create_frame_heatmap(self, classified_objects):
         """Create a heatmap for detections in this frame
@@ -53,10 +90,28 @@ class Cluster(object):
         in the search window where the object was found.
         """
         frame_heatmap = np.zeros((self.image_height, self.image_width))
-        for search_window, confidence in classified_objects:
-            frame_heatmap[search_window.top:search_window.bottom, search_window.left:search_window.right] += confidence
+        for search_window, probability in classified_objects:
+            frame_heatmap[search_window.top:search_window.bottom,
+                          search_window.left:search_window.right] += self._probability_to_score(probability)
 
         self.heatmaps.append(frame_heatmap)
+
+    def _probability_to_score(self, probability, a=0.0009080398201937553, b=-0.0009080398201937553, k=10):
+        """Maps probabilities exponentially to cluster score value
+
+        Like to have objects with very high probability to weight more than the
+        combined output from several less confident classifications.
+
+        The default arguments produce a curve that is quite flat near a score of
+        0 until reaching an probability of 0.5-0.6 where the curvature starts,
+        and from probability 0.8 to 1.0 the score is skyrocketing from 2.5 to
+        20.
+
+        Arguments:
+            probability {[type]} -- [description]
+        """
+        score = a * np.exp(k * probability) + b
+        return score
 
     def _accumulate_heatmaps(self):
         accumulated = np.zeros((self.image_height, self.image_width))
@@ -65,8 +120,10 @@ class Cluster(object):
         return accumulated
 
     def _apply_threshold(self, heatmap):
-        heatmap[heatmap <= self.heatmap_threshold] = 0
-        return heatmap
+        filtered_heatmap = np.zeros((self.image_height, self.image_width))
+        indicies_above_th = np.where(heatmap > self.heatmap_threshold)
+        filtered_heatmap[indicies_above_th] = heatmap[indicies_above_th]
+        return filtered_heatmap
 
     def _label(self, heatmap):
         """Find clustered objects in the heatmap
