@@ -19,14 +19,6 @@ class VehicleDetectionPipeline(object):
     def __init__(self, video_path='../input/project_video.mp4'):
         self.video_path = video_path
         image_height, image_width, _ = VideoFileClip(self.video_path).get_frame(0).shape
-        confidence_cmap = cmap_builder('yellow', 'lime (w3c)', 'cyan')
-        self.class_drawer = Drawer(bbox_settings=BBoxSettings(
-                                   color=DynamicColor(cmap=confidence_cmap,
-                                                      value_range=[0.5, 1.0],
-                                                      colorbar=Colorbar(ticks=np.array([0.5, 0.75, 1.01]),
-                                                                        pos=np.array([0.03, 0.97]),
-                                                                        size=np.array([0.3, 0.01])))),
-                                   inplace=False)
         self.track_drawer = Drawer(bbox_settings=BBoxSettings(color=StaticColor(),
                                                               border_thickness=2,
                                                               alpha_border=0.95,
@@ -46,8 +38,7 @@ class VehicleDetectionPipeline(object):
         self.clip_time = 0
         self.win_name = "Vehicle Detection"
         cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
-        height, width, _ = self.clip.get_frame(0).shape
-        cv2.resizeWindow(self.win_name, width, height)
+        cv2.resizeWindow(self.win_name, 1200, 670)
         n_frames = np.round(self.clip.fps * self.clip.duration).astype(np.int)
         cv2.createTrackbar('frame', self.win_name, 0, n_frames - 1, self._frame_slider_callback)
         pause = False
@@ -64,9 +55,9 @@ class VehicleDetectionPipeline(object):
             if k == 27:
                 break  # Quit by pressing Esc
             if k == 32:
-                pause = not pause  # toggle
-            if k == 83:
-                one_step = True
+                pause = not pause  # toggle with space key
+            if k == 13:
+                one_step = True  # step one frame with Enter key
 
         cv2.destroyAllWindows()
 
@@ -86,9 +77,6 @@ class VehicleDetectionPipeline(object):
         classified_objects = self.classifier.classify(frame_idx, bgr_image)
         clustered_objects, heatmap = self.cluster.cluster(classified_objects)
         tracked_objects = self.tracker.track(clustered_objects)
-#        print(frame_idx)
-#        return self.class_drawer.draw(bgr_image, objects=classified_objects)
-        cv2.imshow("Classified objects", self.class_drawer.draw(bgr_image, objects=classified_objects))
         tracked_image = self.track_drawer.draw(bgr_image, objects=tracked_objects)
 
 #        frame_idx = np.round(self.clip.fps * self.clip_time).astype(np.int)

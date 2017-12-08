@@ -11,15 +11,17 @@ ClusteredObject = namedtuple('ClusteredObject', ['bbox', 'confidence'])
 
 
 class Cluster(object):
-    def __init__(self, image_height, image_width):
+    def __init__(self, image_height, image_width, show_display=True):
         self.image_height = image_height
         self.image_width = image_width
+        self.show_display = show_display
         self.heatmaps = []
         self.max_n_heatmaps = 5
         self.heatmap_threshold = 10
-        self._init_heatmap_display(image_height, image_width)
+        if self.show_display:
+            self._init_heatmap_display()
 
-    def _init_heatmap_display(self, image_height, image_width):
+    def _init_heatmap_display(self, height=670, width=1200, x=1205, y=720):
         self.heat_drawer = Drawer(bbox_settings=BBoxSettings(
                                   color=DynamicColor(cmap=cmap_builder('black', 'red', 'yellow'),
                                                      value_range=[0, 255],
@@ -35,19 +37,19 @@ class Cluster(object):
                                                                           size=np.array([0.3, 0.01])))),
                                      inplace=True)
 
-        self.win = "Heatmap"
+        self.win = "Clustering - heatmap and confidence score"
         cv2.namedWindow(self.win, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(self.win, image_width, image_height)
-        cv2.moveWindow(self.win, 1024, 0)
+        cv2.resizeWindow(self.win, width, height)
+        cv2.moveWindow(self.win, x, y)
         cv2.createTrackbar('threshold', self.win, self.heatmap_threshold, 255, self.set_heatmap_threshold)
 
     def set_heatmap_threshold(self, value):
         self.heatmap_threshold = value
 
-    def _display_heatmap(self, heatmap, objects):
+    def _draw_heatmap(self, heatmap, objects):
         cmapped_image = self.heat_drawer.cmap(heatmap)
         cmapped_image = self.cluster_drawer.draw(cmapped_image, objects=objects)
-        cv2.imshow(self.win, cmapped_image)
+        return cmapped_image
 
     def cluster(self, classified_objects):
         """Group classified objects into clusters
@@ -80,7 +82,11 @@ class Cluster(object):
         clustered_objects = self._label(filtered_heatmap)
 
         # Create heatmap display image also showing clustered objects
-        display_heatmap = self._display_heatmap(accumulated_heatmap, clustered_objects)
+        display_heatmap = self._draw_heatmap(accumulated_heatmap, clustered_objects)
+
+        if self.show_display:
+            cv2.imshow(self.win, display_heatmap)
+
         return clustered_objects, display_heatmap
 
     def _create_frame_heatmap(self, classified_objects):
