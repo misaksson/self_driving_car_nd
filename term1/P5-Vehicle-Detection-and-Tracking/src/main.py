@@ -19,11 +19,11 @@ class VehicleDetectionPipeline(object):
     def __init__(self, video_path='../input/project_video.mp4'):
         self.video_path = video_path
         image_height, image_width, _ = VideoFileClip(self.video_path).get_frame(0).shape
-        self.track_drawer = Drawer(bbox_settings=BBoxSettings(color=StaticColor(),
-                                                              border_thickness=2,
-                                                              alpha_border=0.95,
-                                                              alpha_fill=0.3),
-                                   inplace=False)
+        self.drawer = Drawer(bbox_settings=BBoxSettings(color=StaticColor(),
+                                                        border_thickness=2,
+                                                        alpha_border=0.95,
+                                                        alpha_fill=0.3),
+                             inplace=False)
 
         self.grid_generator = GridGenerators(image_height, image_width)
         self.classifier = Classifier(self.grid_generator, force_train=False, use_cache=True)
@@ -76,23 +76,23 @@ class VehicleDetectionPipeline(object):
 
         classified_objects = self.classifier.classify(frame_idx, bgr_image)
         clustered_objects, heatmap = self.cluster.cluster(classified_objects)
-        tracked_objects = self.tracker.track(clustered_objects)
-        tracked_image = self.track_drawer.draw(bgr_image, objects=tracked_objects)
+        tracked_objects = self.tracker.track(bgr_image, clustered_objects)
+        output_image = self.drawer.draw(bgr_image, objects=tracked_objects)
 
 #        frame_idx = np.round(self.clip.fps * self.clip_time).astype(np.int)
 #        extract_to_file(frame_idx, bgr_image, classified_objects)
 
 #        for roi, size, _, color in self.grid_generator.get_params():
-#            cv2.rectangle(tracked_image,
+#            cv2.rectangle(output_image,
 #                          (roi.left, roi.top),
 #                          (roi.right, roi.bottom),
 #                          color, 2)
-#            cv2.rectangle(tracked_image,
+#            cv2.rectangle(output_image,
 #                          (roi.right - size.width + 1, roi.bottom - size.height + 1),
 #                          (roi.right, roi.bottom),
 #                          color, 2)
 #        return self.drawer.draw(bgr_image, objects=classified_objects)
-        return tracked_image
+        return output_image
 
     def create_video(self, output_video_path='../output/project_video.mp4'):
         self.frame_idx = 0

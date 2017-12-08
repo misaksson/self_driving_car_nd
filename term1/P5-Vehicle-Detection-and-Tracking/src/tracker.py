@@ -1,5 +1,8 @@
 import numpy as np
 from collections import namedtuple
+from colormap import cmap_builder
+
+from drawer import *
 
 # Constants definition
 
@@ -10,10 +13,10 @@ confidence_degradation_factor = 0.9
 confidence_gradation_factor = 1.05
 
 # Tracked objects with confidence below this threshold will be removed.
-confidence_threshold = 2.0
+confidence_threshold = 12.0
 
 # Tracked objects with confidence below this threshold will not be output.
-output_confidence_threshold = 5.0
+output_confidence_threshold = 20.0
 
 # Tracks are not included in output until reaching this age.
 output_age_threshold = 5
@@ -33,10 +36,44 @@ TrackerOutputObject = namedtuple('TrackerOutputObject', ['bbox', 'confidence'])
 
 
 class Tracker(object):
-    def __init__(self):
+    def __init__(self, show_display=True):
         self.tracked_objects = []
+        self.show_display = show_display
+        self._init_params()
+        if self.show_display:
+            self._init_display()
 
-    def track(self, clustered_objects):
+    def _init_params(self):
+        self.params = {'confidence_degradation_factor': confidence_degradation_factor,
+                       'confidence_gradation_factor': confidence_gradation_factor,
+                       'confidence_threshold': confidence_threshold,
+                       'output_confidence_threshold': output_confidence_threshold,
+                       'output_age_threshold': output_age_threshold,
+                       'match_score_threshold': match_score_threshold,
+                       }
+
+    def _init_display(self, height=670, width=1200, x=0, y=720):
+        self.drawer = Drawer(bbox_settings=BBoxSettings(
+                             color=DynamicColor(cmap=cmap_builder('yellow', 'lime (w3c)', 'cyan'),
+                                                value_range=[0, 100],
+                                                colorbar=Colorbar(ticks=np.array([0, 50, 100]),
+                                                                  pos=np.array([0.03, 0.96]),
+                                                                  size=np.array([0.3, 0.01])))),
+                             inplace=False)
+        self.win = "Tracker - confidence score"
+        cv2.namedWindow(self.win, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(self.win, width, height)
+        cv2.moveWindow(self.win, x, y)
+        cv2.createTrackbar('threshold', self.win, int(self.params['output_confidence_threshold']), 100,
+                           self._trackbar_callback)
+
+    def _trackbar_callback(self, value):
+        self.params['output_confidence_threshold'] = float(value)
+
+    def _update_display(self, image, objects):
+        cv2.imshow(self.win, self.drawer.draw(image, objects))
+
+    def track(self, bgr_image, clustered_objects):
         """Track objects in video images
 
         New observations (objects) are compared to track predictions, trying to
@@ -65,7 +102,10 @@ class Tracker(object):
         self._calc_predictions()
         self._update_tracks()
         self._remove_bad_tracks()
-        return self._get_output_objects()
+        output_objects = self._get_output_objects()
+        if self.show_display:
+            self._update_display(bgr_image, self._tracks_to_output_format(self.tracked_objects))
+        return output_objects
 
     def _calc_observations(self, clustered_objects):
         """Convert clustered objects to track records"""
@@ -83,7 +123,8 @@ class Tracker(object):
         self.predicted_objects = []
         for track in self.tracked_objects:
             self.predicted_objects.append(TrackedObject(age=track.age + 1,
-                                                        confidence=track.confidence * confidence_degradation_factor,
+                                                        confidence=(track.confidence *
+                                                                    self.params['confidence_degradation_factor']),
                                                         x=track.x + track.dx, y=track.y + track.dy,
                                                         w=track.w + track.dw, h=track.h + track.dh,
                                                         dx=track.dx, dy=track.dy, dw=track.dw, dh=track.dh))
@@ -125,7 +166,7 @@ class Tracker(object):
         observation = self.observations[obs_idx]
 
         # Blend track-record with the new observation based on the amount of confidence it brings.
-        observation_portion = observation.confidence / (observation.confidence + previous.confidence)
+        observation_portion = (observation.confidence / (observation.confidence + previous.confidence)) * 0.5
         track_portion = 1.0 - observation_portion
 
         updated_x = prediction.x * track_portion + observation.x * observation_portion
@@ -134,8 +175,9 @@ class Tracker(object):
         updated_h = prediction.h * track_portion + observation.h * observation_portion
 
         track = TrackedObject(age=previous.age + 1,
-                              confidence=(previous.confidence * track_portion +
-                                          observation.confidence * observation_portion) * confidence_gradation_factor,
+                              confidence=((previous.confidence * track_portion +
+                                           observation.confidence * observation_portion) *
+                                          self.params['confidence_gradation_factor']),
                               x=updated_x, y=updated_y, w=updated_w, h=updated_h,
                               dx=updated_x - previous.x, dy=updated_y - previous.y,
                               dw=updated_w - previous.w, dh=updated_h - previous.h)
@@ -166,7 +208,7 @@ class Tracker(object):
 
             while 1:
                 obs_idx, pred_idx = np.unravel_index(match_matrix.argmin(), match_matrix.shape)
-                if match_matrix[obs_idx, pred_idx] < match_score_threshold:
+                if match_matrix[obs_idx, pred_idx] < self.params['match_score_threshold']:
                     obs2track_map[obs_idx] = pred_idx
                     track2obs_map[pred_idx] = obs_idx
                     match_matrix[obs_idx, :] = np.inf
@@ -188,9 +230,19 @@ class Tracker(object):
         """Remove tracks where the confidence is too low"""
         good_tracks = []
         for track in self.tracked_objects:
-            if track.confidence > confidence_threshold:
+            if track.confidence > self.params['confidence_threshold']:
                 good_tracks.append(track)
         self.tracked_objects = good_tracks
+
+    def _tracks_to_output_format(self, tracks):
+        output_objects = []
+        for track in tracks:
+            output_objects.append(TrackerOutputObject(bbox=BoundingBox(top=int(track.y - (track.h / 2)),
+                                                                       left=int(track.x - (track.w / 2)),
+                                                                       bottom=int(track.y + (track.h / 2)),
+                                                                       right=int(track.x + (track.w / 2))),
+                                                      confidence=track.confidence))
+        return output_objects
 
     def _get_output_objects(self):
         """Provides valid output objects
@@ -202,9 +254,9 @@ class Tracker(object):
         """
         output_objects = []
         for track in self.tracked_objects:
-            print(track)
-            if ((track.age >= output_age_threshold and
-                 track.confidence >= output_confidence_threshold)):
+            #print(track)
+            if ((track.age >= self.params['output_age_threshold'] and
+                 track.confidence >= self.params['output_confidence_threshold'])):
 
                 output_objects.append(TrackerOutputObject(bbox=BoundingBox(top=int(track.y - (track.h / 2)),
                                                                            left=int(track.x - (track.w / 2)),
