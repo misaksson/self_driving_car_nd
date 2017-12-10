@@ -48,12 +48,13 @@ class Drawer(object):
         self.bbox_settings = bbox_settings
         self.inplace = inplace
 
-    def draw(self, image, objects):
+    def draw(self, image, objects, labels=None):
         """Draw bounding boxes on image
 
         Arguments:
             image -- to be drawn on
             objects {[DetectionObject]} -- list of objects compatible with DetectionObject
+            labels -- optional list of text strings, one for each object
 
         Returns:
             image -- the annotated image
@@ -65,7 +66,8 @@ class Drawer(object):
 
         self._draw_boxes_filled(objects)
         self._draw_boxes_border(objects)
-
+        if labels is not None:
+            self._draw_labels(objects, labels)
         if self.bbox_settings.color.colorbar is not None:
             self._draw_colorbar()
         return self.image
@@ -132,3 +134,11 @@ class Drawer(object):
             color = self.bbox_settings.color.get_color(value)
             cv2.rectangle(draw_image, (bbox.left, bbox.top), (bbox.right, bbox.bottom), color, cv2.FILLED)
         self.image = cv2.addWeighted(self.image, 1, draw_image, self.bbox_settings.alpha_fill, 0)
+
+    def _draw_labels(self, objects, labels):
+        for obj, label in zip(objects, labels):
+            line_offset = 12
+            bbox = obj[0]
+            for idx, line in enumerate(label):
+                cv2.putText(self.image, line, (bbox.left, bbox.bottom + line_offset * (1 + idx)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
