@@ -99,9 +99,17 @@ class Tracker(object):
         tracker_image = np.copy(bgr_image)
         tracker_image = cv2.add(tracker_image, self.flow_image)
         tracker_image = self.match_drawer.draw(tracker_image, self._tracks_to_output_format(self.matching_observations))
-        tracker_image = self.raw_tracks_drawer.draw(tracker_image, self._tracks_to_output_format(self.tracked_objects))
+        tracker_image = self.raw_tracks_drawer.draw(tracker_image, self._tracks_to_output_format(self.tracked_objects),
+                                                    labels=self._tracks_to_labels(self.tracked_objects))
 
         cv2.imshow(self.win, tracker_image)
+
+    def _tracks_to_labels(self, tracked_objects):
+        labels = []
+        for track in tracked_objects:
+            labels.append([f"x={track.x:.1f}, y={track.y:.1f}, h={track.h:.1f}, w={track.w:.1f},",
+                           f"dx={track.dx:.1f}, dy={track.dy:.1f}, dh={track.dh:.1f}, dw={track.dw:.1f}"])
+        return labels
 
     def track(self, bgr_image, clustered_objects, classified_objects):
         """Track objects in video images
@@ -450,7 +458,7 @@ class OpticalFlowTracker(object):
                                                       for previous_point in previous_points], axis=0)
                 current_median_distance = np.median([np.median(np.abs(current_points - current_point), axis=0)
                                                      for current_point in current_points], axis=0)
-                self.dw, self.dh = current_median_distance / previous_median_distance
+                self.dw, self.dh = current_median_distance - previous_median_distance
 
                 # Work around for situations such as when all points have the same x or y coordinate,
                 if not np.isfinite(self.dw):
