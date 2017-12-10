@@ -16,8 +16,8 @@ class Cluster(object):
         self.image_width = image_width
         self.show_display = show_display
         self.heatmaps = []
-        self.max_n_heatmaps = 5
-        self.heatmap_threshold = 22
+        self.max_n_heatmaps = 2
+        self.heatmap_threshold = 70
         if self.show_display:
             self._init_heatmap_display()
 
@@ -96,28 +96,11 @@ class Cluster(object):
         in the search window where the object was found.
         """
         frame_heatmap = np.zeros((self.image_height, self.image_width))
-        for search_window, probability in classified_objects:
+        for search_window, _, confidence in classified_objects:
             frame_heatmap[search_window.top:search_window.bottom,
-                          search_window.left:search_window.right] += self._probability_to_score(probability)
+                          search_window.left:search_window.right] += confidence
 
         self.heatmaps.append(frame_heatmap)
-
-    def _probability_to_score(self, probability, a=0.0009080398201937553, b=-0.0009080398201937553, k=10):
-        """Maps probabilities exponentially to cluster score value
-
-        Like to have objects with very high probability to weight more than the
-        combined output from several less confident classifications.
-
-        The default arguments produce a curve that is quite flat near a score of
-        0 until reaching an probability of 0.5-0.6 where the curvature starts,
-        and from probability 0.8 to 1.0 the score is skyrocketing from 2.5 to
-        20.
-
-        Arguments:
-            probability {[type]} -- [description]
-        """
-        score = a * np.exp(k * probability) + b
-        return score
 
     def _accumulate_heatmaps(self):
         accumulated = np.zeros((self.image_height, self.image_width))

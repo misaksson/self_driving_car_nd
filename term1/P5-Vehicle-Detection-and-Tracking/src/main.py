@@ -76,7 +76,7 @@ class VehicleDetectionPipeline(object):
 
         medium_conf_obj, high_conf_obj = self.classifier.classify(frame_idx, bgr_image)
         clustered_objects, heatmap = self.cluster.cluster(medium_conf_obj)
-        tracked_objects = self.tracker.track(bgr_image, clustered_objects)
+        tracked_objects = self.tracker.track(bgr_image, clustered_objects, high_conf_obj)
         output_image = self.drawer.draw(bgr_image, objects=tracked_objects)
 
 #        frame_idx = np.round(self.clip.fps * self.clip_time).astype(np.int)

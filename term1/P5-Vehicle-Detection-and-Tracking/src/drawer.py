@@ -114,7 +114,9 @@ class Drawer(object):
             draw_image = np.zeros_like(self.image)
         else:
             draw_image = self.image
-        for bbox, value in objects:
+
+        for obj in objects:
+            bbox, value = obj[0], obj[1]
             color = self.bbox_settings.color.get_color(value)
             cv2.rectangle(draw_image, (bbox.left, bbox.top), (bbox.right, bbox.bottom), color,
                           self.bbox_settings.border_thickness)
@@ -125,7 +127,8 @@ class Drawer(object):
         if self.bbox_settings.alpha_fill is None:
             return
         draw_image = np.zeros_like(self.image)
-        for bbox, value in objects:
+        for obj in objects:
+            bbox, value = obj[0], obj[1]
             color = self.bbox_settings.color.get_color(value)
             cv2.rectangle(draw_image, (bbox.left, bbox.top), (bbox.right, bbox.bottom), color, cv2.FILLED)
         self.image = cv2.addWeighted(self.image, 1, draw_image, self.bbox_settings.alpha_fill, 0)

@@ -15,11 +15,33 @@ classifier_path = "./classifier.p"
 # Classified objects with probability above this threshold will be cached.
 cache_threshold = 0.50
 # Classified objects with probability above this threshold will be used by the clustering.
-cluster_threshold = 0.70
+cluster_threshold = 0.60
 # Classified objects with probability above this threshold will be used by the tracker.
 tracking_threshold = 0.80
 
-ClassifiedObject = namedtuple('ClassifiedObject', ['bbox', 'probability'])
+
+class ClassifiedObject(namedtuple('ClassifiedObject', ['bbox', 'probability', 'confidence'])):
+    def __new__(cls, bbox, probability, confidence=None):
+        if confidence is None:
+            confidence = cls._probability_to_score(probability)
+        return super(ClassifiedObject, cls).__new__(cls, bbox, probability, confidence)
+
+    def _probability_to_score(probability, a=0.0009080398201937553, b=-0.0009080398201937553, k=10):
+        """Maps probabilities exponentially to confidence score value
+
+        Like to have objects with very high probability to weight more than the
+        combined output from several less confident classifications.
+
+        The default arguments produce a curve that is quite flat near a score of
+        0 until reaching an probability of 0.5-0.6 where the curvature starts,
+        and from probability 0.8 to 1.0 the score is skyrocketing from 2.5 to
+        20.
+
+        Arguments:
+            probability {[type]} -- [description]
+        """
+        score = a * np.exp(k * probability) + b
+        return score
 
 
 class Classifier(object):
