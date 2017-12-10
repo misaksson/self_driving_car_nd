@@ -13,9 +13,11 @@ from feature_extractor import extract_features
 classifier_path = "./classifier.p"
 
 # Classified objects with probability above this threshold will be cached.
-classifier_cache_threshold = 0.5
-# Classified objects with probability above this threshold will be output to application.
-classifier_threshold = 0.80
+cache_threshold = 0.50
+# Classified objects with probability above this threshold will be used by the clustering.
+cluster_threshold = 0.70
+# Classified objects with probability above this threshold will be used by the tracker.
+tracking_threshold = 0.80
 
 ClassifiedObject = namedtuple('ClassifiedObject', ['bbox', 'probability'])
 
@@ -34,7 +36,9 @@ class Classifier(object):
         if self.use_cache:
             self.cache = ClassifierCache(classifier_path=classifier_path)
 
-        self.probability_threshold = classifier_threshold
+        self.low_threshold = cache_threshold
+        self.medium_threshold = cluster_threshold
+        self.high_threshold = tracking_threshold
 
         if self.show_display:
             self._init_display()
@@ -70,13 +74,17 @@ class Classifier(object):
         cv2.namedWindow(self.win, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(self.win, width, height)
         cv2.moveWindow(self.win, x, y)
-        cv2.createTrackbar('threshold', self.win, int(self.probability_threshold * 100), 100, self._trackbar_callback)
+        cv2.createTrackbar('cluster th', self.win, int(self.medium_threshold * 100), 100, self._set_medium_th_callback)
+        cv2.createTrackbar('tracker th', self.win, int(self.high_threshold * 100), 100, self._set_high_th_callback)
 
     def _update_display(self, image, objects):
         cv2.imshow(self.win, self.drawer.draw(image, objects))
 
-    def _trackbar_callback(self, value):
-        self.probability_threshold = value / 100
+    def _set_medium_th_callback(self, value):
+        self.medium_threshold = value / 100
+
+    def _set_high_th_callback(self, value):
+        self.high_threshold = value / 100
 
     def _classify_patch(self, patch):
         features = extract_features(patch, **self.feature_extractor_args)
@@ -84,7 +92,7 @@ class Classifier(object):
         if self.feature_scaler is not None:
             X = self.feature_scaler.transform(X)
         probabilities = self.classifier.predict_proba(X)[0]
-        prediction = probabilities[1] > classifier_cache_threshold
+        prediction = probabilities[1] > self.low_threshold
         return prediction, probabilities[1]
 
     def classify(self, frame_idx, bgr_image):
@@ -106,11 +114,15 @@ class Classifier(object):
                 self.cache.add(frame_idx, classified_objects)
 
         # Apply the actual probability threshold (now that objects are stored in cache).
-        output_objects = []
+        medium_confidence_objects = []
+        high_confidence_objects = []
         for idx in range(len(classified_objects)):
-            if classified_objects[idx].probability > self.probability_threshold:
-                output_objects.append(classified_objects[idx])
-        if self.show_display:
-            self._update_display(bgr_image, output_objects)
+            if classified_objects[idx].probability > self.medium_threshold:
+                medium_confidence_objects.append(classified_objects[idx])
+            if classified_objects[idx].probability > self.high_threshold:
+                high_confidence_objects.append(classified_objects[idx])
 
-        return output_objects
+        if self.show_display:
+            self._update_display(bgr_image, high_confidence_objects)
+
+        return medium_confidence_objects, high_confidence_objects

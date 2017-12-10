@@ -74,8 +74,8 @@ class VehicleDetectionPipeline(object):
         rgb_image = self.calibration.undistort(rgb_image)
         bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
 
-        classified_objects = self.classifier.classify(frame_idx, bgr_image)
-        clustered_objects, heatmap = self.cluster.cluster(classified_objects)
+        medium_conf_obj, high_conf_obj = self.classifier.classify(frame_idx, bgr_image)
+        clustered_objects, heatmap = self.cluster.cluster(medium_conf_obj)
         tracked_objects = self.tracker.track(bgr_image, clustered_objects)
         output_image = self.drawer.draw(bgr_image, objects=tracked_objects)
 
