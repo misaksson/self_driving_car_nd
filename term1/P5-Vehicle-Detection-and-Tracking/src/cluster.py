@@ -17,7 +17,7 @@ class Cluster(object):
         self.show_display = show_display
         self.heatmaps = []
         self.max_n_heatmaps = 5
-        self.heatmap_threshold = 10
+        self.heatmap_threshold = 22
         if self.show_display:
             self._init_heatmap_display()
 

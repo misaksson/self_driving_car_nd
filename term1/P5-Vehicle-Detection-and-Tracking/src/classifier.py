@@ -15,7 +15,7 @@ classifier_path = "./classifier.p"
 # Classified objects with probability above this threshold will be cached.
 classifier_cache_threshold = 0.5
 # Classified objects with probability above this threshold will be output to application.
-classifier_threshold = 0.75
+classifier_threshold = 0.80
 
 ClassifiedObject = namedtuple('ClassifiedObject', ['bbox', 'probability'])
 
