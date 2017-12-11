@@ -20,13 +20,13 @@ confidence_threshold = 5.0
 output_confidence_threshold = 15.0
 
 # Tracks are not included in output until reaching this age.
-output_age_threshold = 20
+output_age_threshold = 5
 
 # Two objects must get a match score below this value to be considered belonging to the same track.
-match_score_threshold = 100
+match_score_threshold = 0.5
 
 # Controls the amount that a new observation influence the track.
-observation_update_factor = 0.5
+observation_update_factor = 1.0
 
 # The optical flow confidence must be at least this number to be considered valid.
 flow_valid_confidence_threshold = 2
@@ -230,16 +230,20 @@ class Tracker(object):
 
         A new track is accepted if the center position not is covered by any current track.
         """
+        margin = 1.5
         n_previous_tracks = len(self.tracked_objects)
         for candidate in self.new_track_candidates:
             for idx in range(n_previous_tracks):
                 current = self.tracked_objects[idx]
-                if (((candidate.x > (current.x - current.w / 2)) and (candidate.x < (current.x + current.w / 2)) and
-                     (candidate.y > (current.y - current.h / 2)) and (candidate.y < (current.y + current.h / 2)))):
+                if (((candidate.x > (current.x - margin * current.w / 2)) and
+                     (candidate.x < (current.x + margin * current.w / 2)) and
+                     (candidate.y > (current.y - margin * current.h / 2)) and
+                     (candidate.y < (current.y + margin * current.h / 2)))):
                     break
             else:
                 # The candidate did not match any previous object, lets add it.
                 candidate.flow = OpticalFlowTracker(self.current_gray, candidate)
+                candidate.confidence = 10.0
                 self.tracked_objects.append(candidate)
 
     def _update_tracks(self):
@@ -291,7 +295,7 @@ class Tracker(object):
         updated_h = (prediction.h * track_portion) + (observation.h * observation_portion)
 
         observation_portion = ((observation.confidence / (observation.confidence + previous.confidence)) *
-                               self.params['observation_update_factor'] * 0.5)
+                               self.params['observation_update_factor'])
         track_portion = 1.0 - observation_portion
 
         updated_dx = ((prediction.dx * track_portion) +
@@ -353,8 +357,14 @@ class Tracker(object):
 
         Very basic comparison measure of two objects, the lower score the better match.
         """
-        return (abs(object1.x - object2.x) + abs(object1.y - object2.y) +
-                abs(object1.h - object2.h) + abs(object1.w - object2.w))
+        max_width = np.maximum(object1.w, object2.w)
+        max_height = np.maximum(object1.h, object2.h)
+        rel_width_diff = abs(object1.w - object2.w) / max_width
+        rel_height_diff = abs(object1.h - object2.h) / max_height
+        rel_x_diff = abs(object1.x - object2.x) / max_width
+        rel_y_diff = abs(object1.y - object2.y) / max_height
+
+        return np.sum([rel_width_diff, rel_height_diff, rel_x_diff, rel_y_diff])
 
     def _remove_bad_tracks(self):
         """Remove tracks where the confidence is too low"""
