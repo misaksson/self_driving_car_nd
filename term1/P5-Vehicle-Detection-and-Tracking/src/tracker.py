@@ -70,6 +70,15 @@ class Tracker(object):
         self.tracked_objects = []
         self.show_display = show_display
         self._init_params()
+        self.raw_tracks_drawer = Drawer(bbox_settings=BBoxSettings(
+                                        color=DynamicColor(cmap=cmap_builder('yellow', 'lime (w3c)', 'cyan'),
+                                                           value_range=[0, 65],
+                                                           colorbar=Colorbar(ticks=np.array([0, 30, 60]),
+                                                                             pos=np.array([0.03, 0.96]),
+                                                                             size=np.array([0.3, 0.01])))),
+                                        inplace=True)
+        self.match_drawer = Drawer(bbox_settings=BBoxSettings(color=StaticColor((0, 0, 0)), border_thickness=2),
+                                   inplace=True)
         if self.show_display:
             self._init_display()
 
@@ -95,16 +104,6 @@ class Tracker(object):
                        }
 
     def _init_display(self, height=670, width=1200, x=0, y=720):
-        self.raw_tracks_drawer = Drawer(bbox_settings=BBoxSettings(
-                                        color=DynamicColor(cmap=cmap_builder('yellow', 'lime (w3c)', 'cyan'),
-                                                           value_range=[0, 100],
-                                                           colorbar=Colorbar(ticks=np.array([0, 50, 100]),
-                                                                             pos=np.array([0.03, 0.96]),
-                                                                             size=np.array([0.3, 0.01])))),
-                                        inplace=True)
-        self.match_drawer = Drawer(bbox_settings=BBoxSettings(color=StaticColor((0, 0, 0)), border_thickness=2),
-                                   inplace=True)
-
         self.win = "Tracker - confidence score"
         cv2.namedWindow(self.win, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(self.win, width, height)
@@ -115,14 +114,20 @@ class Tracker(object):
     def _trackbar_callback(self, value):
         self.params['output_confidence_threshold'] = float(value)
 
-    def _update_display(self, bgr_image):
+    def _draw_tracker_image(self, bgr_image):
         tracker_image = np.copy(bgr_image)
         tracker_image = cv2.add(tracker_image, self.flow_image)
         tracker_image = self.match_drawer.draw(tracker_image, self._tracks_to_output_format(self.matching_observations))
-        tracker_image = self.raw_tracks_drawer.draw(tracker_image, self._tracks_to_output_format(self.tracked_objects),
-                                                    labels=self._tracks_to_labels(self.tracked_objects))
+        if self.show_display:
+            labels = self._tracks_to_labels(self.tracked_objects)
+        else:
+            # Don't draw labels for final output video (scales badly).
+            labels = None
+        tracker_image = self.raw_tracks_drawer.draw(tracker_image,
+                                                    self._tracks_to_output_format(self.tracked_objects),
+                                                    labels=labels)
 
-        cv2.imshow(self.win, tracker_image)
+        return tracker_image
 
     def _tracks_to_labels(self, tracked_objects):
         labels = []
@@ -166,10 +171,11 @@ class Tracker(object):
         self._update_tracks()
         self._remove_bad_tracks()
         output_objects = self._get_output_objects()
+        tracker_image = self._draw_tracker_image(bgr_image)
         if self.show_display:
-            self._update_display(bgr_image)
+            cv2.imshow(self.win, tracker_image)
 
-        return output_objects
+        return output_objects, tracker_image
 
     def _optical_flow(self, bgr_image):
         """Update optical flow tracks

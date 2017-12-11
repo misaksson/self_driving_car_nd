@@ -20,10 +20,6 @@ class Cluster(object):
         self.object_history = []
         self.max_n_heatmaps = 2
         self.heatmap_threshold = 75
-        if self.show_display:
-            self._init_heatmap_display()
-
-    def _init_heatmap_display(self, height=670, width=1200, x=1205, y=720):
         self.heat_drawer = Drawer(bbox_settings=BBoxSettings(
                                   color=DynamicColor(cmap=cmap_builder('black', 'red', 'yellow'),
                                                      value_range=[0, 255],
@@ -38,7 +34,10 @@ class Cluster(object):
                                                                           pos=np.array([0.03, 0.90]),
                                                                           size=np.array([0.3, 0.01])))),
                                      inplace=True)
+        if self.show_display:
+            self._init_heatmap_display()
 
+    def _init_heatmap_display(self, height=670, width=1200, x=1205, y=720):
         self.win = "Clustering - heatmap and confidence score"
         cv2.namedWindow(self.win, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(self.win, width, height)
@@ -89,7 +88,7 @@ class Cluster(object):
         clustered_objects = self._remove_overlapping(clustered_objects)
 
         # Create heatmap display image also showing clustered objects
-        display_heatmap = self._draw_heatmap(filtered_heatmap, clustered_objects)
+        display_heatmap = self._draw_heatmap(accumulated_heatmap, clustered_objects)
 
         if self.show_display:
             cv2.imshow(self.win, display_heatmap)

@@ -62,6 +62,14 @@ class Classifier(object):
         self.medium_threshold = cluster_threshold
         self.high_threshold = tracking_threshold
 
+        self.drawer = Drawer(bbox_settings=BBoxSettings(
+                             color=DynamicColor(cmap=cmap_builder('yellow', 'lime (w3c)', 'cyan'),
+                                                value_range=[0.5, 1.0],
+                                                colorbar=Colorbar(ticks=np.array([0.5, 0.75, 1.0]),
+                                                                  pos=np.array([0.03, 0.97]),
+                                                                  size=np.array([0.3, 0.01])))),
+                             inplace=False)
+
         if self.show_display:
             self._init_display()
 
@@ -85,22 +93,12 @@ class Classifier(object):
             pickle.dump((self.classifier, self.feature_scaler, self.feature_extractor_args), fid)
 
     def _init_display(self, height=670, width=1200, x=1205, y=0):
-        self.drawer = Drawer(bbox_settings=BBoxSettings(
-                             color=DynamicColor(cmap=cmap_builder('yellow', 'lime (w3c)', 'cyan'),
-                                                value_range=[0.5, 1.0],
-                                                colorbar=Colorbar(ticks=np.array([0.5, 0.75, 1.0]),
-                                                                  pos=np.array([0.03, 0.97]),
-                                                                  size=np.array([0.3, 0.01])))),
-                             inplace=False)
         self.win = "Classifier - probabilities"
         cv2.namedWindow(self.win, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(self.win, width, height)
         cv2.moveWindow(self.win, x, y)
         cv2.createTrackbar('cluster th', self.win, int(self.medium_threshold * 100), 100, self._set_medium_th_callback)
         cv2.createTrackbar('tracker th', self.win, int(self.high_threshold * 100), 100, self._set_high_th_callback)
-
-    def _update_display(self, image, objects):
-        cv2.imshow(self.win, self.drawer.draw(image, objects))
 
     def _set_medium_th_callback(self, value):
         self.medium_threshold = value / 100
@@ -144,7 +142,9 @@ class Classifier(object):
             if classified_objects[idx].probability > self.high_threshold:
                 high_confidence_objects.append(classified_objects[idx])
 
-        if self.show_display:
-            self._update_display(bgr_image, high_confidence_objects)
+        classification_image = self.drawer.draw(bgr_image, high_confidence_objects)
 
-        return medium_confidence_objects, high_confidence_objects
+        if self.show_display:
+            cv2.imshow(self.win, classification_image)
+
+        return medium_confidence_objects, high_confidence_objects, classification_image
