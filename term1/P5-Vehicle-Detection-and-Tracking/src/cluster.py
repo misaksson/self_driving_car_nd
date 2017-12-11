@@ -2,12 +2,13 @@ import numpy as np
 import cv2
 from scipy.ndimage.measurements import label
 from collections import namedtuple
+from recordclass import recordclass
 from colormap import cmap_builder
 
 from drawer import *
 
-BoundingBox = namedtuple('BoundingBox', ['top', 'left', 'bottom', 'right'])
-ClusteredObject = namedtuple('ClusteredObject', ['bbox', 'confidence'])
+BoundingBox = recordclass('BoundingBox', ['top', 'left', 'bottom', 'right'])
+ClusteredObject = recordclass('ClusteredObject', ['bbox', 'confidence'])
 
 
 class Cluster(object):
@@ -16,6 +17,7 @@ class Cluster(object):
         self.image_width = image_width
         self.show_display = show_display
         self.heatmaps = []
+        self.object_history = []
         self.max_n_heatmaps = 2
         self.heatmap_threshold = 70
         if self.show_display:
@@ -68,24 +70,31 @@ class Cluster(object):
         # Create a heatmap of the classified object in this frame.
         self._create_frame_heatmap(classified_objects)
 
+        # Store objects the same number of frames as the headmap is calculated.
+        self.object_history.append(classified_objects)
+
         # Accumulate all heatmaps
         accumulated_heatmap = self._accumulate_heatmaps()
-
-        if len(self.heatmaps) > self.max_n_heatmaps:
-            # Drop the oldest heatmap
-            self.heatmaps.pop(0)
 
         # Remove weak detections (false positives).
         filtered_heatmap = self._apply_threshold(accumulated_heatmap)
 
-        # Find clustered objects in the heatmap
+        # Find location of clustered objects in the heatmap
         clustered_objects = self._label(filtered_heatmap)
 
+        # Calculate size of clustered objects from classified objects.
+        clustered_objects = self._calc_size(clustered_objects)
+
         # Create heatmap display image also showing clustered objects
-        display_heatmap = self._draw_heatmap(accumulated_heatmap, clustered_objects)
+        display_heatmap = self._draw_heatmap(filtered_heatmap, clustered_objects)
 
         if self.show_display:
             cv2.imshow(self.win, display_heatmap)
+
+        # Drop outdated heatmap and objects
+        if len(self.heatmaps) > self.max_n_heatmaps:
+            self.heatmaps.pop(0)
+            self.object_history.pop(0)
 
         return clustered_objects, display_heatmap
 
@@ -136,4 +145,30 @@ class Cluster(object):
                                top=np.min(y_coords), bottom=np.max(y_coords))
             confidence = heatmap[bbox.top:bbox.bottom, bbox.left:bbox.right].mean()
             clustered_objects.append(ClusteredObject(bbox=bbox, confidence=confidence))
+        return clustered_objects
+
+    def _calc_size(self, clustered_objects):
+        # Flatten classified object history
+        classified_objects = [obj for frame in self.object_history for obj in frame]
+
+        for idx in range(len(clustered_objects)):
+            center_x = (clustered_objects[idx].bbox.left + clustered_objects[idx].bbox.right) / 2
+            center_y = (clustered_objects[idx].bbox.top + clustered_objects[idx].bbox.bottom) / 2
+            matching_objects = []
+            for classified_object in classified_objects:
+                if ((classified_object[0].left < center_x and classified_object[0].right > center_x and
+                     classified_object[0].top < center_y and classified_object[0].bottom > center_y)):
+                    matching_objects.append(classified_object)
+
+            # Find top 5 probabilities
+            best_matching_objects = sorted(matching_objects, key=lambda x: x.probability, reverse=True)[:5]
+
+            mean_width = np.array([obj[0].right - obj[0].left + 1 for obj in best_matching_objects]).mean()
+            mean_height = np.array([obj[0].bottom - obj[0].top + 1 for obj in best_matching_objects]).mean()
+
+            clustered_objects[idx].bbox.left = int(center_x - mean_width / 2)
+            clustered_objects[idx].bbox.right = int(center_x + mean_width / 2)
+            clustered_objects[idx].bbox.top = int(center_y - mean_height / 2)
+            clustered_objects[idx].bbox.bottom = int(center_y + mean_height / 2)
+
         return clustered_objects
