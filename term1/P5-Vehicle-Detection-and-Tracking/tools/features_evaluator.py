@@ -5,6 +5,8 @@ extraction arguments (exhaustive search).
 """
 import sys
 import itertools
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import LinearSVC
 
 sys.path.append("../src/")
 from trainer import Trainer
@@ -139,14 +141,14 @@ for arg_name, value in variants.items():
 
 print(f"Number of variants to run {n_variants}")
 
-trainer = Trainer()
+trainer = Trainer(file_sets=[0])
 with open("../output/feature_evaluator.txt", "a") as fid:
     for idx, values in enumerate(itertools.product(*variants_list)):
         print(f"Variant {idx + 1} / {n_variants}")
         feature_extractor_args = dict()
         for idx, arg_name in enumerate(arg_name_list):
             feature_extractor_args[arg_name] = values[idx]
-        trainer.extract_features(feature_extractor_args)
-        _, _, _, accuracy_score = trainer.train(C=2.0)
+        trainer.extract_features(feature_extractor_args, X_scaler=StandardScaler())
+        _, _, _, accuracy_score = trainer.train(LinearSVC(C=2.0))
         print(f"{accuracy_score:.5f} {feature_extractor_args}", file=fid, flush=True)
     print("---", file=fid, flush=True)  # Separating runs in the log
