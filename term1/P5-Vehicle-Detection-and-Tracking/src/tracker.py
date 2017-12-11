@@ -8,37 +8,52 @@ from drawer import *
 # Constants definition
 
 # The tracked objects confidence is decreased by this factor each frame that lacks observation.
-confidence_degradation_factor = 0.95
+confidence_degradation_factor = 0.97
 
 # The tracked objects confidence is increased by this factor each observation.
-confidence_gradation_factor = 1.20
+confidence_gradation_factor = 1.15
+
+# New tracks are initialized with this confidence.
+initial_confidence = 10
+
+# Limit confidence accumulation at this value.
+max_confidence = 65
 
 # Tracked objects with confidence below this threshold will be removed.
 confidence_threshold = 5.0
 
 # Tracked objects with confidence below this threshold will not be output.
-output_confidence_threshold = 15.0
+output_confidence_threshold = 10.0
 
 # Tracks are not included in output until reaching this age.
-output_age_threshold = 5
+output_age_threshold = 10
 
 # Two objects must get a match score below this value to be considered belonging to the same track.
-match_score_threshold = 0.5
+match_score_threshold = 0.4
 
 # Controls the amount that a new observation influence the track.
-observation_update_factor = 1.0
+observation_update_factor = 0.6
+
+# Old tracks gets less influence from new observations.
+high_age_observation_update_factor = 0.01
+
+# Defines the age of an old track.
+high_age = 200
 
 # The optical flow confidence must be at least this number to be considered valid.
-flow_valid_confidence_threshold = 2
+flow_valid_confidence_threshold = 4
 
 # An objects confidence is not degraded if the optical flow confidence is above this level.
-flow_high_confidence_threshold = 5
+flow_high_confidence_threshold = 4
 
 # Age threshold for position change measurements.
 flow_position_age_threshold = 1
 
 # Age threshold for size change measurements.
-flow_size_age_threshold = 10
+flow_size_age_threshold = 50
+
+# Used for sanity check of optical flow.
+flow_pos_max_deviation = 6
 
 
 """Internal tracked object states"""
@@ -63,15 +78,20 @@ class Tracker(object):
     def _init_params(self):
         self.params = {'confidence_degradation_factor': confidence_degradation_factor,
                        'confidence_gradation_factor': confidence_gradation_factor,
+                       'initial_confidence': initial_confidence,
+                       'max_confidence': max_confidence,
                        'confidence_threshold': confidence_threshold,
                        'output_confidence_threshold': output_confidence_threshold,
                        'output_age_threshold': output_age_threshold,
                        'match_score_threshold': match_score_threshold,
                        'observation_update_factor': observation_update_factor,
+                       'high_age_observation_update_factor': high_age_observation_update_factor,
+                       'high_age': high_age,
                        'flow_valid_confidence_threshold': flow_valid_confidence_threshold,
                        'flow_high_confidence_threshold': flow_high_confidence_threshold,
                        'flow_position_age_threshold': flow_position_age_threshold,
                        'flow_size_age_threshold': flow_size_age_threshold,
+                       'flow_pos_max_deviation': flow_pos_max_deviation
                        }
 
     def _init_display(self, height=670, width=1200, x=0, y=720):
@@ -107,8 +127,9 @@ class Tracker(object):
     def _tracks_to_labels(self, tracked_objects):
         labels = []
         for track in tracked_objects:
-            labels.append([f"x={track.x:.1f}, y={track.y:.1f}, h={track.h:.1f}, w={track.w:.1f},",
-                           f"dx={track.dx:.1f}, dy={track.dy:.1f}, dh={track.dh:.1f}, dw={track.dw:.1f}"])
+            labels.append([(f"age={track.age}, conf={track.confidence:.1f}, "
+                            f"flow_start={track.flow.n_start_points}, flow_conf={track.flow.confidence}")])
+
         return labels
 
     def track(self, bgr_image, clustered_objects, classified_objects):
@@ -167,7 +188,7 @@ class Tracker(object):
             self.first_frame = False
 
         for tracked_object in self.tracked_objects:
-            if tracked_object.age == self.params['flow_size_age_threshold']:
+            if tracked_object.age % self.params['flow_size_age_threshold'] == 0:
                 # Object size is now considered settled, so lets update the optical flow track points.
                 tracked_object.flow.reset_track(self.previous_gray, tracked_object)
             tracked_object.flow.track(tracked_object, self.previous_gray, self.current_gray, self.flow_image)
@@ -189,19 +210,32 @@ class Tracker(object):
             if track.flow.confidence >= self.params['flow_valid_confidence_threshold']:
                 if track.age >= self.params['flow_position_age_threshold']:
                     if track.flow.dx is not None:
-                        dx = track.flow.dx
+                        if abs(dx - track.flow.dx) < self.params['flow_pos_max_deviation']:
+                            dx = track.flow.dx
                     if track.flow.dy is not None:
-                        dy = track.flow.dy
-                if track.age >= self.params['flow_position_age_threshold']:
+                        if abs(dy - track.flow.dy) < self.params['flow_pos_max_deviation']:
+                            dy = track.flow.dy
+                if track.age >= self.params['flow_size_age_threshold']:
                     if track.flow.dw is not None:
                         dw = track.flow.dw
                     if track.flow.dh is not None:
                         dh = track.flow.dh
 
+            if track.flow.confidence >= np.inf:  # Optical flow direct positioning is disabled.
+                x = track.flow.x
+                y = track.flow.y
+                w = track.flow.w
+                h = track.flow.h
+            else:
+                x = track.x + dx
+                y = track.y + dy
+                w = track.w + dw
+                h = track.h + dh
+
             # Don't degrade the track if the measurement have high confidence.
             if ((track.flow.confidence >= self.params['flow_high_confidence_threshold'] and
                  track.age >= np.maximum(self.params['flow_position_age_threshold'],
-                                         self.params['flow_position_age_threshold']))):
+                                         self.params['flow_size_age_threshold']))):
                 confidence_degradation_factor = 1.0
             else:
                 confidence_degradation_factor = self.params['confidence_degradation_factor']
@@ -209,8 +243,7 @@ class Tracker(object):
             self.predicted_objects.append(TrackedObject(age=track.age + 1,
                                                         confidence=track.confidence * confidence_degradation_factor,
                                                         flow=track.flow,
-                                                        x=track.x + dx, y=track.y + dy,
-                                                        w=track.w + dw, h=track.h + dh,
+                                                        x=x, y=y, w=w, h=h,
                                                         dx=dx, dy=dy, dw=dw, dh=dh))
 
     def _convert_observations(self, clustered_objects):
@@ -243,7 +276,7 @@ class Tracker(object):
             else:
                 # The candidate did not match any previous object, lets add it.
                 candidate.flow = OpticalFlowTracker(self.current_gray, candidate)
-                candidate.confidence = 10.0
+                candidate.confidence = self.params['initial_confidence']
                 self.tracked_objects.append(candidate)
 
     def _update_tracks(self):
@@ -284,19 +317,20 @@ class Tracker(object):
         prediction = self.predicted_objects[track_idx]
         observation = self.observations[obs_idx]
 
+        if prediction.age > self.params['high_age']:
+            observation_update_factor = self.params['high_age_observation_update_factor']
+        else:
+            observation_update_factor = self.params['observation_update_factor']
+
         # Blend track-record with the new observation based on the amount of confidence it brings.
         observation_portion = ((observation.confidence / (observation.confidence + previous.confidence)) *
-                               self.params['observation_update_factor'])
+                               observation_update_factor)
         track_portion = 1.0 - observation_portion
 
         updated_x = (prediction.x * track_portion) + (observation.x * observation_portion)
         updated_y = (prediction.y * track_portion) + (observation.y * observation_portion)
         updated_w = (prediction.w * track_portion) + (observation.w * observation_portion)
         updated_h = (prediction.h * track_portion) + (observation.h * observation_portion)
-
-        observation_portion = ((observation.confidence / (observation.confidence + previous.confidence)) *
-                               self.params['observation_update_factor'])
-        track_portion = 1.0 - observation_portion
 
         updated_dx = ((prediction.dx * track_portion) +
                       ((observation.x - previous.x) * observation_portion))
@@ -307,10 +341,12 @@ class Tracker(object):
         updated_dh = ((prediction.dh * track_portion) +
                       ((observation.h - previous.h) * observation_portion))
 
+        updated_confidence = np.minimum(self.params['max_confidence'], ((previous.confidence * track_portion +
+                                                                         observation.confidence * observation_portion) *
+                                                                        self.params['confidence_gradation_factor']))
+
         track = TrackedObject(age=previous.age + 1,
-                              confidence=((previous.confidence * track_portion +
-                                           observation.confidence * observation_portion) *
-                                          self.params['confidence_gradation_factor']),
+                              confidence=updated_confidence,
                               flow=previous.flow,
                               x=updated_x, y=updated_y, w=updated_w, h=updated_h,
                               dx=updated_dx, dy=updated_dy,
@@ -346,7 +382,7 @@ class Tracker(object):
                     obs2track_map[obs_idx] = pred_idx
                     track2obs_map[pred_idx] = obs_idx
                     match_matrix[obs_idx, :] = np.inf
-                    match_matrix[:, pred_idx] = np.inf
+#                    match_matrix[:, pred_idx] = np.inf
                 else:
                     # No more valid matches
                     break
@@ -409,10 +445,10 @@ class Tracker(object):
 
 class OpticalFlowTracker(object):
     # Parameters for ShiTomasi corner detection
-    feature_params = {'maxCorners': 10,
+    feature_params = {'maxCorners': 40,
                       'qualityLevel': 0.3,
-                      'minDistance': 7,
-                      'blockSize': 7
+                      'minDistance': 5,
+                      'blockSize': 5
                       }
 
     # Parameters for lucas kanade optical flow
@@ -453,7 +489,6 @@ class OpticalFlowTracker(object):
             current_points = current_points[st == 1]
             previous_points = self.previous_points[st == 1]
 
-            self.confidence = len(current_points)
             if len(current_points) > 0:
                 # draw the position change
                 for i, (current_point, previous_point) in enumerate(zip(current_points, previous_points)):
@@ -475,6 +510,14 @@ class OpticalFlowTracker(object):
                     self.dw = None
                 if not np.isfinite(self.dh):
                     self.dh = None
+
+                keep_indicies = self._remove_outliers(previous_points, current_points)
+                current_points = current_points[keep_indicies]
+
+                self.confidence = len(current_points)
+                if len(current_points) > 0:
+                    self.w, self.h = np.max(current_points, axis=0) - np.min(current_points, axis=0) + 1
+                    self.x, self.y = np.mean(current_points, axis=0)
 
                 # Reshape current points to format accepted by the opencv function.
                 self.previous_points = current_points.reshape((current_points.shape[0], 1, current_points.shape[1]))
@@ -504,17 +547,28 @@ class OpticalFlowTracker(object):
             else:
                 self.previous_points = None
 
+    def _remove_outliers(self, previous_points, current_points):
+        margin = 2
+        min_dx, max_dx = self.dx - margin, self.dx + margin
+        min_dy, max_dy = self.dy - margin, self.dy + margin
+        points_diff = current_points - previous_points
+        dx_list = points_diff[:, 0]
+        dy_list = points_diff[:, 1]
+        keep_indices = np.where(np.logical_and(np.logical_and(dx_list > min_dx, dx_list < max_dx),
+                                               np.logical_and(dy_list > min_dy, dy_list < max_dy)))[0]
+        return keep_indices
+
     def _validate_track(self):
         if self.previous_points is None:
             self.confidence = 0.0
         else:
             n_points = len(self.previous_points)
-            if ((n_points < flow_high_confidence_threshold and
-                 (self.n_start_points - n_points) / self.n_start_points < 0.5)):
+            if n_points / self.n_start_points < 0.25:
                 self.confidence = 0.0
             else:
                 self.confidence = n_points
 
     def __str__(self):
         return (f"confidence={self.confidence}, initial_points={self.n_start_points}, "
-                f"dx={self.dx}, dy={self.dy}, dw={self.dw}, dh={self.dh}")
+                f"dx={self.dx}, dy={self.dy}, dw={self.dw}, dh={self.dh}"
+                f"x={self.x}, y={self.y}, w={self.w}, h={self.h}")

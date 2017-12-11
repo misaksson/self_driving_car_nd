@@ -19,7 +19,7 @@ class Cluster(object):
         self.heatmaps = []
         self.object_history = []
         self.max_n_heatmaps = 2
-        self.heatmap_threshold = 70
+        self.heatmap_threshold = 75
         if self.show_display:
             self._init_heatmap_display()
 
@@ -82,8 +82,11 @@ class Cluster(object):
         # Find location of clustered objects in the heatmap
         clustered_objects = self._label(filtered_heatmap)
 
-        # Calculate size of clustered objects from classified objects.
-        clustered_objects = self._calc_size(clustered_objects)
+        # Calculate position and size of clustered objects using best classified objects.
+        clustered_objects = self._calc_average_position(clustered_objects)
+
+        # Remove overlapping objects. The confidence is used to choose objects.
+        clustered_objects = self._remove_overlapping(clustered_objects)
 
         # Create heatmap display image also showing clustered objects
         display_heatmap = self._draw_heatmap(filtered_heatmap, clustered_objects)
@@ -147,7 +150,7 @@ class Cluster(object):
             clustered_objects.append(ClusteredObject(bbox=bbox, confidence=confidence))
         return clustered_objects
 
-    def _calc_size(self, clustered_objects):
+    def _calc_average_position(self, clustered_objects):
         # Flatten classified object history
         classified_objects = [obj for frame in self.object_history for obj in frame]
 
@@ -160,15 +163,28 @@ class Cluster(object):
                      classified_object[0].top < center_y and classified_object[0].bottom > center_y)):
                     matching_objects.append(classified_object)
 
-            # Find top 5 probabilities
-            best_matching_objects = sorted(matching_objects, key=lambda x: x.probability, reverse=True)[:5]
+            # Find classified objects with highest probability
+            best_objects = sorted(matching_objects, key=lambda x: x.probability, reverse=True)[:3]
 
-            mean_width = np.array([obj[0].right - obj[0].left + 1 for obj in best_matching_objects]).mean()
-            mean_height = np.array([obj[0].bottom - obj[0].top + 1 for obj in best_matching_objects]).mean()
-
-            clustered_objects[idx].bbox.left = int(center_x - mean_width / 2)
-            clustered_objects[idx].bbox.right = int(center_x + mean_width / 2)
-            clustered_objects[idx].bbox.top = int(center_y - mean_height / 2)
-            clustered_objects[idx].bbox.bottom = int(center_y + mean_height / 2)
+            clustered_objects[idx].bbox.left = np.array([obj[0].left for obj in best_objects]).mean().astype(np.int)
+            clustered_objects[idx].bbox.right = np.array([obj[0].right for obj in best_objects]).mean().astype(np.int)
+            clustered_objects[idx].bbox.top = np.array([obj[0].top for obj in best_objects]).mean().astype(np.int)
+            clustered_objects[idx].bbox.bottom = np.array([obj[0].bottom for obj in best_objects]).mean().astype(np.int)
 
         return clustered_objects
+
+    def _remove_overlapping(self, clustered_objects):
+        accepted_objects = []
+        sorted_objects = sorted(clustered_objects, key=lambda x: x.confidence, reverse=True)
+        for candidate_obj in sorted_objects:
+            for accepted_obj in accepted_objects:
+                if not (candidate_obj.bbox.left > accepted_obj.bbox.right or
+                        candidate_obj.bbox.right < accepted_obj.bbox.left or
+                        candidate_obj.bbox.top > accepted_obj.bbox.bottom or
+                        candidate_obj.bbox.bottom < accepted_obj.bbox.top):
+                    # Overlap
+                    break
+            else:
+                # No overlap
+                accepted_objects.append(candidate_obj)
+        return accepted_objects

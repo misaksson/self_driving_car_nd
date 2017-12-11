@@ -17,7 +17,7 @@ cache_threshold = 0.50
 # Classified objects with probability above this threshold will be used by the clustering.
 cluster_threshold = 0.60
 # Classified objects with probability above this threshold will be used by the tracker.
-tracking_threshold = 0.80
+tracking_threshold = 0.75
 
 
 class ClassifiedObject(namedtuple('ClassifiedObject', ['bbox', 'probability', 'confidence'])):
