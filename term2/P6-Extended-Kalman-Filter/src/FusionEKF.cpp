@@ -1,7 +1,7 @@
 #include "FusionEKF.h"
-#include "tools.h"
-#include "Eigen/Dense"
 #include <iostream>
+#include "Eigen/Dense"
+#include "tools.h"
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -22,22 +22,17 @@ FusionEKF::FusionEKF() {
   H_laser_ = MatrixXd(2, 4);
   Hj_ = MatrixXd(3, 4);
 
-  //measurement covariance matrix - laser
-  R_laser_ << 0.0225, 0,
-        0, 0.0225;
+  // measurement covariance matrix - laser
+  R_laser_ << 0.0225, 0, 0, 0.0225;
 
-  //measurement covariance matrix - radar
-  R_radar_ << 0.09, 0, 0,
-        0, 0.0009, 0,
-        0, 0, 0.09;
+  // measurement covariance matrix - radar
+  R_radar_ << 0.09, 0, 0, 0, 0.0009, 0, 0, 0, 0.09;
 
   /**
   TODO:
     * Finish initializing the FusionEKF.
     * Set the process and measurement noises
   */
-
-
 }
 
 /**
@@ -46,8 +41,6 @@ FusionEKF::FusionEKF() {
 FusionEKF::~FusionEKF() {}
 
 void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
-
-
   /*****************************************************************************
    *  Initialization
    ****************************************************************************/
@@ -56,7 +49,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
     TODO:
       * Initialize the state ekf_.x_ with the first measurement.
       * Create the covariance matrix.
-      * Remember: you'll need to convert radar from polar to cartesian coordinates.
+      * Remember: you'll need to convert radar from polar to cartesian
+    coordinates.
     */
     // first measurement
     cout << "EKF: " << endl;
@@ -67,8 +61,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
-    }
-    else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+    } else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
       /**
       Initialize state.
       */
