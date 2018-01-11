@@ -1,10 +1,9 @@
 #include "kalman_filter.h"
+#include <cmath>
+#include "tools.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
-
-// Please note that the Eigen library does not initialize
-// VectorXd or MatrixXd objects with zeros upon creation.
 
 KalmanFilter::KalmanFilter() {}
 
@@ -45,7 +44,25 @@ void KalmanFilter::Update(const VectorXd &z) {
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
   /**
-  TODO:
-    * update the state by using Extended Kalman Filter equations
-  */
+   * Update the state by using Extended Kalman Filter equations.
+   */
+  VectorXd y = z - Tools::CartesianToPolar(x_);
+
+  // Normalize phi to range -pi to pi.
+  while (y[1] < -M_PI) {
+    y[1] += 2.0 * M_PI;
+  }
+  while (y[1] > M_PI) {
+    y[1] -= 2.0 * M_PI;
+  }
+
+  MatrixXd Hj = Tools::CalculateJacobian(x_);
+  MatrixXd Hjt = Hj.transpose();
+  MatrixXd S = Hj * P_ * Hjt + R_;
+  MatrixXd K = P_ * Hjt * S.inverse();
+
+  x_ = x_ + (K * y);
+  long x_size = x_.size();
+  MatrixXd I = MatrixXd::Identity(x_size, x_size);
+  P_ = (I - K * Hj) * P_;
 }
