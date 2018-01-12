@@ -54,15 +54,28 @@ class KalmanFilter {
 
   /**
    * Updates the state by using standard Kalman Filter equations
+   * \note the measurement matrix H_ and measurement covariance matrix R_ are
+   * expected to be updated properly before calling this method.
    * @param z The measurement at k+1
    */
   void Update(const Eigen::VectorXd &z);
 
   /**
    * Updates the state by using Extended Kalman Filter equations
+   * \note the measurement matrix H_ and measurement covariance matrix R_ are
+   * expected to be updated properly before calling this method.
    * @param z The measurement at k+1
    */
   void UpdateEKF(const Eigen::VectorXd &z);
+
+private:
+
+  /**
+   * Common parts of the state update, that are the same for both standard and
+   * extended Kalman Filter.
+   * @param y The error between the measurement and predicted state.
+   */
+  void UpdateCommon(const Eigen::VectorXd &y);
 };
 
 #endif /* KALMAN_FILTER_H_ */

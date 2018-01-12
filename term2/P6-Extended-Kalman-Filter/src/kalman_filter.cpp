@@ -20,35 +20,29 @@ void KalmanFilter::Init(VectorXd &x_in, MatrixXd &P_in, MatrixXd &F_in,
 }
 
 void KalmanFilter::Predict() {
-  /**
-   * Predict the state.
-   */
+  // Predict the new state estimation.
   x_ = F_ * x_;
+
+  // Update the state uncertainty covariance matrix.
   P_ = F_ * P_ * F_.transpose() + Q_;
 }
 
 void KalmanFilter::Update(const VectorXd &z) {
-  /**
-   * Update the state from new measurement.
-   */
-  VectorXd y = z - (H_ * x_);
-  MatrixXd Ht = H_.transpose();
-  MatrixXd S = H_ * P_ * Ht + R_;
-  MatrixXd K = P_ * Ht * S.inverse();
 
-  x_ = x_ + (K * y);
-  long x_size = x_.size();
-  MatrixXd I = MatrixXd::Identity(x_size, x_size);
-  P_ = (I - K * H_) * P_;
+  // Calculate the error between the measurement z and predicted state x_.
+  VectorXd y = z - (H_ * x_);
+
+  UpdateCommon(y);
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
-  /**
-   * Update the state by using Extended Kalman Filter equations.
-   */
+
+  /* Calculate the error between the measurement z and predicted state x_.
+   * The measurement function h(x) is the non-linear mapping between cartesian
+   * and polar coordinates. */
   VectorXd y = z - Tools::CartesianToPolar(x_);
 
-  // Normalize phi to range -pi to pi.
+  // Normalize the angle phi to range -pi to pi.
   while (y[1] < -M_PI) {
     y[1] += 2.0 * M_PI;
   }
@@ -56,13 +50,25 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     y[1] -= 2.0 * M_PI;
   }
 
-  MatrixXd Hj = Tools::CalculateJacobian(x_);
-  MatrixXd Hjt = Hj.transpose();
-  MatrixXd S = Hj * P_ * Hjt + R_;
-  MatrixXd K = P_ * Hjt * S.inverse();
+  UpdateCommon(y);
+}
 
-  x_ = x_ + (K * y);
+void KalmanFilter::UpdateCommon(const VectorXd &y) {
+
+  // Measurement matrix transpose
+  MatrixXd Ht = H_.transpose();
+
+  // Innovation covariance
+  MatrixXd S = H_ * P_ * Ht + R_;
+
+  // Kalman gain
+  MatrixXd K = P_ * Ht * S.inverse();
+
+  // Update state estimation
+  x_ += K * y;
+
+  // Update state uncertainty covariance matrix
   long x_size = x_.size();
   MatrixXd I = MatrixXd::Identity(x_size, x_size);
-  P_ = (I - K * Hj) * P_;
+  P_ = (I - K * H_) * P_;
 }

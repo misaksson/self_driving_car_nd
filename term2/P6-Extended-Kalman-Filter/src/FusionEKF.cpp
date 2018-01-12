@@ -18,7 +18,6 @@ FusionEKF::FusionEKF() {
   R_laser_ = MatrixXd(2, 2);
   R_radar_ = MatrixXd(3, 3);
   H_laser_ = MatrixXd(2, 4);
-  Hj_ = MatrixXd(3, 4);
 
   ekf_.x_ = VectorXd(4);
   ekf_.F_ = MatrixXd(4, 4);
@@ -26,23 +25,23 @@ FusionEKF::FusionEKF() {
   ekf_.Q_ = MatrixXd(4, 4);
 
   // Measurement covariance matrix - laser
-  R_laser_ << 0.0225, 0,
-              0, 0.0225;
+  R_laser_ << 0.0225f, 0.0f,
+              0.0f, 0.0225f;
 
   // Measurement covariance matrix - radar
-  R_radar_ << 0.09, 0, 0,
-              0, 0.0009, 0,
-              0, 0, 0.09;
+  R_radar_ << 0.09f, 0.0f, 0.0f,
+              0.0f, 0.0009f, 0.0f,
+              0.0f, 0.0f, 0.09f;
 
   // Laser measurement matrix
-  H_laser_ << 1, 0, 0, 0,
-              0, 1, 0, 0;
+  H_laser_ << 1.0f, 0.0f, 0.0f, 0.0f,
+              0.0f, 1.0f, 0.0f, 0.0f;
 
   // State covariance matrix
-  ekf_.P_ << 1, 0, 0, 0,
-             0, 1, 0, 0,
-             0, 0, 1000, 0,
-             0, 0, 0, 1000;
+  ekf_.P_ << 1.0f, 0.0f, 0.0f, 0.0f,
+             0.0f, 1.0f, 0.0f, 0.0f,
+             0.0f, 0.0f, 1000.0f, 0.0f,
+             0.0f, 0.0f, 0.0f, 1000.0f;
 }
 
 /**
@@ -59,15 +58,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
      * Initialize the state ekf_.x_ with the first measurement.
      */
     if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
-      /**
-       * Convert radar from polar to cartesian coordinates and initialize
-       * state.
-       */
       ekf_.x_ = Tools::PolarToCartesian(measurement_pack.raw_measurements_);
     } else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
-      /**
-       * Lidar measurement does not give speed.
-       */
       const float px = measurement_pack.raw_measurements_[0];
       const float py = measurement_pack.raw_measurements_[1];
       const float vx = 0.0f;
@@ -91,23 +83,27 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    * Time is measured in seconds.
    */
   const float dt = (measurement_pack.timestamp_ - previous_timestamp_) /
-                   1000000.0;
+                   1000000.0f;
   previous_timestamp_ = measurement_pack.timestamp_;
-  ekf_.F_ << 1, 0, dt, 0,
-             0, 1, 0, dt,
-             0, 0, 1, 0,
-             0, 0, 0, 1;
+  ekf_.F_ << 1.0f, 0.0f, dt, 0.0f,
+             0.0f, 1.0f, 0.0f, dt,
+             0.0f, 0.0f, 1.0f, 0.0f,
+             0.0f, 0.0f, 0.0f, 1.0f;
 
   /**
    * Update the process noise covariance matrix using
    * acceleration noise 9 in both directions.
    */
-  const float noise_ax = 9;
-  const float noise_ay = 9;
-  ekf_.Q_ << 0.25 * pow(dt, 4) * noise_ax, 0, 0.5 * pow(dt, 3) * noise_ax, 0, 0,
-             0.25 * pow(dt, 4) * noise_ay, 0, 0.5 * pow(dt, 3) * noise_ay,
-             0.5 * pow(dt, 3) * noise_ax, 0, pow(dt, 2) * noise_ax, 0, 0,
-             0.5 * pow(dt, 3) * noise_ay, 0, pow(dt, 2) * noise_ay;
+  const float noise_ax = 9.0f;
+  const float noise_ay = 9.0f;
+  const float dt_2 = pow(dt, 2.0f);
+  const float dt_3 = 0.5f * pow(dt, 3.0f);
+  const float dt_4 = 0.25f * pow(dt, 4.0f);
+
+  ekf_.Q_ << dt_4 * noise_ax, 0.0f, dt_3 * noise_ax, 0.0f,
+             0.0f, dt_4 * noise_ay, 0.0f, dt_3 * noise_ay,
+             dt_3 * noise_ax, 0.0f, dt_2 * noise_ax, 0.0f,
+             0.0f, dt_3 * noise_ay, 0.0f, dt_2 * noise_ay;
 
   ekf_.Predict();
 
@@ -121,11 +117,17 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    */
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
-    // Radar updates
+    /* Radar
+     * The non-linear measurement function is approximated by a Jacobian matrix
+     * at current x_state. The extended Kalman filter is used to calculate the
+     * measurement error in polar coordinates. */
+    ekf_.H_ = Tools::CalculateJacobian(ekf_.x_);
     ekf_.R_ = R_radar_;
     ekf_.UpdateEKF(measurement_pack.raw_measurements_);
   } else {
-    // Laser updates
+    /* Laser
+     * Use the H_laser measurement matrix and R_laser measurement covariance
+     * matrix and do a standard Kalman filter update. */
     ekf_.H_ = H_laser_;
     ekf_.R_ = R_laser_;
     ekf_.Update(measurement_pack.raw_measurements_);
