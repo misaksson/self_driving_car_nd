@@ -44,25 +44,52 @@ namespace Tools {
     const float py = x_state(1);
     const float vx = x_state(2);
     const float vy = x_state(3);
-    const float eps = 0.00001;
 
-    if ((fabs(px) < eps) || (fabs(py) < eps)) {
+    /* Pre-calculate values used in multiple entries of the Jacobian matrix. */
+    const float rho_sq = pow(px, 2) + pow(py, 2);
+    const float rho = sqrt(rho_sq);
+    const float rho_rho_sq = rho * rho_sq; // (px^2 + py^2)^(3/2)
+
+    const float eps = 0.0001f;
+    /* Handle division by zero.
+     * If both px and py is zero, then several entries of the Jacobian matrix
+     * will end up having NaN assuming the compiler is implemented according to
+     * IEEE 754. In other words, there will not be a crash in the Jacobian
+     * matrix calculation due to division by zero, but the NaN values in the
+     * Jacobian matrix will persistently end up in x_state estimation and the
+     * uncertainty covariance matrix P. To avoid this, I've chosen to just set
+     * all values to zero, which effectively ignores this measurement (relying
+     * on lidar and/or state prediction to move the estimate away from origin).
+     *
+     * Note that this scenario is highly unlikely when tracking an object since
+     * it actually implies that the tracked object has collided with ego
+     * vehicle.
+     *
+     * If px and py are close to zero, then (px^2 + py^2)^(3/2) will be the smallest
+     * denominator so thats the only value being checked below.
+     */
+    if (rho_rho_sq < eps) {
       cout << "CalculateJacobian division by zero" << endl;
+      Hj << 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0;
+
     } else {
-      Hj(0, 0) = px / sqrt(pow(px, 2) + pow(py, 2));
-      Hj(0, 1) = py / sqrt(pow(px, 2) + pow(py, 2));
+
+      Hj(0, 0) = px / rho;
+      Hj(0, 1) = py / rho;
       Hj(0, 2) = 0.0;
       Hj(0, 3) = 0.0;
 
-      Hj(1, 0) = -py / (pow(px, 2) + pow(py, 2));
-      Hj(1, 1) = px / (pow(px, 2) + pow(py, 2));
+      Hj(1, 0) = -py / rho_sq;
+      Hj(1, 1) = px / rho_sq;
       Hj(1, 2) = 0.0;
       Hj(1, 3) = 0.0;
 
-      Hj(2, 0) = py * (vx * py - vy * px) / pow(pow(px, 2) + pow(py, 2), 1.5);
-      Hj(2, 1) = px * (vy * px - vx * py) / pow(pow(px, 2) + pow(py, 2), 1.5);
-      Hj(2, 2) = px / sqrt(pow(px, 2) + pow(py, 2));
-      Hj(2, 3) = py / sqrt(pow(px, 2) + pow(py, 2));
+      Hj(2, 0) = py * (vx * py - vy * px) / rho_rho_sq;
+      Hj(2, 1) = px * (vy * px - vx * py) / rho_rho_sq;
+      Hj(2, 2) = Hj(0, 0);
+      Hj(2, 3) = Hj(0, 1);
     }
     return Hj;
   }
