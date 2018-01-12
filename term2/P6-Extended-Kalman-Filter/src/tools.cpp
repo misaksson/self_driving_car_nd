@@ -89,8 +89,8 @@ namespace Tools {
 
     const float px = rho * cos(phi);
     const float py = rho * sin(phi);
-    const float vx = rho_dot * cos(phi);
-    const float vy = rho_dot * sin(phi);
+    const float vx = 0.0f;
+    const float vy = 0.0f;
 
     VectorXd result = VectorXd(4);
     result << px, py, vx, vy;
