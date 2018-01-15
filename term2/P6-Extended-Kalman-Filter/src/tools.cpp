@@ -102,7 +102,11 @@ namespace Tools {
 
     const float rho = sqrt(pow(px, 2) + pow(py, 2));
     const float phi = atan2(py, px);
-    const float rho_dot = (px * vx + py * vy) / rho;
+    const float eps = 0.0001f;
+
+    /* Set rho_dot to zero instead of NaN when rho is zero. This to avoid
+     * getting a persistent NaN state value. */
+    const float rho_dot = (rho > eps) ? (px * vx + py * vy) / rho : 0.0f;
 
     VectorXd result = VectorXd(3);
     result << rho, phi, rho_dot;
