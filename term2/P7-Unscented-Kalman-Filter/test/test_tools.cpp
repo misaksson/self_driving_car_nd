@@ -47,3 +47,84 @@ TEST_CASE("Calculate RMSE should handle empty input", "[rmse]") {
     REQUIRE(rmse(i) == Approx(0.0f));
   }
 }
+
+TEST_CASE("Cartesian to polar coordinates transformation", "[transformation]") {
+  typedef struct {
+    VectorXd in;
+    VectorXd expected;
+  } TestElem;
+
+  vector<TestElem> testVector;
+  VectorXd polar(3);
+  VectorXd cartesian(4);
+
+  /* ToDo: also test transformation of speed values vx and vy. */
+  polar << 0.0f, 0.0f, 0.0f;
+  cartesian << 0.0f, 0.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=cartesian, .expected=polar});
+
+  polar << 5.0f, 0.0f, 0.0f;
+  cartesian << 5.0f, 0.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=cartesian, .expected=polar});
+
+  polar << 5.0f, M_PI / 2.0f, 0.0f;
+  cartesian << 0.0f, 5.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=cartesian, .expected=polar});
+
+  polar << 5.0f, M_PI, 0.0f;
+  cartesian << -5.0f, 0.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=cartesian, .expected=polar});
+
+  polar << 5.0f, -M_PI / 2.0f, 0.0f;
+  cartesian << 0.0f, -5.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=cartesian, .expected=polar});
+
+  for (auto t = testVector.begin(); t != testVector.end(); ++t)
+  {
+    VectorXd actual = Tools::CartesianToPolar(t->in);
+    for (int i = 0; i < t->expected.size(); ++i)
+    {
+      REQUIRE(actual(i) == Approx(t->expected(i)).margin(0.000001f));
+    }
+  }
+}
+
+TEST_CASE("Polar to cartesian coordinates transformation", "[transformation]") {
+  typedef struct {
+    VectorXd in;
+    VectorXd expected;
+  } TestElem;
+
+  vector<TestElem> testVector;
+  VectorXd polar(3);
+  VectorXd cartesian(4);
+
+  polar << 0.0f, 0.0f, 0.0f;
+  cartesian << 0.0f, 0.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=polar, .expected=cartesian});
+
+  polar << 5.0f, 0.0f, 0.0f;
+  cartesian << 5.0f, 0.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=polar, .expected=cartesian});
+
+  polar << 5.0f, M_PI / 2.0f, 0.0f;
+  cartesian << 0.0f, 5.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=polar, .expected=cartesian});
+
+  polar << 5.0f, M_PI, 0.0f;
+  cartesian << -5.0f, 0.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=polar, .expected=cartesian});
+
+  polar << 5.0f, -M_PI / 2.0f, 0.0f;
+  cartesian << 0.0f, -5.0f, 0.0f, 0.0f;
+  testVector.push_back({.in=polar, .expected=cartesian});
+
+  for (auto t = testVector.begin(); t != testVector.end(); ++t)
+  {
+    VectorXd actual = Tools::PolarToCartesian(t->in);
+    for (int i = 0; i < t->expected.size(); ++i)
+    {
+      REQUIRE(actual(i) == Approx(t->expected(i)).margin(0.000001f));
+    }
+  }
+}

@@ -14,6 +14,16 @@ namespace Tools {
   */
   VectorXd CalculateRMSE(const vector<VectorXd> &estimations, const vector<VectorXd> &ground_truth);
 
+  /**
+   * A helper method to convert cartesian to polar coordinates.
+   */
+  VectorXd CartesianToPolar(const VectorXd &x);
+
+  /**
+   * A helper method to convert polar to cartesian coordinates.
+   */
+  VectorXd PolarToCartesian(const VectorXd &x);
+
 };
 
 #endif /* TOOLS_H_ */

@@ -32,4 +32,38 @@ namespace Tools {
     }
     return rmse;
   }
+
+  VectorXd CartesianToPolar(const VectorXd &x) {
+    const float px = x[0];
+    const float py = x[1];
+    const float vx = x[2];
+    const float vy = x[3];
+
+    const float rho = sqrt(pow(px, 2) + pow(py, 2));
+    const float phi = atan2(py, px);
+    const float eps = 0.0001f;
+
+    /* Set rho_dot to zero instead of NaN when rho is zero. This to avoid
+     * getting a persistent NaN state value. */
+    const float rho_dot = (rho > eps) ? (px * vx + py * vy) / rho : 0.0f;
+
+    VectorXd result = VectorXd(3);
+    result << rho, phi, rho_dot;
+    return result;
+  }
+
+  VectorXd PolarToCartesian(const VectorXd &x) {
+    const float rho = x[0];
+    const float phi = x[1];
+    const float rho_dot = x[2];
+
+    const float px = rho * cos(phi);
+    const float py = rho * sin(phi);
+    const float vx = 0.0f;
+    const float vy = 0.0f;
+
+    VectorXd result = VectorXd(4);
+    result << px, py, vx, vy;
+    return result;
+  }
 }
