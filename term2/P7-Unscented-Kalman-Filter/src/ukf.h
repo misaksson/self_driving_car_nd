@@ -67,6 +67,8 @@ public:
   ///* Sigma point spreading parameter
   double lambda_;
 
+  ///* Time stamp of previous measurement
+  long long previous_timestamp_;
 
   /**
    * Constructor
@@ -102,6 +104,9 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+
+private:
+  void Initialize(const MeasurementPackage &meas_package);
 };
 
 #endif /* UKF_H */

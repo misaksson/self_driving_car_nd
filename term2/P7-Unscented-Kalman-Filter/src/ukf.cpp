@@ -1,5 +1,6 @@
 #include "ukf.h"
 #include "Eigen/Dense"
+#include "tools.h"
 #include <iostream>
 
 using namespace std;
@@ -12,6 +13,8 @@ using std::vector;
  * This is scaffolding, do not modify
  */
 UKF::UKF() {
+  is_initialized_ = false;
+
   // if this is false, laser measurements will be ignored (except during init)
   use_laser_ = true;
 
@@ -29,7 +32,7 @@ UKF::UKF() {
 
   // Process noise standard deviation yaw acceleration in rad/s^2
   std_yawdd_ = 30;
-  
+
   //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -46,7 +49,7 @@ UKF::UKF() {
   // Radar measurement noise standard deviation radius change in m/s
   std_radrd_ = 0.3;
   //DO NOT MODIFY measurement noise values above these are provided by the sensor manufacturer.
-  
+
   /**
   TODO:
 
@@ -69,6 +72,38 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   Complete this function! Make sure you switch between lidar and radar
   measurements.
   */
+
+  // Initialize state using first measurement
+  if (!is_initialized_) {
+    Initialize(meas_package);
+  } else {
+    // Predict and update state
+    Prediction(0.0);
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+      UpdateRadar(meas_package);
+    } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+      UpdateLidar(meas_package);
+    }
+  }
+}
+
+void UKF::Initialize(const MeasurementPackage &meas_package) {
+  double px, py;
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+    const VectorXd cartesian = Tools::PolarToCartesian(meas_package.raw_measurements_);
+    px = cartesian(0);
+    py = cartesian(1);
+  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+    px = meas_package.raw_measurements_[0];
+    py = meas_package.raw_measurements_[1];
+  }
+  const double v = 0.0f;
+  const double yaw = 0.0f;
+  const double yawd = 0.0f;
+  x_ << px, py, v, yaw, yawd;
+
+  previous_timestamp_ = meas_package.timestamp_;
+  is_initialized_ = true;
 }
 
 /**

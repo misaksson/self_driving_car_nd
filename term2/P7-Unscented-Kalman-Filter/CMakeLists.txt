@@ -8,7 +8,7 @@ set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
 set(sources src/ukf.cpp src/tools.cpp)
-set(test_sources test/setup.cpp test/test_tools.cpp)
+set(test_sources test/setup.cpp test/test_tools.cpp test/test_ukf.cpp)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
