@@ -19,7 +19,7 @@ UKF::UKF() {
   is_initialized_ = false;
 
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = false;
+  use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -225,13 +225,50 @@ void UKF::Prediction(double delta_t) {
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
   /**
-  TODO:
-
-  Complete this function! Use lidar data to update the belief about the object's
-  position. Modify the state vector, x_, and covariance, P_.
-
-  You'll also need to calculate the lidar NIS.
+  TODO: You'll also need to calculate the lidar NIS.
   */
+  const int n_z = 2;
+  const VectorXd z = meas_package.raw_measurements_;
+  assert(z.size() == n_z);
+
+  //create matrix for sigma points in measurement space
+  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+
+  //mean predicted measurement
+  VectorXd z_pred = VectorXd(n_z);
+
+  //measurement covariance matrix S
+  MatrixXd S = MatrixXd(n_z, n_z);
+
+  //transform sigma points into measurement space
+  Zsig = Xsig_pred_.topRows(n_z);
+
+  //calculate mean predicted measurement
+  z_pred = Zsig * weights_;
+
+  //calculate innovation covariance matrix S
+  MatrixXd zDiff = Zsig.colwise() - z_pred;
+  S = (zDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose() + R_lidar_;
+
+  //calculate cross correlation matrix Tc
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
+  MatrixXd xDiff = Xsig_pred_.colwise() - x_;
+  MatrixXd::Index idx;
+  while (xDiff.row(3).minCoeff(&idx) < M_PI) {
+    xDiff(3, idx) += 2.0 * M_PI;
+  }
+  while (xDiff.row(3).maxCoeff(&idx) > M_PI) {
+    xDiff(3, idx) -= 2.0 * M_PI;
+  }
+  Tc = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose();
+
+  //calculate Kalman gain K
+  MatrixXd K = Tc * S.inverse();
+
+  //update state mean and covariance matrix
+  VectorXd y = z - z_pred;
+  x_ += K * y;
+  P_ -= K * S * K.transpose();
 }
 
 /**
