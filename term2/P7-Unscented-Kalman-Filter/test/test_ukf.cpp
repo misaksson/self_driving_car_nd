@@ -69,7 +69,7 @@ TEST_CASE("Kalman filter state initialization from radar measurement", "[ukf_ini
   }
 }
 
-TEST_CASE("Kalman filter predicting next state", "[ukf_predict]") {
+TEST_CASE("Kalman filter predict", "[ukf_predict]") {
   const double delta_t = 0.1; //time diff in sec
   MeasurementPackage measurementPackage = {
     .timestamp_ = 0ll,
@@ -77,6 +77,7 @@ TEST_CASE("Kalman filter predicting next state", "[ukf_predict]") {
     .raw_measurements_ = VectorXd::Zero(2),
   };
   UKF ukf;
+  ukf.use_laser_ = true;
   // A first (dummy) run to initialize state
   ukf.ProcessMeasurement(measurementPackage);
 
@@ -126,3 +127,52 @@ TEST_CASE("Kalman filter predicting next state", "[ukf_predict]") {
     REQUIRE(ukf.P_(i) == Approx(expected_P_state(i)).margin(0.0003));
   }
 }
+
+TEST_CASE("Kalman filter predict and update using radar measurement", "[ukf_update]") {
+  const double delta_t = 0.1; //time diff in sec
+  MeasurementPackage measurementPackage = {
+    .timestamp_ = 0ll,
+    .sensor_type_ = MeasurementPackage::RADAR,
+    .raw_measurements_ = VectorXd::Zero(3),
+  };
+  UKF ukf;
+  ukf.use_radar_ = true;
+  // A first (dummy) run to initialize state
+  ukf.ProcessMeasurement(measurementPackage);
+
+  // Overwrite state by values from lesson example.
+  ukf.x_ << 5.7441, 1.3800, 2.2049, 0.5015, 0.3528;
+  ukf.P_ << 0.0043,   -0.0013,    0.0030,   -0.0022,   -0.0020,
+           -0.0013,    0.0077,    0.0011,    0.0071,    0.0060,
+            0.0030,    0.0011,    0.0054,    0.0007,    0.0008,
+           -0.0022,    0.0071,    0.0007,    0.0098,    0.0100,
+           -0.0020,    0.0060,    0.0008,    0.0100,    0.0123;
+  ukf.Q_ << pow(0.2, 2.0), 0.0,
+            0.0, pow(0.2, 2.0);
+  ukf.R_radar_ << pow(0.3, 2.0), 0.0, 0.0,
+                  0.0, pow(0.0175, 2.0), 0.0,
+                  0.0, 0.0, pow(0.1, 2.0);
+  measurementPackage.timestamp_ += (long long)(delta_t * 1000000.0);
+  measurementPackage.raw_measurements_ << 5.9214, 0.2187, 2.0062;
+
+  // Second run doing the state prediction and update.
+  ukf.ProcessMeasurement(measurementPackage);
+
+  // Verify state with expected result from lesson examples.
+  VectorXd expected_x_state = VectorXd(5);
+  expected_x_state <<  5.92276, 1.41823, 2.15593, 0.489274, 0.321338;
+  for (int i = 0; i < expected_x_state.size(); ++i) {
+    REQUIRE(ukf.x_(i) == Approx(expected_x_state(i)).margin(0.002));
+  }
+
+  MatrixXd expected_P_state = MatrixXd(5, 5);
+  expected_P_state <<  0.00361579, -0.000357881, 0.00208316, -0.000937196, -0.00071727,
+                       -0.000357881, 0.00539867, 0.00156846, 0.00455342, 0.00358885,
+                       0.00208316, 0.00156846, 0.00410651, 0.00160333, 0.00171811,
+                       -0.000937196, 0.00455342, 0.00160333, 0.00652634, 0.00669436,
+                       -0.00071719, 0.00358884, 0.00171811, 0.00669426, 0.00881797;
+  for (int i = 0; i < expected_P_state.size(); ++i) {
+    REQUIRE(ukf.P_(i) == Approx(expected_P_state(i)).margin(0.0003));
+  }
+}
+

@@ -2,6 +2,8 @@
 #include "Eigen/Dense"
 #include "tools.h"
 #include <iostream>
+#include <cmath>
+#include <assert.h>
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -17,7 +19,7 @@ UKF::UKF() {
   is_initialized_ = false;
 
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = true;
+  use_laser_ = false;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -52,10 +54,10 @@ UKF::UKF() {
   Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  const double std_a = 30;
+  const double std_a = 2;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  const double std_yawdd = 30;
+  const double std_yawdd = 0.5;
 
   // process noise covariance matrix
   Q_ = MatrixXd(2, 2);
@@ -69,8 +71,8 @@ UKF::UKF() {
   const double std_laspy = 0.15;
 
   R_lidar_ = MatrixXd(2, 2);
-  R_lidar_ << std_laspx, 0.0,
-              0.0, std_laspy;
+  R_lidar_ << pow(std_laspx, 2.0), 0.0,
+              0.0, pow(std_laspy, 2.0);
 
   // Radar measurement noise standard deviation radius in m
   const double std_radr = 0.3;
@@ -108,16 +110,20 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     return; // Only use first measurement to initialize.
   }
 
-  // Calculate delta time in seconds
-  const double delta_t = (double)(meas_package.timestamp_ - previous_timestamp_) /
-                         1000000.0;
-  previous_timestamp_ = meas_package.timestamp_;
 
-  Prediction(delta_t);
-  if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-    UpdateRadar(meas_package);
-  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
-    UpdateLidar(meas_package);
+  if ((use_radar_ && meas_package.sensor_type_ == MeasurementPackage::RADAR) ||
+      (use_laser_ && meas_package.sensor_type_ == MeasurementPackage::LASER)) {
+
+    // Calculate delta time in seconds
+    const double delta_t = (double)(meas_package.timestamp_ - previous_timestamp_) /
+                           1000000.0;
+    previous_timestamp_ = meas_package.timestamp_;
+    Prediction(delta_t);
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+      UpdateRadar(meas_package);
+    } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+      UpdateLidar(meas_package);
+    }
   }
 }
 
@@ -202,15 +208,15 @@ void UKF::Prediction(double delta_t) {
   x_ = Xsig_pred_ * weights_;
 
   //predict state covariance matrix
-  MatrixXd diff = Xsig_pred_.colwise() - x_;
+  MatrixXd xDiff = Xsig_pred_.colwise() - x_;
   MatrixXd::Index idx;
-  while (diff.row(3).minCoeff(&idx) < M_PI) {
-    diff(3, idx) += 2.0 * M_PI;
+  while (xDiff.row(3).minCoeff(&idx) < M_PI) {
+    xDiff(3, idx) += 2.0 * M_PI;
   }
-  while (diff.row(3).maxCoeff(&idx) > M_PI) {
-    diff(3, idx) -= 2.0 * M_PI;
+  while (xDiff.row(3).maxCoeff(&idx) > M_PI) {
+    xDiff(3, idx) -= 2.0 * M_PI;
   }
-  P_ = (diff.array().rowwise() * weights_.transpose().array()).matrix() * diff.transpose();
+  P_ = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * xDiff.transpose();
 }
 
 /**
@@ -234,11 +240,74 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
   /**
-  TODO:
-
-  Complete this function! Use radar data to update the belief about the object's
-  position. Modify the state vector, x_, and covariance, P_.
-
-  You'll also need to calculate the radar NIS.
+  TODO: You'll also need to calculate the radar NIS.
   */
+
+  const int n_z = 3;
+  const VectorXd z = meas_package.raw_measurements_;
+  assert(z.size() == n_z);
+
+  //create matrix for sigma points in measurement space
+  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+
+  //mean predicted measurement
+  VectorXd z_pred = VectorXd(n_z);
+
+  //measurement covariance matrix S
+  MatrixXd S = MatrixXd(n_z, n_z);
+
+  //transform sigma points into measurement space
+  for (int i = 0; i < Xsig_pred_.cols(); ++i) {
+    // Extract sigma point values
+    const double px = Xsig_pred_(0, i);
+    const double py = Xsig_pred_(1, i);
+    const double v = Xsig_pred_(2, i);
+    const double yaw = Xsig_pred_(3, i);
+
+    // Transform to radar measurement space
+    const double rho = sqrt(pow(px, 2.0) + pow(py, 2.0));
+    const double phi = atan2(py, px);
+    const double rho_dot = (px * cos(yaw) + py * sin(yaw)) * v / rho;
+
+    Zsig.col(i) << rho, phi, rho_dot;
+  }
+
+  //calculate mean predicted measurement
+  z_pred = Zsig * weights_;
+
+  //calculate innovation covariance matrix S
+  MatrixXd zDiff = Zsig.colwise() - z_pred;
+  MatrixXd::Index idx;
+  while (zDiff.row(1).minCoeff(&idx) < M_PI) {
+    zDiff(1, idx) += 2.0 * M_PI;
+  }
+  while (zDiff.row(1).maxCoeff(&idx) > M_PI) {
+    zDiff(1, idx) -= 2.0 * M_PI;
+  }
+  S = (zDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose() + R_radar_;
+
+  //calculate cross correlation matrix Tc
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
+  MatrixXd xDiff = Xsig_pred_.colwise() - x_;
+  while (xDiff.row(3).minCoeff(&idx) < M_PI) {
+    xDiff(3, idx) += 2.0 * M_PI;
+  }
+  while (xDiff.row(3).maxCoeff(&idx) > M_PI) {
+    xDiff(3, idx) -= 2.0 * M_PI;
+  }
+  Tc = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose();
+
+  //calculate Kalman gain K
+  MatrixXd K = Tc * S.inverse();
+
+  //update state mean and covariance matrix
+  VectorXd y = z - z_pred;
+  while (y(1) < M_PI) {
+    y(1) += 2.0 * M_PI;
+  }
+  while (y(1) > M_PI) {
+    y(1) -= 2.0 * M_PI;
+  }
+  x_ += K * y;
+  P_ -= K * S * K.transpose();
 }
