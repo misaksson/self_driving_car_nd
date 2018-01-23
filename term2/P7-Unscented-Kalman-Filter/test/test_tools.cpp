@@ -128,3 +128,41 @@ TEST_CASE("Polar to cartesian coordinates transformation", "[transformation]") {
     }
   }
 }
+
+namespace TestNormalizeAngles {
+  typedef struct {
+    double in;
+    double expected;
+  } TestElem;
+  vector<TestElem> testVector;
+
+  TEST_CASE("Normalize angle scalars", "[normalize_angles]") {
+    testVector.push_back({.in=0.0, .expected=0.0});
+    testVector.push_back({.in=2.0 * M_PI, .expected=0.0});
+    testVector.push_back({.in=-2.0 * M_PI, .expected=0.0});
+    testVector.push_back({.in=-1.5 * M_PI, .expected=0.5 * M_PI});
+    testVector.push_back({.in=1.5 * M_PI, .expected=-0.5 * M_PI});
+    testVector.push_back({.in=-41.5 * M_PI, .expected=0.5 * M_PI});
+    testVector.push_back({.in=41.5 * M_PI, .expected=-0.5 * M_PI});
+
+    for (auto t = testVector.begin(); t != testVector.end(); ++t) {
+      Tools::NormalizeAngles(t->in);
+      REQUIRE(t->in == Approx(t->expected));
+    }
+  }
+
+  TEST_CASE("Normalize angles matrix row", "[normalize_angles]") {
+    /* Use same test vector as above. */
+    const int row = 5;
+    MatrixXd in = MatrixXd(10, testVector.size());
+    for (int i = 0; i < testVector.size(); ++i) {
+      in(row, i) = testVector[i].in;
+    }
+
+    Tools::NormalizeAngles(in, row);
+
+    for (int i = 0; i < testVector.size(); ++i) {
+      REQUIRE(in(row, i) == Approx(testVector[i].expected));
+    }
+  }
+}

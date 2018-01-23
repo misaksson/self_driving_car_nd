@@ -66,4 +66,19 @@ namespace Tools {
     result << px, py, vx, vy;
     return result;
   }
+
+  void NormalizeAngles(double &angle) {
+    while (angle < M_PI) {
+      angle += 2.0 * M_PI;
+    }
+    while (angle > M_PI) {
+      angle -= 2.0 * M_PI;
+    }
+  }
+
+  void NormalizeAngles(MatrixXd &angles, int row) {
+    for (int i = 0; i < angles.cols(); ++i) {
+      NormalizeAngles(angles(row, i));
+    }
+  }
 }

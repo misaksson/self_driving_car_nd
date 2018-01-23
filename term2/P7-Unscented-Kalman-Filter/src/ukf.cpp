@@ -209,13 +209,7 @@ void UKF::Prediction(double delta_t) {
 
   //predict state covariance matrix
   MatrixXd xDiff = Xsig_pred_.colwise() - x_;
-  MatrixXd::Index idx;
-  while (xDiff.row(3).minCoeff(&idx) < M_PI) {
-    xDiff(3, idx) += 2.0 * M_PI;
-  }
-  while (xDiff.row(3).maxCoeff(&idx) > M_PI) {
-    xDiff(3, idx) -= 2.0 * M_PI;
-  }
+  Tools::NormalizeAngles(xDiff, 3);
   P_ = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * xDiff.transpose();
 }
 
@@ -253,13 +247,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   //calculate cross correlation matrix Tc
   MatrixXd Tc = MatrixXd(n_x_, n_z);
   MatrixXd xDiff = Xsig_pred_.colwise() - x_;
-  MatrixXd::Index idx;
-  while (xDiff.row(3).minCoeff(&idx) < M_PI) {
-    xDiff(3, idx) += 2.0 * M_PI;
-  }
-  while (xDiff.row(3).maxCoeff(&idx) > M_PI) {
-    xDiff(3, idx) -= 2.0 * M_PI;
-  }
+  Tools::NormalizeAngles(xDiff, 3);
   Tc = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose();
 
   //calculate Kalman gain K
@@ -314,24 +302,13 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
   //calculate innovation covariance matrix S
   MatrixXd zDiff = Zsig.colwise() - z_pred;
-  MatrixXd::Index idx;
-  while (zDiff.row(1).minCoeff(&idx) < M_PI) {
-    zDiff(1, idx) += 2.0 * M_PI;
-  }
-  while (zDiff.row(1).maxCoeff(&idx) > M_PI) {
-    zDiff(1, idx) -= 2.0 * M_PI;
-  }
+  Tools::NormalizeAngles(zDiff, 1);
   S = (zDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose() + R_radar_;
 
   //calculate cross correlation matrix Tc
   MatrixXd Tc = MatrixXd(n_x_, n_z);
   MatrixXd xDiff = Xsig_pred_.colwise() - x_;
-  while (xDiff.row(3).minCoeff(&idx) < M_PI) {
-    xDiff(3, idx) += 2.0 * M_PI;
-  }
-  while (xDiff.row(3).maxCoeff(&idx) > M_PI) {
-    xDiff(3, idx) -= 2.0 * M_PI;
-  }
+  Tools::NormalizeAngles(xDiff, 3);
   Tc = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose();
 
   //calculate Kalman gain K
@@ -339,12 +316,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
   //update state mean and covariance matrix
   VectorXd y = z - z_pred;
-  while (y(1) < M_PI) {
-    y(1) += 2.0 * M_PI;
-  }
-  while (y(1) > M_PI) {
-    y(1) -= 2.0 * M_PI;
-  }
+  Tools::NormalizeAngles(y(1));
   x_ += K * y;
   P_ -= K * S * K.transpose();
 }

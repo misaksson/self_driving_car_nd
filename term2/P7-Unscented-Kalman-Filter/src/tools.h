@@ -24,6 +24,15 @@ namespace Tools {
    */
   VectorXd PolarToCartesian(const VectorXd &x);
 
+  /**
+   * Normalize angles to range [-PI, PI].
+   */
+  void NormalizeAngles(double &angle);
+
+  /**
+   * Normalize angles at matrix row to range [-PI, PI].
+   */
+  void NormalizeAngles(MatrixXd &angles, int row);
 };
 
 #endif /* TOOLS_H_ */
