@@ -34,6 +34,9 @@ public:
   ///* predicted sigma points matrix
   MatrixXd Xsig_pred_;
 
+  ///* sigma point deviation from state estimate x
+  MatrixXd Xsig_deviation_;
+
   ///* Radar measurement covariance matrix
   MatrixXd R_radar_;
 
@@ -71,6 +74,14 @@ public:
    */
   void ProcessMeasurement(MeasurementPackage meas_package);
 
+private:
+  /** Initialize the x state estimate from the first measurement.
+   * To not break the simulation, this is done even if that measurement should
+   * be ignored (controlled by class members use_laser and use_radar).
+   * @param meas_package The first measurement
+   */
+  void Initialize(const MeasurementPackage &meas_package);
+
   /**
    * Prediction Predicts sigma points, the state, and the state covariance
    * matrix
@@ -90,8 +101,15 @@ public:
    */
   void UpdateRadar(MeasurementPackage meas_package);
 
-private:
-  void Initialize(const MeasurementPackage &meas_package);
+  /**
+   * Common parts of the update step.
+   * This is a helper function used both for LIDAR and RADAR measurements.
+   * @param Zsig_deviation Sigma point deviation from predicted measurement.
+   * @param y Measurement error.
+   * @param R Measurement covariance matrix.
+   */
+  void CommonUpdate(const MatrixXd &Zsig_deviation, const VectorXd &y, const MatrixXd &R);
+
 };
 
 #endif /* UKF_H */

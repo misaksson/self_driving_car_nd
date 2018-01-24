@@ -204,13 +204,16 @@ void UKF::Prediction(double delta_t) {
     Xsig_pred_.col(i) << px_p, py_p, v_p, yaw_p, yawd_p;
   }
 
-  //predict state mean
+
+  // Predict state mean.
   x_ = Xsig_pred_ * weights_;
 
-  //predict state covariance matrix
-  MatrixXd xDiff = Xsig_pred_.colwise() - x_;
-  Tools::NormalizeAngles(xDiff, 3);
-  P_ = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * xDiff.transpose();
+  // Calculate sigma point deviation from state mean estimate x.
+  Xsig_deviation_ = Xsig_pred_.colwise() - x_;
+  Tools::NormalizeAngles(Xsig_deviation_, 3); // Normalize yaw angles at row 3
+
+  // Predict state covariance matrix.
+  P_ = (Xsig_deviation_.array().rowwise() * weights_.transpose().array()).matrix() * Xsig_deviation_.transpose();
 }
 
 /**
@@ -225,38 +228,19 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   const VectorXd z = meas_package.raw_measurements_;
   assert(z.size() == n_z);
 
-  //create matrix for sigma points in measurement space
-  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+  // Transform sigma points into measurement space.
+  const MatrixXd Zsig = Xsig_pred_.topRows(n_z);
 
-  //mean predicted measurement
-  VectorXd z_pred = VectorXd(n_z);
+  // Calculate mean predicted measurement.
+  const VectorXd z_pred = Zsig * weights_;
 
-  //measurement covariance matrix S
-  MatrixXd S = MatrixXd(n_z, n_z);
+  // Calculate sigma points deviation from mean predicted measurement.
+  const MatrixXd Zsig_deviation = Zsig.colwise() - z_pred;
 
-  //transform sigma points into measurement space
-  Zsig = Xsig_pred_.topRows(n_z);
+  // Calculate measurement error y.
+  const VectorXd y = z - z_pred;
 
-  //calculate mean predicted measurement
-  z_pred = Zsig * weights_;
-
-  //calculate innovation covariance matrix S
-  MatrixXd zDiff = Zsig.colwise() - z_pred;
-  S = (zDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose() + R_lidar_;
-
-  //calculate cross correlation matrix Tc
-  MatrixXd Tc = MatrixXd(n_x_, n_z);
-  MatrixXd xDiff = Xsig_pred_.colwise() - x_;
-  Tools::NormalizeAngles(xDiff, 3);
-  Tc = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose();
-
-  //calculate Kalman gain K
-  MatrixXd K = Tc * S.inverse();
-
-  //update state mean and covariance matrix
-  VectorXd y = z - z_pred;
-  x_ += K * y;
-  P_ -= K * S * K.transpose();
+  CommonUpdate(Zsig_deviation, y, R_lidar_);
 }
 
 /**
@@ -275,12 +259,6 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   //create matrix for sigma points in measurement space
   MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
 
-  //mean predicted measurement
-  VectorXd z_pred = VectorXd(n_z);
-
-  //measurement covariance matrix S
-  MatrixXd S = MatrixXd(n_z, n_z);
-
   //transform sigma points into measurement space
   for (int i = 0; i < Xsig_pred_.cols(); ++i) {
     // Extract sigma point values
@@ -297,26 +275,34 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     Zsig.col(i) << rho, phi, rho_dot;
   }
 
-  //calculate mean predicted measurement
-  z_pred = Zsig * weights_;
+  // Calculate mean predicted measurement.
+  const VectorXd z_pred = Zsig * weights_;
 
-  //calculate innovation covariance matrix S
-  MatrixXd zDiff = Zsig.colwise() - z_pred;
-  Tools::NormalizeAngles(zDiff, 1);
-  S = (zDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose() + R_radar_;
+  // Calculate sigma points deviation from mean predicted measurement.
+  MatrixXd Zsig_deviation = Zsig.colwise() - z_pred;
+  Tools::NormalizeAngles(Zsig_deviation, 1);  // Normalize phi angles at row 1
 
-  //calculate cross correlation matrix Tc
-  MatrixXd Tc = MatrixXd(n_x_, n_z);
-  MatrixXd xDiff = Xsig_pred_.colwise() - x_;
-  Tools::NormalizeAngles(xDiff, 3);
-  Tc = (xDiff.array().rowwise() * weights_.transpose().array()).matrix() * zDiff.transpose();
-
-  //calculate Kalman gain K
-  MatrixXd K = Tc * S.inverse();
-
-  //update state mean and covariance matrix
+  // Calculate measurement error y.
   VectorXd y = z - z_pred;
-  Tools::NormalizeAngles(y(1));
+  Tools::NormalizeAngles(y(1));  // Normalize phi angle
+
+  CommonUpdate(Zsig_deviation, y, R_radar_);
+
+}
+
+void UKF::CommonUpdate(const MatrixXd &Zsig_deviation, const VectorXd &y, const MatrixXd &R) {
+  // Calculate innovation covariance matrix S
+  const MatrixXd S = (Zsig_deviation.array().rowwise() * weights_.transpose().array()).matrix() *
+                      Zsig_deviation.transpose() + R;
+
+  // Calculate cross correlation matrix Tc
+  const MatrixXd Tc = (Xsig_deviation_.array().rowwise() * weights_.transpose().array()).matrix() *
+                       Zsig_deviation.transpose();
+
+  // Calculate Kalman gain K
+  const MatrixXd K = Tc * S.inverse();
+
+  // Update state mean and covariance matrix.
   x_ += K * y;
   P_ -= K * S * K.transpose();
 }
