@@ -32,3 +32,7 @@ add_executable(UnscentedKF_unit_tests ${test_sources})
 target_link_libraries(UnscentedKF_unit_tests UnscentedKF_lib)
 enable_testing()
 add_test(NAME ExtendedKF_Test_Suite COMMAND UnscentedKF_unit_tests)
+
+# Tuning app
+add_executable(UnscentedKF_tuning src/main_tuning.cpp)
+target_link_libraries(UnscentedKF_tuning UnscentedKF_lib)
