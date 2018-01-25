@@ -38,18 +38,6 @@ UKF::UKF() {
   weights_(0) = lambda_ / (lambda_ + n_aug_);
   weights_.tail(weights_.size() - 1) = VectorXd::Constant(weights_.size() - 1, 0.5 / (lambda_ + n_aug_));
 
-  // initial state vector
-  x_ = VectorXd(n_x_);
-
-  // initial covariance matrix
-  // ToDo: Let this reflect the uncertainty of the first measurement.
-  P_ = MatrixXd(n_x_, n_x_);
-  P_ << 1.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 1.0;
-
   //create matrix with predicted sigma points as columns
   Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
 
@@ -89,6 +77,9 @@ UKF::UKF() {
               0.0, pow(std_radphi, 2.0), 0.0,
               0.0, 0.0, pow(std_radrd, 2.0);
 
+  // initial state vector and covariance matrix.
+  x_ = VectorXd::Zero(n_x_);
+  P_ = MatrixXd::Identity(n_x_, n_x_);
 }
 
 UKF::~UKF() {}
@@ -128,19 +119,39 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 }
 
 void UKF::Initialize(const MeasurementPackage &meas_package) {
-  double px, py;
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-    const VectorXd cartesian = Tools::PolarToCartesian(meas_package.raw_measurements_);
-    px = cartesian(0);
-    py = cartesian(1);
+    x_.head(2) = Tools::PolarToCartesian(meas_package.raw_measurements_);
+
+    /**
+     * TODO: calculate the covariance of px, py given an radar measurement.
+     * For now, lets just assume it's two times the uncertainty of a LIDAR
+     * measurement. The actual covariance should however depend on both the
+     * measured value of rho and phi.
+     */
+    P_.topLeftCorner(2, 2) = R_lidar_ * 2.0;
   } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
-    px = meas_package.raw_measurements_[0];
-    py = meas_package.raw_measurements_[1];
+    x_.head(2) = meas_package.raw_measurements_;
+
+    // Use same covariance as in the measurement.
+    P_.topLeftCorner(2, 2) = R_lidar_;
   }
-  const double v = 0.0f;
-  const double yaw = 0.0f;
-  const double yawd = 0.0f;
-  x_ << px, py, v, yaw, yawd;
+
+  /**
+   * None of the sensors provides direct information about v, yaw and yawd.
+   * Radar measurements does however contain rho_dot, but without the angular
+   * velocity phi_dot, this is not easily transformable to the CTRV motion
+   * model and using that information for the initial estimate is considered
+   * beyond the scope of this project.
+   *
+   * One might assume that a bicycle in average will go 5 m/s. Attempts to use
+   * that assumption did however cause worse RMSE when the initial yaw angle
+   * happens to be in the opposite direction (data set 2). Setting the initial
+   * yaw angle covariance to a huge value didn't prevent this.
+   */
+  x_.tail(3) << 0.0, 0.0, 0.0;
+  P_(2, 2) = 5.0;
+  P_(3, 3) = 2.0 * M_PI;
+  P_(4, 4) = 0.5 * M_PI;
 
   previous_timestamp_ = meas_package.timestamp_;
   is_initialized_ = true;
@@ -169,8 +180,7 @@ void UKF::Prediction(double delta_t) {
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
   Xsig_aug.col(0) = x_aug;
   const double lambdaFactor = sqrt(lambda_ + (double)n_aug_);
-  for (int i = 0; i < n_aug_; ++i)
-  {
+  for (int i = 0; i < n_aug_; ++i) {
     Xsig_aug.col(i + 1) = x_aug + lambdaFactor * A_aug.col(i);
     Xsig_aug.col(i + 1 + n_aug_) = x_aug - lambdaFactor * A_aug.col(i);
   }

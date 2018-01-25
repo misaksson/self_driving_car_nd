@@ -97,26 +97,26 @@ TEST_CASE("Polar to cartesian coordinates transformation", "[transformation]") {
 
   vector<TestElem> testVector;
   VectorXd polar(3);
-  VectorXd cartesian(4);
+  VectorXd cartesian(2);
 
   polar << 0.0f, 0.0f, 0.0f;
-  cartesian << 0.0f, 0.0f, 0.0f, 0.0f;
+  cartesian << 0.0f, 0.0f;
   testVector.push_back({.in=polar, .expected=cartesian});
 
   polar << 5.0f, 0.0f, 0.0f;
-  cartesian << 5.0f, 0.0f, 0.0f, 0.0f;
+  cartesian << 5.0f, 0.0f;
   testVector.push_back({.in=polar, .expected=cartesian});
 
   polar << 5.0f, M_PI / 2.0f, 0.0f;
-  cartesian << 0.0f, 5.0f, 0.0f, 0.0f;
+  cartesian << 0.0f, 5.0f;
   testVector.push_back({.in=polar, .expected=cartesian});
 
   polar << 5.0f, M_PI, 0.0f;
-  cartesian << -5.0f, 0.0f, 0.0f, 0.0f;
+  cartesian << -5.0f, 0.0f;
   testVector.push_back({.in=polar, .expected=cartesian});
 
   polar << 5.0f, -M_PI / 2.0f, 0.0f;
-  cartesian << 0.0f, -5.0f, 0.0f, 0.0f;
+  cartesian << 0.0f, -5.0f;
   testVector.push_back({.in=polar, .expected=cartesian});
 
   for (auto t = testVector.begin(); t != testVector.end(); ++t)
