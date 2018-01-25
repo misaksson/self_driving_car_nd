@@ -9,14 +9,19 @@
 using namespace std;
 
 vector<string> readDataSet(string filename);
-VectorXd processDataSet(vector<string> dataSet);
+VectorXd processDataSet(vector<string> dataSet, const double std_a, const double std_yawdd);
 
 int main()
 {
-  VectorXd RMSE1 = processDataSet(readDataSet("../data/obj_pose-laser-radar-synthetic-input.txt"));
-  VectorXd RMSE2 = processDataSet(readDataSet("../data/obj_pose-laser-radar-synthetic-input2.txt"));
-
-  cout << "RMSE " << RMSE1.transpose() << " " << RMSE2.transpose() << endl;
+  vector<string> dataSet1 = readDataSet("../data/obj_pose-laser-radar-synthetic-input.txt");
+  vector<string> dataSet2 = readDataSet("../data/obj_pose-laser-radar-synthetic-input2.txt");
+  for (double std_a = 0.4; std_a <= 0.6; std_a += 0.01) {
+    for (double std_yawdd = 0.5; std_yawdd <= 0.6; std_yawdd += 0.01) {
+      VectorXd RMSE1 = processDataSet(dataSet1, std_a, std_yawdd);
+      VectorXd RMSE2 = processDataSet(dataSet2, std_a, std_yawdd);
+      cout << RMSE1.sum() + RMSE2.sum() << " " << RMSE1.transpose() << " " << RMSE2.transpose() << " " << std_a << " " << std_yawdd << endl;
+    }
+  }
 }
 
 vector<string> readDataSet(string filename) {
@@ -35,9 +40,9 @@ vector<string> readDataSet(string filename) {
   return dataSet;
 }
 
-VectorXd processDataSet(vector<string> dataSet) {
+VectorXd processDataSet(vector<string> dataSet, const double std_a, const double std_yawdd) {
  // Create a Kalman Filter instance
-  UKF ukf;
+  UKF ukf(std_a, std_yawdd);
 
   // used to compute the RMSE later
   vector<VectorXd> estimations;

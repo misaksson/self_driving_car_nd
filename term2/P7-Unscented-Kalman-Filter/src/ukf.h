@@ -60,8 +60,10 @@ public:
 
   /**
    * Constructor
+   * @param std_a Process noise standard deviation longitudinal acceleration in m/s^2
+   * @param std_yawdd Process noise standard deviation yaw acceleration in rad/s^2
    */
-  UKF();
+  UKF(const double std_a = 0.46, const double std_yawdd = 0.54);
 
   /**
    * Destructor

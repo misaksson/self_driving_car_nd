@@ -12,9 +12,8 @@ using std::vector;
 
 /**
  * Initializes Unscented Kalman filter
- * This is scaffolding, do not modify
  */
-UKF::UKF() {
+UKF::UKF(const double std_a, const double std_yawdd) {
   // Use first measurement for initialization.
   is_initialized_ = false;
 
@@ -40,12 +39,6 @@ UKF::UKF() {
 
   //create matrix with predicted sigma points as columns
   Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
-
-  // Process noise standard deviation longitudinal acceleration in m/s^2
-  const double std_a = 2;
-
-  // Process noise standard deviation yaw acceleration in rad/s^2
-  const double std_yawdd = 0.5;
 
   // process noise covariance matrix
   Q_ = MatrixXd(2, 2);
