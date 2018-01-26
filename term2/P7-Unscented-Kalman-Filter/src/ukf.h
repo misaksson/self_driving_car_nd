@@ -58,6 +58,9 @@ public:
   ///* Time stamp of previous measurement
   long long previous_timestamp_;
 
+  ///* Normalized innovation squared (NIS) value of last measurement.
+  double NIS_value_;
+
   /**
    * Constructor
    * @param std_a Process noise standard deviation longitudinal acceleration in m/s^2

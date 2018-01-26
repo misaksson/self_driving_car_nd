@@ -224,9 +224,6 @@ void UKF::Prediction(double delta_t) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
-  /**
-  TODO: You'll also need to calculate the lidar NIS.
-  */
   const int n_z = 2;
   const VectorXd z = meas_package.raw_measurements_;
   assert(z.size() == n_z);
@@ -251,10 +248,6 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
-  /**
-  TODO: You'll also need to calculate the radar NIS.
-  */
-
   const int n_z = 3;
   const VectorXd z = meas_package.raw_measurements_;
   assert(z.size() == n_z);
@@ -290,22 +283,25 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   Tools::NormalizeAngles(y(1));  // Normalize phi angle
 
   CommonUpdate(Zsig_deviation, y, R_radar_);
-
 }
 
 void UKF::CommonUpdate(const MatrixXd &Zsig_deviation, const VectorXd &y, const MatrixXd &R) {
   // Calculate innovation covariance matrix S
   const MatrixXd S = (Zsig_deviation.array().rowwise() * weights_.transpose().array()).matrix() *
                       Zsig_deviation.transpose() + R;
+  const MatrixXd S_inv = S.inverse();
 
   // Calculate cross correlation matrix Tc
   const MatrixXd Tc = (Xsig_deviation_.array().rowwise() * weights_.transpose().array()).matrix() *
                        Zsig_deviation.transpose();
 
   // Calculate Kalman gain K
-  const MatrixXd K = Tc * S.inverse();
+  const MatrixXd K = Tc * S_inv;
 
   // Update state mean and covariance matrix.
   x_ += K * y;
   P_ -= K * S * K.transpose();
+
+  // Calculate the normalized innovation squared (NIS) value
+  NIS_value_ = y.transpose() * S_inv * y;
 }

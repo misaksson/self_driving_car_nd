@@ -9,19 +9,37 @@
 using namespace std;
 
 vector<string> readDataSet(string filename);
-VectorXd processDataSet(vector<string> dataSet, const double std_a, const double std_yawdd);
+void processDataSet(vector<string> dataSet, VectorXd &RMSE,
+                    vector<double> &NIS_radar, vector<double> &NIS_lidar,
+                    const double std_a = 0.46, const double std_yawdd = 0.54);
+void vector2file(vector<double> v, string filename);
+string analyseNis(const vector<double> nis, const double chi95);
 
 int main()
 {
-  vector<string> dataSet1 = readDataSet("../data/obj_pose-laser-radar-synthetic-input.txt");
-  vector<string> dataSet2 = readDataSet("../data/obj_pose-laser-radar-synthetic-input2.txt");
-  for (double std_a = 0.4; std_a <= 0.6; std_a += 0.01) {
-    for (double std_yawdd = 0.5; std_yawdd <= 0.6; std_yawdd += 0.01) {
-      VectorXd RMSE1 = processDataSet(dataSet1, std_a, std_yawdd);
-      VectorXd RMSE2 = processDataSet(dataSet2, std_a, std_yawdd);
-      cout << RMSE1.sum() + RMSE2.sum() << " " << RMSE1.transpose() << " " << RMSE2.transpose() << " " << std_a << " " << std_yawdd << endl;
-    }
-  }
+  VectorXd RMSE;
+  vector<double> NIS_radar, NIS_lidar;
+  vector<string> dataSet;
+
+  // Dataset 1
+  cout << endl << "Data set 1" << endl;
+  dataSet = readDataSet("../data/obj_pose-laser-radar-synthetic-input.txt");
+  processDataSet(dataSet, RMSE, NIS_radar, NIS_lidar);
+  cout << "RMSE:" << RMSE.transpose() << endl;
+  cout << "Radar: " << analyseNis(NIS_radar, 7.815) << endl;
+  cout << "Lidar: " << analyseNis(NIS_lidar, 5.991) << endl;
+  vector2file(NIS_radar, "../NIS1_radar.txt");
+  vector2file(NIS_lidar, "../NIS1_lidar.txt");
+
+  // Dataset 2
+  cout << endl << "Data set 2" << endl;
+  dataSet = readDataSet("../data/obj_pose-laser-radar-synthetic-input2.txt");
+  processDataSet(dataSet, RMSE, NIS_radar, NIS_lidar);
+  cout << "RMSE:" << RMSE.transpose() << endl;
+  cout << "Radar: " << analyseNis(NIS_radar, 7.815) << endl;
+  cout << "Lidar: " << analyseNis(NIS_lidar, 5.991) << endl;
+  vector2file(NIS_radar, "../NIS2_radar.txt");
+  vector2file(NIS_lidar, "../NIS2_lidar.txt");
 }
 
 vector<string> readDataSet(string filename) {
@@ -40,8 +58,14 @@ vector<string> readDataSet(string filename) {
   return dataSet;
 }
 
-VectorXd processDataSet(vector<string> dataSet, const double std_a, const double std_yawdd) {
- // Create a Kalman Filter instance
+void processDataSet(vector<string> dataSet, VectorXd &RMSE,
+                    vector<double> &NIS_radar, vector<double> &NIS_lidar,
+                    const double std_a, const double std_yawdd) {
+
+  NIS_radar.clear();
+  NIS_lidar.clear();
+
+  // Create a Kalman Filter instance
   UKF ukf(std_a, std_yawdd);
 
   // used to compute the RMSE later
@@ -96,7 +120,7 @@ VectorXd processDataSet(vector<string> dataSet, const double std_a, const double
     gt_values(3) = vy_gt;
     ground_truth.push_back(gt_values);
 
-      //Call ProcessMeasurment(meas_package) for Kalman filter
+    //Call ProcessMeasurment(meas_package) for Kalman filter
     ukf.ProcessMeasurement(meas_package);
 
     //Push the current estimated x,y positon from the Kalman filter's state vector
@@ -115,9 +139,37 @@ VectorXd processDataSet(vector<string> dataSet, const double std_a, const double
     estimate(1) = p_y;
     estimate(2) = v1;
     estimate(3) = v2;
-
     estimations.push_back(estimate);
+
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+      NIS_radar.push_back(ukf.NIS_value_);
+    } else {
+      NIS_lidar.push_back(ukf.NIS_value_);
+    }
   }
-  VectorXd RMSE = Tools::CalculateRMSE(estimations, ground_truth);
-  return RMSE;
+  RMSE = Tools::CalculateRMSE(estimations, ground_truth);
+}
+
+
+void vector2file(vector<double> v, string filename) {
+  ofstream fs;
+  fs.open(filename);
+  if (fs.is_open()) {
+    for (auto it = v.begin(); it != v.end(); ++it) {
+      fs << *it << endl;
+    }
+    fs.close();
+  } else {
+    cout << "Unable to open file " << filename << endl;
+  }
+}
+
+string analyseNis(const vector<double> nis, const double chi95) {
+  int countBelow = 0;
+  for (auto it = nis.begin(); it != nis.end(); ++it) {
+    countBelow += *it < chi95 ? 1 : 0;
+  }
+  ostringstream result;
+  result << "Amount below chi_squared 95% (" << chi95 << "): " << (double)countBelow / (double)nis.size();
+  return result.str();
 }
