@@ -10,36 +10,49 @@ using namespace std;
 
 vector<string> readDataSet(string filename);
 void processDataSet(vector<string> dataSet, VectorXd &RMSE,
+                    vector<VectorXd> &estimations, vector<VectorXd> &ground_truth,
+                    vector<VectorXd> &radar, vector<VectorXd> &lidar,
                     vector<double> &NIS_radar, vector<double> &NIS_lidar,
                     const double std_a = 0.46, const double std_yawdd = 0.54);
-void vector2file(vector<double> v, string filename);
+void nis2file(vector<double> v, string filename);
+void coords2file(const vector<VectorXd> coords, const string filename);
 string analyseNis(const vector<double> nis, const double chi95);
 
 int main()
 {
   VectorXd RMSE;
   vector<double> NIS_radar, NIS_lidar;
+  vector<VectorXd> estimations, ground_truth;
+  vector<VectorXd> radar, lidar;
   vector<string> dataSet;
 
   // Dataset 1
   cout << endl << "Data set 1" << endl;
   dataSet = readDataSet("../data/obj_pose-laser-radar-synthetic-input.txt");
-  processDataSet(dataSet, RMSE, NIS_radar, NIS_lidar);
+  processDataSet(dataSet, RMSE, estimations, ground_truth, radar, lidar, NIS_radar, NIS_lidar);
   cout << "RMSE:" << RMSE.transpose() << endl;
   cout << "Radar: " << analyseNis(NIS_radar, 7.815) << endl;
   cout << "Lidar: " << analyseNis(NIS_lidar, 5.991) << endl;
-  vector2file(NIS_radar, "../NIS1_radar.txt");
-  vector2file(NIS_lidar, "../NIS1_lidar.txt");
+  nis2file(NIS_radar, "../NIS1_radar.txt");
+  nis2file(NIS_lidar, "../NIS1_lidar.txt");
+  coords2file(estimations, "../estimations1.txt");
+  coords2file(ground_truth, "../ground_truth1.txt");
+  coords2file(radar, "../radar1.txt");
+  coords2file(lidar, "../lidar1.txt");
 
   // Dataset 2
   cout << endl << "Data set 2" << endl;
   dataSet = readDataSet("../data/obj_pose-laser-radar-synthetic-input2.txt");
-  processDataSet(dataSet, RMSE, NIS_radar, NIS_lidar);
+  processDataSet(dataSet, RMSE, estimations, ground_truth, radar, lidar, NIS_radar, NIS_lidar);
   cout << "RMSE:" << RMSE.transpose() << endl;
   cout << "Radar: " << analyseNis(NIS_radar, 7.815) << endl;
   cout << "Lidar: " << analyseNis(NIS_lidar, 5.991) << endl;
-  vector2file(NIS_radar, "../NIS2_radar.txt");
-  vector2file(NIS_lidar, "../NIS2_lidar.txt");
+  nis2file(NIS_radar, "../NIS2_radar.txt");
+  nis2file(NIS_lidar, "../NIS2_lidar.txt");
+  coords2file(estimations, "../estimations2.txt");
+  coords2file(ground_truth, "../ground_truth2.txt");
+  coords2file(radar, "../radar2.txt");
+  coords2file(lidar, "../lidar2.txt");
 }
 
 vector<string> readDataSet(string filename) {
@@ -59,23 +72,25 @@ vector<string> readDataSet(string filename) {
 }
 
 void processDataSet(vector<string> dataSet, VectorXd &RMSE,
+                    vector<VectorXd> &estimations, vector<VectorXd> &ground_truth,
+                    vector<VectorXd> &radar, vector<VectorXd> &lidar,
                     vector<double> &NIS_radar, vector<double> &NIS_lidar,
                     const double std_a, const double std_yawdd) {
 
+  // Clear output before starting
+  estimations.clear();
+  ground_truth.clear();
+  radar.clear();
+  lidar.clear();
   NIS_radar.clear();
   NIS_lidar.clear();
 
   // Create a Kalman Filter instance
   UKF ukf(std_a, std_yawdd);
 
-  // used to compute the RMSE later
-  vector<VectorXd> estimations;
-  vector<VectorXd> ground_truth;
-
-  MeasurementPackage meas_package;
-
   for (auto sensorMeasurment = dataSet.begin(); sensorMeasurment != dataSet.end(); ++sensorMeasurment) {
     istringstream iss(*sensorMeasurment);
+    MeasurementPackage meas_package;
     long long timestamp;
 
     // reads first element from the current line
@@ -92,6 +107,7 @@ void processDataSet(vector<string> dataSet, VectorXd &RMSE,
       meas_package.raw_measurements_ << px, py;
       iss >> timestamp;
       meas_package.timestamp_ = timestamp;
+      lidar.push_back(meas_package.raw_measurements_);
     } else if (sensor_type.compare("R") == 0) {
       meas_package.sensor_type_ = MeasurementPackage::RADAR;
       meas_package.raw_measurements_ = VectorXd(3);
@@ -104,6 +120,7 @@ void processDataSet(vector<string> dataSet, VectorXd &RMSE,
       meas_package.raw_measurements_ << ro,theta, ro_dot;
       iss >> timestamp;
       meas_package.timestamp_ = timestamp;
+      radar.push_back(Tools::PolarToCartesian(meas_package.raw_measurements_));
     }
     float x_gt;
     float y_gt;
@@ -151,7 +168,7 @@ void processDataSet(vector<string> dataSet, VectorXd &RMSE,
 }
 
 
-void vector2file(vector<double> v, string filename) {
+void nis2file(vector<double> v, string filename) {
   ofstream fs;
   fs.open(filename);
   if (fs.is_open()) {
@@ -162,6 +179,23 @@ void vector2file(vector<double> v, string filename) {
   } else {
     cout << "Unable to open file " << filename << endl;
   }
+}
+
+void coords2file(const vector<VectorXd> coords, const string filename) {
+  ofstream fs;
+  fs.open(filename);
+  if (fs.is_open()) {
+    for (auto it = coords.begin(); it != coords.end(); ++it) {
+      for (int i = 0; i < it->size(); ++i) {
+        fs << (*it)[i] << " ";
+      }
+      fs << endl;
+    }
+    fs.close();
+  } else {
+    cout << "Unable to open file " << filename << endl;
+  }
+
 }
 
 string analyseNis(const vector<double> nis, const double chi95) {
