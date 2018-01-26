@@ -36,3 +36,7 @@ add_test(NAME ExtendedKF_Test_Suite COMMAND UnscentedKF_unit_tests)
 # Tuning app
 add_executable(UnscentedKF_tuning src/main_tuning.cpp)
 target_link_libraries(UnscentedKF_tuning UnscentedKF_lib)
+
+# Catch the run away car
+add_executable(CatchTheRunAwayCar src/main_catch_the_run_away_car.cpp)
+target_link_libraries(CatchTheRunAwayCar UnscentedKF_lib z ssl uv uWS)
