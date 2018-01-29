@@ -24,17 +24,107 @@ std::string hasData(std::string s) {
   return "";
 }
 
+
+/**
+ * Predict position at delta_t by assuming constant velocity and yaw
+ * rate. */
+VectorXd simplePredict(const VectorXd &x, const double delta_t) {
+  const double px0 = x(0);
+  const double py0 = x(1);
+  const double v = x(2);
+  const double yaw = x(3);
+  const double yawd = x(4);
+  const double eps = 0.0001;
+  double px1;
+  double py1;
+
+  // Avoid division by zero
+  if (fabs(yawd) < eps) {
+    // Target is driving straight at constant velocity.
+    px1 = v * cos(yaw) * delta_t + px0;
+    py1 = v * sin(yaw) * delta_t + py0;
+  } else {
+    // Target is turning at constant yaw rate and velocity.
+    // px1 = v0 * integral(cos(yaw0 + yawd0 * (t - t0), dt) + px0 =
+    // http://www.wolframalpha.com/input/?i=v+int+cos(a+%2B+b+*+(t+-+c+))+dt,++t+%3D+c+to+d
+    px1 = (v / yawd) * (sin(yaw + yawd * delta_t) - sin(yaw)) + px0;
+    // py1 = v0 * integral(sin(yaw0 + yawd0 * (t - t0), dt) + py0 =
+    // http://www.wolframalpha.com/input/?i=v+int+sin(a+%2B+b+*+(t+-+c+))+dt,++t+%3D+c+to+d
+    py1 = (v / yawd) * (-cos(yaw + yawd * delta_t) + cos(yaw)) + py0;
+  }
+
+  VectorXd result = VectorXd(2);
+  result << px1, py1;
+  return result;
+}
+
+/**
+ * Calculate the distance between position v1 and v2.
+ */
+double calcDistance(const VectorXd &v1, const VectorXd &v2) {
+  return sqrt(pow(v1(0) - v2(0), 2.0) + pow(v1(1) - v2(1), 2.0));
+}
+
+
+/**
+ * Find position where the hunter should be able to intercept the target.
+ * @return The estimated intercept position.
+ */
+VectorXd findInterceptPosition(const VectorXd &hunter, const VectorXd &target) {
+  /**
+   * Trial n' error iterative solution. The prediction time is increased until
+   * there is a straight path that should intercept the vehicle.
+   */
+
+  // Prediction steps delta time
+  const double delta_t = 0.01;
+
+  /* Never try to predict more than this number of second ahead of time. This
+   * helps avoid corner cases that causes hang ups in the prediction loop,
+   * e.g. when next iteration is just slightly better, which typically happens
+   * before the Kalman filter state has stabilized.
+   */
+  const double maxPredictionTime = 5.0;
+
+  /* The speed of the hunter is unknown, but we know that it's the same as the
+   * target so lets use that estimate.
+   */
+  const double velocity = target(2);
+
+  // Initial state
+  VectorXd prediction = target;
+  double predictionTime = 0.0;
+  double timeToTarget = calcDistance(hunter, prediction) / velocity;
+  VectorXd prevPrediction;
+  double prevTimeToTarget;
+  do {
+    // Store previous prediction
+    prevPrediction = prediction;
+    prevTimeToTarget = timeToTarget;
+
+    // Increment predictionTime until the hunter can intercept the target
+    predictionTime += delta_t;
+
+    // Predict target position at predictionTime
+    prediction = simplePredict(target, predictionTime);
+
+    // Calculate how long time the hunter needs to reach predicted target position.
+    timeToTarget = calcDistance(hunter, prediction) / velocity;
+
+    // Continue until the prediction becomes worse, or until reaching maxPredictionTime.
+  } while(abs(timeToTarget - predictionTime) < abs(prevTimeToTarget - (predictionTime - delta_t)) &&
+          predictionTime < maxPredictionTime);
+  return prevPrediction;
+}
+
+
 int main() {
   uWS::Hub h;
 
   // Create a UKF instance.
-  // The run away car has zero std_a and std_yawdd.
-  UKF ukf(0.0, 0.0);
+  UKF ukf;
 
-  double target_x = 0.0;
-  double target_y = 0.0;
-
-  h.onMessage([&ukf, &target_x, &target_y](uWS::WebSocket<uWS::SERVER> ws,
+  h.onMessage([&ukf](uWS::WebSocket<uWS::SERVER> ws,
                                            char *data, size_t length,
                                            uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -49,9 +139,9 @@ int main() {
 
         if (event == "telemetry") {
           // j[1] is the data JSON object
-
-          double hunter_x = std::stod(j[1]["hunter_x"].get<std::string>());
-          double hunter_y = std::stod(j[1]["hunter_y"].get<std::string>());
+          VectorXd hunter = VectorXd(2);
+          hunter(0) = std::stod(j[1]["hunter_x"].get<std::string>());
+          hunter(1) = std::stod(j[1]["hunter_y"].get<std::string>());
           double hunter_heading =
               std::stod(j[1]["hunter_heading"].get<std::string>());
 
@@ -102,12 +192,10 @@ int main() {
           meas_package_R.timestamp_ = timestamp_R;
 
           ukf.ProcessMeasurement(meas_package_R);
-
-          target_x = ukf.x_[0];
-          target_y = ukf.x_[1];
+          const VectorXd interceptPosition = findInterceptPosition(hunter, ukf.x_);
 
           double heading_to_target =
-              atan2(target_y - hunter_y, target_x - hunter_x);
+              atan2(interceptPosition(1) - hunter(1), interceptPosition(0) - hunter(0));
           while (heading_to_target > M_PI) heading_to_target -= 2. * M_PI;
           while (heading_to_target < -M_PI) heading_to_target += 2. * M_PI;
           // turn towards the target
@@ -116,8 +204,8 @@ int main() {
           while (heading_difference < -M_PI) heading_difference += 2. * M_PI;
 
           double distance_difference =
-              sqrt((target_y - hunter_y) * (target_y - hunter_y) +
-                   (target_x - hunter_x) * (target_x - hunter_x));
+              sqrt((ukf.x_[1] - hunter(1)) * (ukf.x_[1] - hunter(1)) +
+                   (ukf.x_[0] - hunter(0)) * (ukf.x_[0] - hunter(0)));
 
           json msgJson;
           msgJson["turn"] = heading_difference;
