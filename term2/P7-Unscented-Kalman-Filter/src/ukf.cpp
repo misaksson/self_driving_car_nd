@@ -207,7 +207,6 @@ void UKF::Prediction(double delta_t) {
     Xsig_pred_.col(i) << px_p, py_p, v_p, yaw_p, yawd_p;
   }
 
-
   // Predict state mean.
   x_ = Xsig_pred_ * weights_;
 
@@ -228,17 +227,26 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   const VectorXd z = meas_package.raw_measurements_;
   assert(z.size() == n_z);
 
-  // Transform sigma points into measurement space.
-  const MatrixXd Zsig = Xsig_pred_.topRows(n_z);
+  /* Note: LIDAR provides measurements as a subset of the CTRV motion model,
+   * so the transformation to measurement space is linear, and a standard
+   * Kalman filter update would work. But since this is a UKF project, lets
+   * ignore that and do the update using sigma points (even tough it's more
+   * expensive in terms of computations).
+   *
+   * However, there is no reason to repeat the calculation of the measurement
+   * prediction and the sigma points deviation from mean (in measurement space)
+   * since that's just a subset of what's already calculated in the prediction
+   * step.
+   */
 
-  // Calculate mean predicted measurement.
-  const VectorXd z_pred = Zsig * weights_;
-
-  // Calculate sigma points deviation from mean predicted measurement.
-  const MatrixXd Zsig_deviation = Zsig.colwise() - z_pred;
+  // The mean predicted measurement.
+  const VectorXd z_pred = x_.head(n_z);
 
   // Calculate measurement error y.
   const VectorXd y = z - z_pred;
+
+  // Sigma points deviation from mean predicted measurement.
+  const MatrixXd Zsig_deviation = Xsig_deviation_.topRows(n_z);
 
   CommonUpdate(Zsig_deviation, y, R_lidar_);
 }
@@ -252,18 +260,18 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   const VectorXd z = meas_package.raw_measurements_;
   assert(z.size() == n_z);
 
-  //create matrix for sigma points in measurement space
+  // Create matrix for sigma points in measurement space
   MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
 
-  //transform sigma points into measurement space
+  // Non-linear transformation of sigma points into radar measurement space.
   for (int i = 0; i < Xsig_pred_.cols(); ++i) {
-    // Extract sigma point values
+    // Extract sigma point values-
     const double px = Xsig_pred_(0, i);
     const double py = Xsig_pred_(1, i);
     const double v = Xsig_pred_(2, i);
     const double yaw = Xsig_pred_(3, i);
 
-    // Transform to radar measurement space
+    // Transform to radar measurement space.
     const double rho = sqrt(pow(px, 2.0) + pow(py, 2.0));
     const double phi = atan2(py, px);
     const double rho_dot = (px * cos(yaw) + py * sin(yaw)) * v / rho;
