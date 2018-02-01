@@ -1,6 +1,6 @@
 **Extended Kalman Filter Project**
 
-_Note: A writeup is not necessary to pass this project according to the [Rubrics Points](https://review.udacity.com/#!/rubrics/748/view). This short project writeup report is mainly aiming to help myself remember what was achieved in this project._
+_Note: A writeup is not necessary to pass this project according to the [Rubrics Points](https://review.udacity.com/#!/rubrics/748/view). This short project report is mainly aiming to help me remember what was achieved in this project._
 
 The goals of this project are the following:
 
