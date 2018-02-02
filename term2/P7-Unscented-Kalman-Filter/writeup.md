@@ -52,10 +52,10 @@ To further figure out if the noise parameters in the model are reasonable, the N
 
 The distribution looks quite reasonable and the actual amount of measurements below the 95% line is also roughly as expected:
 
-| Dataset | Radar | Lidar |
-|---------|-------|-------|
-|    1    | 0.956 | 0.976 |
-|    2    | 0.952 | 0.928 |
+|               | Radar | Lidar |
+|---------------|-------|-------|
+| __Dataset 1__ | 0.956 | 0.976 |
+| __Dataset 2__ | 0.952 | 0.928 |
 
 ## Result
 The algorithm is ran in a simulator provided by Udacity, which displays the tracked object as it moves around together with sensor measurements and position estimates. The simulator displays LIDAR measurements as red circles, RADAR measurements as blue circles and tracked position as green triangles. The root-mean squared error (RMSE) of the estimate compared to ground truth values are also calculated and displayed in the simulator.
@@ -70,10 +70,10 @@ In the table below are my results in terms of RMSE when using both sensors in fu
     <td>
       <table>
         <tr><th>  </th><th>Fusion</th><th>RADAR</th><th>LIDAR</th></tr>
-        <tr><td>px</td><td>0.0601</td><td>0.2080</td><td>0.1584</td></tr>
-        <tr><td>py</td><td>0.0843</td><td>0.2249</td><td>0.1464</td></tr>
-        <tr><td>vx</td><td>0.3561</td><td>0.4072</td><td>0.3925</td></tr>
-        <tr><td>vy</td><td>0.2482</td><td>0.1967</td><td>0.2568</td></tr>
+        <tr><td><b>px</b></td><td>0.0601</td><td>0.2080</td><td>0.1584</td></tr>
+        <tr><td><b>py</b></td><td>0.0843</td><td>0.2249</td><td>0.1464</td></tr>
+        <tr><td><b>vx</b></td><td>0.3561</td><td>0.4072</td><td>0.3925</td></tr>
+        <tr><td><b>vy</b></td><td>0.2482</td><td>0.1967</td><td>0.2568</td></tr>
       </table>
     </td>
     <td>
