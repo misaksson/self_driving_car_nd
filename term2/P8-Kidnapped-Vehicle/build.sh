@@ -9,6 +9,9 @@
 # Written by Tiffany Huang, 12/14/2016
 #
 
+# Exit this script upon error
+set -e
+
 # Go into the directory where this bash script is contained.
 cd `dirname $0`
 
@@ -17,3 +20,4 @@ mkdir -p build
 cd build
 cmake ..
 make -j `nproc` $*
+./particle_filter_unit_tests
