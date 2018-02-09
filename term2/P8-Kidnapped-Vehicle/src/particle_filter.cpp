@@ -25,13 +25,10 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
   // Initialize all particles to first position (based on estimates of x, y,
   // theta and their uncertainties from GPS) and all weights to 1.
-  const double std_x = std[0];
-  const double std_y = std[1];
-  const double std_theta = std[2];
   default_random_engine gen;
-  normal_distribution<double> dist_x(x, std_x);
-  normal_distribution<double> dist_y(y, std_y);
-  normal_distribution<double> dist_theta(theta, std_theta);
+  normal_distribution<double> dist_x(x, std[0]);
+  normal_distribution<double> dist_y(y, std[1]);
+  normal_distribution<double> dist_theta(theta, std[2]);
 
   for (int i = 0; i < num_particles; ++i) {
     particles.push_back({.id=i, .x=dist_x(gen), .y=dist_y(gen), .theta=dist_theta(gen), .weight=1.0});
@@ -41,11 +38,36 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 void ParticleFilter::prediction(double delta_t, double std_pos[],
                                 double velocity, double yaw_rate) {
-  // TODO: Add measurements to each particle and add random Gaussian noise.
-  // NOTE: When adding noise you may find std::normal_distribution and
-  // std::default_random_engine useful.
-  //  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
-  //  http://www.cplusplus.com/reference/random/default_random_engine/
+  /* The velocity and yaw_rate is noiseless according to a comment in main.cpp.
+   * The std_pos provided by main.cpp actually relates to GPS measurements, but
+   * here it's instead added to the particle positions after motion model
+   * update.
+   *
+   * TODO: Is it really correct to use the same noise in this prediction as in
+   *       the initialization, which is based on the uncertain GPS measurement?
+   * TODO: Why not use GPS to improve prediction?
+   */
+  const double eps = 0.0001;
+  default_random_engine gen;
+  normal_distribution<double> dist_x(0.0, std_pos[0]);
+  normal_distribution<double> dist_y(0.0, std_pos[1]);
+  normal_distribution<double> dist_theta(0.0, std_pos[2]);
+
+  for (auto particle = particles.begin(); particle != particles.end(); ++particle) {
+    const double yaw_angle = particle->theta;
+
+    // Avoid division by zero
+    if (fabs(yaw_rate) < eps) {
+      // Driving straight
+      particle->x += velocity * cos(yaw_angle) * delta_t;
+      particle->y += velocity * sin(yaw_angle) * delta_t;
+    } else {
+      // Turning
+      particle->x += (velocity / yaw_rate) * (sin(yaw_angle + (yaw_rate * delta_t)) - sin(yaw_angle)) + dist_x(gen);
+      particle->y += (velocity / yaw_rate) * (-cos(yaw_angle + (yaw_rate * delta_t)) + cos(yaw_angle)) + dist_y(gen);
+    }
+    particle->theta += yaw_rate * delta_t + dist_theta(gen);
+  }
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted,
