@@ -39,12 +39,22 @@ struct ground_truth {
 /*
  * Struct representing one landmark observation measurement.
  */
-struct LandmarkObs {
-  int id;  // Id of matching landmark in the map.
-  double
-      x;  // Local (vehicle coordinates) x position of landmark observation [m]
-  double
-      y;  // Local (vehicle coordinates) y position of landmark observation [m]
+struct Observation {
+  double x;  // Local (vehicle coordinates) x position of landmark observation [m]
+  double y;  // Local (vehicle coordinates) y position of landmark observation [m]
+};
+
+/*
+ * Struct representing one landmark observation transformed to map coordinates.
+ */
+struct TransformedObservation {
+  double x; // Map (global coordinates) x position of landmark observation [m]
+  double y; // Map (global coordinates) y position of landmark observation [m]
+	int landmarkIdx; // Index of matching landmark in the map.
+	static const int invalidLandmarkIdx = -1; // When no landmark match is found.
+	static const int initialLandmarkIdx = -2; // Initial value of member landmarkIdx.
+	TransformedObservation(double x, double y): x(x), y(y),
+	                                            landmarkIdx(TransformedObservation::initialLandmarkIdx){};
 };
 
 /*
@@ -199,7 +209,7 @@ inline bool read_gt_data(std::string filename, std::vector<ground_truth>& gt) {
  * @output True if opening and reading file was successful
  */
 inline bool read_landmark_data(std::string filename,
-                               std::vector<LandmarkObs>& observations) {
+                               std::vector<Observation>& observations) {
   // Get file of landmark measurements:
   std::ifstream in_file_obs(filename.c_str(), std::ifstream::in);
   // Return if we can't open the file.
@@ -222,7 +232,7 @@ inline bool read_landmark_data(std::string filename,
     iss_obs >> local_y;
 
     // Declare single landmark measurement:
-    LandmarkObs meas;
+    Observation meas;
 
     // Set values
     meas.x = local_x;

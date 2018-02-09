@@ -86,7 +86,7 @@ int main() {
           // receive noisy observation data from the simulator
           // sense_observations in JSON format
           // [{obs_x,obs_y},{obs_x,obs_y},...{obs_x,obs_y}]
-          vector<LandmarkObs> noisy_observations;
+          vector<Observation> noisy_observations;
           string sense_observations_x = j[1]["sense_observations_x"];
           string sense_observations_y = j[1]["sense_observations_y"];
 
@@ -105,7 +105,7 @@ int main() {
                     std::back_inserter(y_sense));
 
           for (int i = 0; i < x_sense.size(); i++) {
-            LandmarkObs obs;
+            Observation obs;
             obs.x = x_sense[i];
             obs.y = y_sense[i];
             noisy_observations.push_back(obs);

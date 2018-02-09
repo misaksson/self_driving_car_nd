@@ -16,6 +16,7 @@
 #include <string>
 
 #include "particle_filter.h"
+#include "map.h"
 
 using namespace std;
 
@@ -70,19 +71,25 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   }
 }
 
-void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted,
-                                     std::vector<LandmarkObs>& observations) {
-  // TODO: Find the predicted measurement that is closest to each observed
-  // measurement and assign the
-  //   observed measurement to this particular landmark.
-  // NOTE: this method will NOT be called by the grading code. But you will
-  // probably find it useful to
-  //   implement this method and use it as a helper during the updateWeights
-  //   phase.
+void ParticleFilter::dataAssociation(const Map& map,
+                                     std::vector<TransformedObservation>& observations) {
+  for (int obsIdx = 0; obsIdx < observations.size(); ++obsIdx) {
+    observations[obsIdx].landmarkIdx = TransformedObservation::invalidLandmarkIdx;
+    double shortestDistance = HUGE_VAL;
+    for (int landmarkIdx = 0; landmarkIdx < map.landmark_list.size(); ++landmarkIdx) {
+      const double distance = dist((double)map.landmark_list[landmarkIdx].x_f,
+                                   (double)map.landmark_list[landmarkIdx].y_f,
+                                   observations[obsIdx].x, observations[obsIdx].y);
+      if (distance < shortestDistance) {
+        observations[obsIdx].landmarkIdx = landmarkIdx;
+        shortestDistance = distance;
+      }
+    }
+  }
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
-                                   const std::vector<LandmarkObs>& observations,
+                                   const std::vector<Observation>& observations,
                                    const Map& map_landmarks) {
   // TODO: Update the weights of each particle using a mult-variate Gaussian
   // distribution. You can read

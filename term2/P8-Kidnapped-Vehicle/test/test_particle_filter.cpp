@@ -1,4 +1,5 @@
 #include "catch.hpp"
+#include "../src/helper_functions.h"
 #include "../src/particle_filter.h"
 #include <iostream>
 #include <cmath>
@@ -184,4 +185,40 @@ TEST_CASE("Particle filter prediction adds noise", "[prediction]") {
   REQUIRE(xStdev == Approx(xGpsStd + xPosStd).margin((xGpsStd + xPosStd) * 0.1));
   REQUIRE(yStdev == Approx(yGpsStd + yPosStd).margin((yGpsStd + yPosStd) * 0.1));
   REQUIRE(thetaStdev == Approx(thetaGpsStd + thetaPosStd).margin((thetaGpsStd + thetaPosStd) * 0.1));
+}
+
+TEST_CASE("Particle filter data association", "[updateweights]") {
+  Map map;
+  map.landmark_list.push_back({.id_i = 0, .x_f = 10.0, .y_f = 20.0});
+  map.landmark_list.push_back({.id_i = 1, .x_f = 10.0, .y_f = 30.0});
+  map.landmark_list.push_back({.id_i = 2, .x_f = 30.0, .y_f = 10.0});
+  map.landmark_list.push_back({.id_i = 3, .x_f = 30.0, .y_f = 20.0});
+
+  std::vector<TransformedObservation> observations;
+  observations.push_back(TransformedObservation(31.0, 10.0));
+  observations.push_back(TransformedObservation(29.0, 25.0));
+  observations.push_back(TransformedObservation( 0.0, 0.0));
+
+  const int expected[] = {2, 3, 0};
+
+  ParticleFilter::dataAssociation(map, observations);
+
+  for (int i = 0; i < observations.size(); ++i) {
+    REQUIRE(observations[i].landmarkIdx == expected[i]);
+  }
+}
+
+TEST_CASE("Particle filter data association without landmarks", "[updateweights]") {
+  Map map;  // empty
+  std::vector<TransformedObservation> observations;
+  observations.push_back(TransformedObservation(31.0, 10.0));
+  observations.push_back(TransformedObservation(29.0, 25.0));
+  observations.push_back(TransformedObservation(0.0, 0.0));
+
+  const int expected = TransformedObservation::invalidLandmarkIdx; // no valid association
+  ParticleFilter::dataAssociation(map, observations);
+
+  for (int i = 0; i < observations.size(); ++i) {
+    REQUIRE(observations[i].landmarkIdx == expected);
+  }
 }
