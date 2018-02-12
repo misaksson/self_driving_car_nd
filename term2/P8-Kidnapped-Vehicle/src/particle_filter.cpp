@@ -22,7 +22,7 @@ using namespace std;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // Set the number of particles.
-  num_particles = 1000;
+  const int num_particles = 1000;
 
   // Initialize all particles to first position (based on estimates of x, y,
   // theta and their uncertainties from GPS) and all weights to 1.
@@ -34,6 +34,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   for (int i = 0; i < num_particles; ++i) {
     particles.push_back({.id=i, .x=dist_x(gen), .y=dist_y(gen), .theta=dist_theta(gen), .weight=1.0});
   }
+
   is_initialized = true;
 }
 
@@ -124,10 +125,25 @@ void ParticleFilter::updateWeights(double sensor_range, const double std_landmar
 }
 
 void ParticleFilter::resample() {
-  // TODO: Resample particles with replacement with probability proportional to
-  // their weight.
-  // NOTE: You may find std::discrete_distribution helpful here.
-  //   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+  // Extract weights to vector
+  weights.clear();
+  for (auto particle = particles.begin(); particle != particles.end(); ++particle) {
+    weights.push_back(particle->weight);
+  }
+
+  // Create a random distribution based on the particle weights.
+  default_random_engine generator;
+  discrete_distribution<int> distribution(weights.begin(), weights.end());
+
+  // Draw the required number of particles from the weighted random distribution.
+  vector<Particle> resampledParticles;
+  for (int i = 0; i < particles.size(); ++i) {
+    const int particleIdx = distribution(generator);
+    resampledParticles.push_back(particles[particleIdx]);
+  }
+
+  // Replace previous particles with the updated distribution.
+  particles = resampledParticles;
 }
 
 Particle ParticleFilter::SetAssociations(Particle& particle,

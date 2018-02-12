@@ -270,3 +270,35 @@ TEST_CASE("Particle filter update weights without a map", "[updateweights]") {
   pf.updateWeights(sensor_range, std_landmark, observations, map);
   REQUIRE(pf.particles[0].weight == Approx(expected).margin(1.0e-100));
 }
+
+
+TEST_CASE("Particle filter resample should update the distribution based on particle weights", "[resample]") {
+  ParticleFilter pf;
+  pf.particles.push_back({.id = 0, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 1, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 2, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 3, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 4, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 5, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 25.0});
+  pf.particles.push_back({.id = 6, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 7, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 8, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 9, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 1.0});
+  pf.particles.push_back({.id = 10, .x = 0.0, .y = 0.0, .theta = 0.0, .weight = 75.0});
+
+  // Expects more samples of particle id 5 (weight 25) and particle id 10 (weight 75).
+  const int expectedMinCount[] = {0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 4};
+  const int expectedMaxCount[] = {2, 2, 2, 2, 2, 5, 2, 2, 2, 2, 7};
+
+  pf.resample();
+
+  int actualCount[11] = {0};
+  for (auto particle = pf.particles.begin(); particle != pf.particles.end(); ++particle) {
+    actualCount[particle->id]++;
+  }
+
+  for (int i = 0; i < sizeof(actualCount) / sizeof(actualCount[0]); ++i) {
+    REQUIRE(actualCount[i] >= expectedMinCount[i]);
+    REQUIRE(actualCount[i] <= expectedMaxCount[i]);
+  }
+}
