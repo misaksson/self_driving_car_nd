@@ -222,3 +222,51 @@ TEST_CASE("Particle filter data association without landmarks", "[updateweights]
     REQUIRE(observations[i].landmarkIdx == expected);
   }
 }
+
+
+TEST_CASE("Particle filter update weights", "[updateweights]") {
+  /* Test data from lesson examples on particle weight calculation. */
+  ParticleFilter pf;
+  pf.particles.push_back({.id = 0, .x = 4.0, .y = 5.0, .theta = -M_PI / 2.0, .weight = 1.0});
+
+  vector<Observation> observations;
+  observations.push_back({.x = 2.0, .y = 2.0});
+  observations.push_back({.x = 3.0, .y = -2.0});
+  observations.push_back({.x = 0.0, .y = -4.0});
+
+  const double sensor_range = 50;
+  const double std_landmark[] = {0.3, 0.3};
+
+  Map map;
+  map.landmark_list.push_back({.id_i = 1, .x_f = 5.0, .y_f = 3.0});
+  map.landmark_list.push_back({.id_i = 2, .x_f = 2.0, .y_f = 1.0});
+  map.landmark_list.push_back({.id_i = 3, .x_f = 6.0, .y_f = 1.0});
+  map.landmark_list.push_back({.id_i = 4, .x_f = 7.0, .y_f = 4.0});
+  map.landmark_list.push_back({.id_i = 5, .x_f = 4.0, .y_f = 7.0});
+
+  const double expected = 4.59112934464959e-53;
+
+  pf.updateWeights(sensor_range, std_landmark, observations, map);
+
+  REQUIRE(pf.particles[0].weight == Approx(expected).margin(1.0e-55));
+}
+
+TEST_CASE("Particle filter update weights without a map", "[updateweights]") {
+  /* Test data from lesson examples on particle weight calculation. */
+  ParticleFilter pf;
+  pf.particles.push_back({.id = 0, .x = 4.0, .y = 5.0, .theta = -M_PI / 2.0, .weight = 1.0});
+
+  vector<Observation> observations;
+  observations.push_back({.x = 2.0, .y = 2.0});
+
+  const double sensor_range = 50;
+  const double std_landmark[] = {0.3, 0.3};
+
+  Map map; // Empty map
+
+  // Expects very small particle weight without landmarks to observe.
+  const double expected = 0.0;
+
+  pf.updateWeights(sensor_range, std_landmark, observations, map);
+  REQUIRE(pf.particles[0].weight == Approx(expected).margin(1.0e-100));
+}

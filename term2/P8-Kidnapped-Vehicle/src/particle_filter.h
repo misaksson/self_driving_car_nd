@@ -80,15 +80,14 @@ class ParticleFilter {
 
   /**
    * updateWeights Updates the weights for each particle based on the likelihood
-   * of the
-   *   observed measurements.
+   * of the observed measurements.
    * @param sensor_range Range [m] of sensor
    * @param std_landmark[] Array of dimension 2 [Landmark measurement
    * uncertainty [x [m], y [m]]]
    * @param observations Vector of landmark observations
    * @param map Map class containing map landmarks
    */
-  void updateWeights(double sensor_range, double std_landmark[],
+  void updateWeights(double sensor_range, const double std_landmark[],
                      const std::vector<Observation>& observations,
                      const Map& map_landmarks);
 

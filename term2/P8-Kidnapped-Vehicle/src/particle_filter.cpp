@@ -88,25 +88,39 @@ void ParticleFilter::dataAssociation(const Map& map,
   }
 }
 
-void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
+void ParticleFilter::updateWeights(double sensor_range, const double std_landmark[],
                                    const std::vector<Observation>& observations,
-                                   const Map& map_landmarks) {
-  // TODO: Update the weights of each particle using a mult-variate Gaussian
-  // distribution. You can read
-  //   more about this distribution here:
-  //   https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-  // NOTE: The observations are given in the VEHICLE'S coordinate system. Your
-  // particles are located
-  //   according to the MAP'S coordinate system. You will need to transform
-  //   between the two systems.
-  //   Keep in mind that this transformation requires both rotation AND
-  //   translation (but no scaling).
-  //   The following is a good resource for the theory:
-  //   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-  //   and the following is a good resource for the actual equation to implement
-  //   (look at equation
-  //   3.33
-  //   http://planning.cs.uiuc.edu/node99.html
+                                   const Map& map) {
+  for (auto particle = particles.begin(); particle != particles.end(); ++particle) {
+
+    // Transform observations to map coordinates. Note that the particle is the observer.
+    vector<TransformedObservation> transformedObservations;
+    for (auto observation = observations.begin(); observation != observations.end(); ++observation) {
+      transformedObservations.push_back(transformObservation(particle->x, particle->y, particle->theta, *observation));
+    }
+
+    // Associate each observation with a landmark.
+    dataAssociation(map, transformedObservations);
+
+    // Calculate the particle weight as the product of each observation probability.
+    particle->weight = 1.0;
+    for (auto observation = transformedObservations.begin(); observation != transformedObservations.end(); ++observation) {
+      double observationProbability;
+      if (observation->landmarkIdx != TransformedObservation::invalidLandmarkIdx) {
+        // Calculate the probability that this observation belongs to the associated landmark.
+        const Map::single_landmark_s *landmark = &map.landmark_list[observation->landmarkIdx];
+        observationProbability = multivariateGaussianProbability(observation->x, observation->y,
+                                                                 (double)landmark->x_f, (double)landmark->y_f,
+                                                                 std_landmark[0], std_landmark[1]);
+      } else {
+        // No valid landmark for this observation. Use sensor range to calculate some kind of worst case probability.
+        observationProbability = multivariateGaussianProbability(0.0, 0.0,
+                                                                 sqrt(sensor_range / 2.0), sqrt(sensor_range / 2.0),
+                                                                 std_landmark[0], std_landmark[1]);
+      }
+      particle->weight *= observationProbability;
+    }
+  }
 }
 
 void ParticleFilter::resample() {
