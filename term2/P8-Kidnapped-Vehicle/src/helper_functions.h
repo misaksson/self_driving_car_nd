@@ -81,6 +81,31 @@ inline TransformedObservation transformObservation(const double x, const double 
 	return result;
 }
 
+/** The multivariate-gaussian probability in two dimensions.
+ *
+ * Calculate the probability for that a 2D vector belongs to a 2D normal-
+ * distribution.
+ *
+ * @param (x, y) the 2D vector
+ * @param (mu_x, mu_y) the normal distribution mean vector
+ * @param (sigma_x, sigma_y) the normal distribution standard deviation vector
+ * @output The probability
+ */
+inline double multivariateGaussianProbability(const double x, const double y,
+                                              const double mu_x, const double mu_y,
+                                              const double sigma_x, const double sigma_y) {
+	// Calculate normalization factor.
+	const double normFactor = (1.0 / (2.0 * M_PI * sigma_x * sigma_y));
+
+	// Calculate exponent.
+	const double exponent = (pow(x - mu_x, 2.0) / (2.0 * pow(sigma_x, 2.0))) +
+	                        (pow(y - mu_y, 2.0) / (2.0 * pow(sigma_y, 2.0)));
+
+	// Calculate the probability.
+	const double probability = normFactor * exp(-exponent);
+	return probability;
+}
+
 inline double* getError(double gt_x, double gt_y, double gt_theta, double pf_x,
                         double pf_y, double pf_theta) {
   static double error[3];
