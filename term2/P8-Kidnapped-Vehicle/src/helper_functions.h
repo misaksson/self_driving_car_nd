@@ -53,6 +53,7 @@ struct TransformedObservation {
 	int landmarkIdx; // Index of matching landmark in the map.
 	static const int invalidLandmarkIdx = -1; // When no landmark match is found.
 	static const int initialLandmarkIdx = -2; // Initial value of member landmarkIdx.
+	TransformedObservation(void): landmarkIdx(TransformedObservation::initialLandmarkIdx){};
 	TransformedObservation(double x, double y): x(x), y(y),
 	                                            landmarkIdx(TransformedObservation::initialLandmarkIdx){};
 };
@@ -65,6 +66,19 @@ struct TransformedObservation {
  */
 inline double dist(double x1, double y1, double x2, double y2) {
   return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+}
+
+/** Transform a landmark observation to map coordinates.
+ * @param (x, y, theta) Map coordinates and attitude of observer.
+ * @param observation The observation to transform.
+ * @output Transformed observation.
+ */
+inline TransformedObservation transformObservation(const double x, const double y, const double theta,
+                                                   const Observation &observation) {
+	TransformedObservation result;
+	result.x = x + observation.x * cos(theta) - observation.y * sin(theta);
+	result.y = y + observation.x * sin(theta) + observation.y * cos(theta);
+	return result;
 }
 
 inline double* getError(double gt_x, double gt_y, double gt_theta, double pf_x,

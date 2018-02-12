@@ -8,7 +8,7 @@ set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
 set(sources src/particle_filter.cpp)
-set(test_sources test/setup.cpp test/test_particle_filter.cpp)
+set(test_sources test/setup.cpp test/test_helper_functions.cpp test/test_particle_filter.cpp)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
