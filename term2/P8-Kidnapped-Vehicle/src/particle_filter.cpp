@@ -103,6 +103,9 @@ void ParticleFilter::updateWeights(double sensor_range, const double std_landmar
     // Associate each observation with a landmark.
     dataAssociation(map, transformedObservations);
 
+    // Store associations for each particle to provide for visualization in simulator.
+    SetAssociations(*particle, transformedObservations, map);
+
     // Calculate the particle weight as the product of each observation probability.
     particle->weight = 1.0;
     for (auto observation = transformedObservations.begin(); observation != transformedObservations.end(); ++observation) {
@@ -146,19 +149,22 @@ void ParticleFilter::resample() {
   particles = resampledParticles;
 }
 
-Particle ParticleFilter::SetAssociations(Particle& particle,
-                                         const std::vector<int>& associations,
-                                         const std::vector<double>& sense_x,
-                                         const std::vector<double>& sense_y) {
-  // particle: the particle to assign each listed association, and association's
-  // (x,y) world coordinates mapping to
-  // associations: The landmark id that goes along with each listed association
-  // sense_x: the associations x mapping already converted to world coordinates
-  // sense_y: the associations y mapping already converted to world coordinates
+void ParticleFilter::SetAssociations(Particle& particle,
+                                     const vector<TransformedObservation>& observations,
+                                     const Map& map) {
+  // Clear any previous association for this particle.
+  particle.associations.clear();
+  particle.sense_x.clear();
+  particle.sense_y.clear();
 
-  particle.associations = associations;
-  particle.sense_x = sense_x;
-  particle.sense_y = sense_y;
+  // Append each transformed observation along with associated landmark ID.
+  for (auto observation = observations.begin(); observation != observations.end(); ++observation) {
+    if (observation->landmarkIdx != TransformedObservation::invalidLandmarkIdx) {
+      particle.associations.push_back(map.landmark_list[observation->landmarkIdx].id_i);
+      particle.sense_x.push_back(observation->x);
+      particle.sense_y.push_back(observation->y);
+    }
+  }
 }
 
 string ParticleFilter::getAssociations(Particle best) {

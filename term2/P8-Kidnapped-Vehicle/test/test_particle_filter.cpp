@@ -249,6 +249,21 @@ TEST_CASE("Particle filter update weights", "[updateweights]") {
   pf.updateWeights(sensor_range, std_landmark, observations, map);
 
   REQUIRE(pf.particles[0].weight == Approx(expected).margin(1.0e-55));
+
+  REQUIRE(pf.particles[0].associations.size() == 3);
+  REQUIRE(pf.particles[0].sense_x.size() == 3);
+  REQUIRE(pf.particles[0].sense_y.size() == 3);
+
+  REQUIRE(pf.particles[0].associations[0] == 1);
+  REQUIRE(pf.particles[0].sense_x[0] == Approx(6.0));
+  REQUIRE(pf.particles[0].sense_y[0] == Approx(3.0));
+  REQUIRE(pf.particles[0].associations[1] == 2);
+  REQUIRE(pf.particles[0].sense_x[1] == Approx(2.0));
+  REQUIRE(pf.particles[0].sense_y[1] == Approx(2.0));
+  REQUIRE(((pf.particles[0].associations[2] == 2) ||
+           (pf.particles[0].associations[2] == 5)));
+  REQUIRE(pf.particles[0].sense_x[2] == Approx(0.0));
+  REQUIRE(pf.particles[0].sense_y[2] == Approx(5.0));
 }
 
 TEST_CASE("Particle filter update weights without a map", "[updateweights]") {

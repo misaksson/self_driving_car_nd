@@ -98,11 +98,16 @@ class ParticleFilter {
    * calculated world x,y coordinates
    * This can be a very useful debugging tool to make sure transformations are
    * correct and assocations correctly connected
+   * @param particle The particle for which to set associations.
+   * @params observations Vector of observations transformed to world coordinates
+   *                      along with associated landmark index.
+   * @params map Internally landmark index is used to associate landmarks. The
+   *             simulator does however need the maps landmark ID which can be
+   *             found in this class.
    */
-  Particle SetAssociations(Particle& particle,
-                           const std::vector<int>& associations,
-                           const std::vector<double>& sense_x,
-                           const std::vector<double>& sense_y);
+  void SetAssociations(Particle& particle,
+                       const std::vector<TransformedObservation>& observations,
+                       const Map& map);
 
   std::string getAssociations(Particle best);
   std::string getSenseX(Particle best);
