@@ -31,11 +31,9 @@ int main() {
   double delta_t = 0.1;      // Time elapsed between measurements [sec]
   double sensor_range = 50;  // Sensor range [m]
 
-  double sigma_pos[3] = {
-      0.3, 0.3,
-      0.01};  // GPS measurement uncertainty [x [m], y [m], theta [rad]]
-  double sigma_landmark[2] = {
-      0.3, 0.3};  // Landmark measurement uncertainty [x [m], y [m]]
+  double sigma_gps[3] = {0.3, 0.3, 0.01};         // GPS measurement uncertainty [x [m], y [m], theta [rad]]
+  double sigma_process[3] = {0.025, 0.025, 0.00083}; // Predicted state uncertainty [x [m], y [m], theta [rad]]
+  double sigma_landmark[2] = {0.3, 0.3};          // Landmark measurement uncertainty [x [m], y [m]]
 
   // Read map data
   Map map;
@@ -47,7 +45,7 @@ int main() {
   // Create particle filter
   ParticleFilter pf;
 
-  h.onMessage([&pf, &map, &delta_t, &sensor_range, &sigma_pos, &sigma_landmark](
+  h.onMessage([&pf, &map, &delta_t, &sensor_range, &sigma_gps, &sigma_process, &sigma_landmark](
       uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
       uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -70,7 +68,7 @@ int main() {
             double sense_theta =
                 std::stod(j[1]["sense_theta"].get<std::string>());
 
-            pf.init(sense_x, sense_y, sense_theta, sigma_pos);
+            pf.init(sense_x, sense_y, sense_theta, sigma_gps);
           } else {
             // Predict the vehicle's next state from previous (noiseless
             // control) data.
@@ -79,7 +77,7 @@ int main() {
             double previous_yawrate =
                 std::stod(j[1]["previous_yawrate"].get<std::string>());
 
-            pf.prediction(delta_t, sigma_pos, previous_velocity,
+            pf.prediction(delta_t, sigma_process, previous_velocity,
                           previous_yawrate);
           }
 

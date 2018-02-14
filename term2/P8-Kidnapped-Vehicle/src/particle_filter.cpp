@@ -40,15 +40,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 void ParticleFilter::prediction(double delta_t, double std_pos[],
                                 double velocity, double yaw_rate) {
-  /* The velocity and yaw_rate is noiseless according to a comment in main.cpp.
-   * The std_pos provided by main.cpp actually relates to GPS measurements, but
-   * here it's instead added to the particle positions after motion model
-   * update.
-   *
-   * TODO: Is it really correct to use the same noise in this prediction as in
-   *       the initialization, which is based on the uncertain GPS measurement?
-   * TODO: Why not use GPS to improve prediction?
-   */
+  // TODO: Why not use GPS to improve prediction?
+
   const double eps = 0.0001;
   default_random_engine gen;
   normal_distribution<double> dist_x(0.0, std_pos[0]);
@@ -56,19 +49,26 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   normal_distribution<double> dist_theta(0.0, std_pos[2]);
 
   for (auto particle = particles.begin(); particle != particles.end(); ++particle) {
-    const double yaw_angle = particle->theta;
+    /* Add noise to particles to counter prior state uncertainty before
+     * predicting the new state using the noiseless motion model (both the
+     * velocity and yaw_rate is noiseless according to a comment in main.cpp).
+     */
+    particle->x += dist_x(gen);
+    particle->y += dist_y(gen);
+    particle->theta += dist_theta(gen);
 
-    // Avoid division by zero
+    // Prediction using the bicycle motion model
+    const double yaw_angle = particle->theta;
     if (fabs(yaw_rate) < eps) {
-      // Driving straight
+      // The vehicle is driving straight (this avoids division by zero).
       particle->x += velocity * cos(yaw_angle) * delta_t;
       particle->y += velocity * sin(yaw_angle) * delta_t;
     } else {
-      // Turning
-      particle->x += (velocity / yaw_rate) * (sin(yaw_angle + (yaw_rate * delta_t)) - sin(yaw_angle)) + dist_x(gen);
-      particle->y += (velocity / yaw_rate) * (-cos(yaw_angle + (yaw_rate * delta_t)) + cos(yaw_angle)) + dist_y(gen);
+      // The vehicle is turning.
+      particle->x += (velocity / yaw_rate) * (sin(yaw_angle + (yaw_rate * delta_t)) - sin(yaw_angle));
+      particle->y += (velocity / yaw_rate) * (-cos(yaw_angle + (yaw_rate * delta_t)) + cos(yaw_angle));
     }
-    particle->theta += yaw_rate * delta_t + dist_theta(gen);
+    particle->theta += yaw_rate * delta_t;
   }
 }
 
