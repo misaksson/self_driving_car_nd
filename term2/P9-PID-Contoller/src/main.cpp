@@ -3,6 +3,7 @@
 #include "json.hpp"
 #include "PID.h"
 #include <math.h>
+#include <algorithm>
 
 // for convenience
 using json = nlohmann::json;
@@ -32,10 +33,15 @@ int main()
 {
   uWS::Hub h;
 
-  PID pid;
-  // TODO: Initialize the pid variable.
+  PID steeringControl;
+  double distance = 0.0;
+  const double targetSpeed = 30.0;
+  steeringControl.Init(0.2 * targetSpeed, 0.004 * targetSpeed, 3.0 * targetSpeed);
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  PID throttleControl;
+  throttleControl.Init(0.5, 0.0005, 1.0);
+
+  h.onMessage([&steeringControl, &throttleControl, &targetSpeed, &distance](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -49,23 +55,31 @@ int main()
           // j[1] is the data JSON object
           double cte = std::stod(j[1]["cte"].get<std::string>());
           double speed = std::stod(j[1]["speed"].get<std::string>());
-          double angle = std::stod(j[1]["steering_angle"].get<std::string>());
-          double steer_value;
-          /*
-          * TODO: Calcuate steering value here, remember the steering value is
-          * [-1, 1].
-          * NOTE: Feel free to play around with the throttle and speed. Maybe use
-          * another PID controller to control the speed!
-          */
-          
+          //double angle = std::stod(j[1]["steering_angle"].get<std::string>());
+
+          distance += speed; // Assume constant telemetry time-period
+
+          /* Calculate steering_value. This should depend on the speed, for now
+           * it's just set inversely proportional.
+           */
+          steeringControl.UpdateError(cte);
+          double steerValue = -steeringControl.TotalError() / speed;
+
+          // Saturate steerValue to valid range [-1, 1]
+          steerValue = std::max(-1.0, std::min(1.0, steerValue));
+
+          // Calculate throttle value
+          throttleControl.UpdateError(speed - targetSpeed);
+          double throttleValue = -throttleControl.TotalError();
+
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
+          //std::cout << "CTE: " << cte << " Steering Value: " << steerValue << std::endl;
 
           json msgJson;
-          msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["steering_angle"] = steerValue;
+          msgJson["throttle"] = throttleValue;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
