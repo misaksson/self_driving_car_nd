@@ -62,15 +62,13 @@ int main()
           /* Calculate steering_value. This should depend on the speed, for now
            * it's just set inversely proportional.
            */
-          steeringControl.UpdateError(cte);
-          double steerValue = -steeringControl.TotalError() / speed;
+          double steerValue = -steeringControl.CalcError(cte) / speed;
 
           // Saturate steerValue to valid range [-1, 1]
           steerValue = std::max(-1.0, std::min(1.0, steerValue));
 
           // Calculate throttle value
-          throttleControl.UpdateError(speed - targetSpeed);
-          double throttleValue = -throttleControl.TotalError();
+          double throttleValue = -throttleControl.CalcError(speed - targetSpeed);
 
           // DEBUG
           //std::cout << "CTE: " << cte << " Steering Value: " << steerValue << std::endl;

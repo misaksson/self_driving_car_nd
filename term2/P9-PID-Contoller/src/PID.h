@@ -2,48 +2,39 @@
 #define PID_H
 
 class PID {
+
 public:
-  /*
-  * Errors
-  */
-  double p_error_;
-  double i_error_;
-  double d_error_;
-
-  double previous_cte_;
-  double integral_cte_;
-
-  /*
-  * Coefficients
-  */
-  double Kp_;
-  double Ki_;
-  double Kd_;
-
-  /*
-  * Constructor
-  */
   PID();
-
-  /*
-  * Destructor.
-  */
   virtual ~PID();
 
-  /*
-  * Initialize PID.
-  */
+  /** Initialize the PID controller.
+   * @param Kp Proportional coefficient
+   * @param Ki Integral coefficient
+   * @param Kd Derivative coefficient
+   */
   void Init(double Kp, double Ki, double Kd);
 
   /*
-  * Update the PID error variables given cross track error.
+  * Calculate the total PID error given cross track error.
+  * @param cte Crosstrack error.
   */
-  void UpdateError(double cte);
+  double CalcError(double cte);
 
-  /*
-  * Calculate the total PID error.
-  */
-  double TotalError();
+private:
+  /** Previous crosstrack error */
+  double previous_cte_;
+
+  /** Accumulated crosstrack error */
+  double integral_cte_;
+
+  /** Proportional coefficient */
+  double Kp_;
+
+  /** Integral coefficient */
+  double Ki_;
+
+  /** Derivative coefficient */
+  double Kd_;
 };
 
 #endif /* PID_H */

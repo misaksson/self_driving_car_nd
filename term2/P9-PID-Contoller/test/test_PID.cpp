@@ -120,8 +120,7 @@ TEST_CASE("PID controller should behave as in python lesson example", "[pid]") {
   PID pid;
   pid.Init(0.2, 0.004, 3.0);
   for (auto testElement = testVector.begin(); testElement != testVector.end(); ++testElement) {
-    pid.UpdateError(testElement->cte);
-    const double actual = pid.TotalError();
+    const double actual = pid.CalcError(testElement->cte);
     REQUIRE(actual == Approx(testElement->expected));
   }
 }

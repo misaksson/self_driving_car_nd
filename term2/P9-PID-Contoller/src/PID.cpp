@@ -12,30 +12,24 @@ void PID::Init(double Kp, double Ki, double Kd) {
   Kp_ = Kp;
   Ki_ = Ki;
   Kd_ = Kd;
-  p_error_ = 0.0;
-  i_error_ = 0.0;
-  d_error_ = 0.0;
   previous_cte_ = NAN;
   integral_cte_ = 0.0;
 }
 
-void PID::UpdateError(double cte) {
+double PID::CalcError(double cte) {
   // Proportional error
-  p_error_ = Kp_ * cte;
+  const double p_error = Kp_ * cte;
 
   // Integral error
   integral_cte_ += cte;
-  i_error_ = Ki_ * integral_cte_;
+  const double i_error = Ki_ * integral_cte_;
 
   // Derivative error
-  if (!isnan(previous_cte_)) {
-    const double diff_cte = cte - previous_cte_;
-    d_error_ = Kd_ * diff_cte;
-  }
+  const double diff_cte = isnan(previous_cte_) ? 0.0 : cte - previous_cte_;
+  const double d_error = Kd_ * diff_cte;
+
   previous_cte_ = cte;
-}
 
-double PID::TotalError() {
-  return p_error_ + i_error_ + d_error_;
+  const double totalError = p_error + i_error + d_error;
+  return totalError;
 }
-
