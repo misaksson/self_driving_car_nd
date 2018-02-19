@@ -43,7 +43,7 @@ void Twiddle::Init(double Kp, double Ki, double Kd, bool active) {
 }
 
 double Twiddle::CalcError(double cte) {
-  accumulatedError_ += fabs(cte);
+  accumulatedError_ += pow(cte, 2);
   return PID::CalcError(cte);
 }
 

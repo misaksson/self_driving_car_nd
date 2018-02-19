@@ -36,13 +36,11 @@ int main()
 
   Twiddle steeringControl;
   double distance = 0.0;
-  const double targetSpeed = 30.0;
-  //
-  steeringControl.Init(9.30478, 0.205465, 91.2245, 0.1, 0.001, 0.1, false);
-
-  PID throttleControl;
-  throttleControl.Init(0.5, 0.0005, 1.0);
-
+  const double targetSpeed = 35.0;
+  const double coeffFactor = targetSpeed / 35.0;
+  steeringControl.Init(10.8906 * coeffFactor, 0.239709 * coeffFactor, 106.529 * coeffFactor, 0.1, 0.001, 0.1, false);
+  Twiddle throttleControl;
+  throttleControl.Init(0.707856, 0.000713845, 0.99455, false);
   h.onMessage([&steeringControl, &throttleControl, &targetSpeed, &distance](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -60,8 +58,9 @@ int main()
           //double angle = std::stod(j[1]["steering_angle"].get<std::string>());
 
           distance += speed; // Assume constant telemetry time-period
-          if (distance > (47000 * 5)) { // About 5 laps
+          if (distance > (47000.0 * 1.0)) { // About 5 laps
             steeringControl.SetNextParams();
+            throttleControl.SetNextParams();
             distance = 0.0;
           }
 

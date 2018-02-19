@@ -59,7 +59,7 @@ public:
     double controlSignal = 0.0;
     for (int updateIdx = 0; updateIdx <= 100; ++updateIdx) {
       double error = Update(controlSignal);
-      accumulatedError += fabs(error);
+      accumulatedError += pow(error, 2.0);
       controlSignal = -pid.CalcError(error);
     }
     return accumulatedError;
