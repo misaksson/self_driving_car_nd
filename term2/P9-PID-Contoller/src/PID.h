@@ -12,17 +12,18 @@ public:
    * @param Ki Integral coefficient
    * @param Kd Derivative coefficient
    */
-  void Init(double Kp, double Ki, double Kd);
+  virtual void Init(double Kp, double Ki, double Kd);
 
-  /*
-  * Calculate the total PID error given cross track error.
-  * @param cte Crosstrack error.
-  */
-  double CalcError(double cte);
+  /**
+   * Calculate the total PID error.
+   * @param cte Crosstrack error.
+   * @output PID error.
+   */
+  virtual double CalcError(double cte);
 
-private:
-  /** Previous crosstrack error */
-  double previous_cte_;
+protected:
+  /** Reset internal state. */
+  void Reset();
 
   /** Accumulated crosstrack error */
   double integral_cte_;
@@ -35,6 +36,11 @@ private:
 
   /** Derivative coefficient */
   double Kd_;
+
+private:
+  /** Previous crosstrack error */
+  double previous_cte_;
+
 };
 
 #endif /* PID_H */

@@ -2,6 +2,7 @@
 #include <iostream>
 #include "json.hpp"
 #include "PID.h"
+#include "twiddle.h"
 #include <math.h>
 #include <algorithm>
 
@@ -33,10 +34,11 @@ int main()
 {
   uWS::Hub h;
 
-  PID steeringControl;
+  Twiddle steeringControl;
   double distance = 0.0;
   const double targetSpeed = 30.0;
-  steeringControl.Init(0.2 * targetSpeed, 0.004 * targetSpeed, 3.0 * targetSpeed);
+  //
+  steeringControl.Init(9.30478, 0.205465, 91.2245, 0.1, 0.001, 0.1, false);
 
   PID throttleControl;
   throttleControl.Init(0.5, 0.0005, 1.0);
@@ -58,6 +60,10 @@ int main()
           //double angle = std::stod(j[1]["steering_angle"].get<std::string>());
 
           distance += speed; // Assume constant telemetry time-period
+          if (distance > (47000 * 5)) { // About 5 laps
+            steeringControl.SetNextParams();
+            distance = 0.0;
+          }
 
           /* Calculate steering_value. This should depend on the speed, for now
            * it's just set inversely proportional.

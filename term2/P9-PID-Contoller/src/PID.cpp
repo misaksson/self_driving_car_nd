@@ -12,6 +12,10 @@ void PID::Init(double Kp, double Ki, double Kd) {
   Kp_ = Kp;
   Ki_ = Ki;
   Kd_ = Kd;
+  Reset();
+}
+
+void PID::Reset() {
   previous_cte_ = NAN;
   integral_cte_ = 0.0;
 }

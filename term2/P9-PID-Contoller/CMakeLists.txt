@@ -7,8 +7,8 @@ add_definitions(-std=c++11)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 
-set(sources src/PID.cpp)
-set(test_sources test/setup.cpp test/test_PID.cpp)
+set(sources src/PID.cpp src/twiddle.cpp)
+set(test_sources test/setup.cpp test/test_PID.cpp test/test_twiddle.cpp)
 
 include_directories(/usr/local/include)
 link_directories(/usr/local/lib)
