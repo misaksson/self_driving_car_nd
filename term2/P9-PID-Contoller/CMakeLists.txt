@@ -2,13 +2,19 @@ project(PID)
 
 cmake_minimum_required (VERSION 3.5)
 
+option(WITH_DEBUG_PRINT "Output debug text to console" OFF)
+
+if(WITH_DEBUG_PRINT)
+  add_definitions(-DDEBUG_PRINT)
+endif()
+
 add_definitions(-std=c++11)
 
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 
-set(sources src/PID.cpp src/twiddle.cpp)
-set(test_sources test/setup.cpp test/test_PID.cpp test/test_twiddle.cpp)
+set(sources src/PID.cpp src/twiddle.cpp src/simple_timer.cpp src/cte_eval.cpp)
+set(test_sources test/setup.cpp test/test_PID.cpp test/test_twiddle.cpp test/test_cte_eval.cpp)
 
 include_directories(/usr/local/include)
 link_directories(/usr/local/lib)

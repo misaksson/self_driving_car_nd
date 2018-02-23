@@ -1,7 +1,9 @@
 #include <uWS/uWS.h>
 #include <iostream>
+#include "cte_eval.h"
 #include "json.hpp"
 #include "PID.h"
+#include "simple_timer.h"
 #include "twiddle.h"
 #include <math.h>
 #include <algorithm>
@@ -13,6 +15,12 @@ using json = nlohmann::json;
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
+
+/** Convert miles/hour to meters/second. */
+double milesPerHour2MetersPerSecond(double x) { return x * 0.44704; }
+
+// Measured 7 laps, which is about 8000 meters (of drunk driving)
+const double distancePerLap = 8000./7.; // meters
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -36,12 +44,14 @@ int main()
 
   Twiddle steeringControl;
   double distance = 0.0;
-  const double targetSpeed = 35.0;
+  const double targetSpeed = milesPerHour2MetersPerSecond(35.0);
   const double coeffFactor = targetSpeed / 35.0;
   steeringControl.Init(10.8906 * coeffFactor, 0.239709 * coeffFactor, 106.529 * coeffFactor, 0.1, 0.001, 0.1, false);
   Twiddle throttleControl;
   throttleControl.Init(0.707856, 0.000713845, 0.99455, false);
-  h.onMessage([&steeringControl, &throttleControl, &targetSpeed, &distance](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  SimpleTimer timer;
+  CrosstrackErrorEvaluator cteEval;
+  h.onMessage([&steeringControl, &throttleControl, &targetSpeed, &distance, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -53,16 +63,23 @@ int main()
         std::string event = j[0].get<std::string>();
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          double cte = std::stod(j[1]["cte"].get<std::string>());
-          double speed = std::stod(j[1]["speed"].get<std::string>());
-          //double angle = std::stod(j[1]["steering_angle"].get<std::string>());
+          double cte = std::stod(j[1]["cte"].get<std::string>()); // meters?
+          double speed = milesPerHour2MetersPerSecond(std::stod(j[1]["speed"].get<std::string>()));
+//          double angle = deg2rad(std::stod(j[1]["steering_angle"].get<std::string>()));
+          double deltaTime = timer.GetDelta();
 
-          distance += speed; // Assume constant telemetry time-period
-          if (distance > (47000.0 * 1.0)) { // About 5 laps
+//          std::cout << std::stod(j[1]["speed"].get<std::string>()) << " "
+//                    << std::stod(j[1]["steering_angle"].get<std::string>()) << std::endl;
+
+          distance += speed * deltaTime;
+          if (distance > (distancePerLap * 1.0)) {
             steeringControl.SetNextParams();
             throttleControl.SetNextParams();
             distance = 0.0;
           }
+
+          // For now don't do anything with this evaluation.
+          (void)cteEval.IsOk(deltaTime, cte);
 
           /* Calculate steering_value. This should depend on the speed, for now
            * it's just set inversely proportional.
@@ -76,8 +93,6 @@ int main()
           double throttleValue = -throttleControl.CalcError(speed - targetSpeed);
 
           // DEBUG
-          //std::cout << "CTE: " << cte << " Steering Value: " << steerValue << std::endl;
-
           json msgJson;
           msgJson["steering_angle"] = steerValue;
           msgJson["throttle"] = throttleValue;
