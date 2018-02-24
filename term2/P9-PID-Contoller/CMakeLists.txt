@@ -13,7 +13,7 @@ add_definitions(-std=c++11)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 
-set(sources src/PID.cpp src/twiddle.cpp src/simple_timer.cpp src/cte_eval.cpp)
+set(sources src/PID.cpp src/twiddle.cpp src/simple_timer.cpp src/vehicle_controller.cpp src/cte_eval.cpp)
 set(test_sources test/setup.cpp test/test_PID.cpp test/test_twiddle.cpp test/test_cte_eval.cpp)
 
 include_directories(/usr/local/include)

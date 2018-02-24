@@ -1,4 +1,5 @@
 #include "twiddle.h"
+#include <assert.h>
 #include <cmath>
 #include <iostream>
 
@@ -9,56 +10,82 @@ const string ANSI_GREEN = "\033[;32m";
 const string ANSI_RESET = "\033[0m";
 
 
-Twiddle::Twiddle() : consoleOutput_(true) {}
-Twiddle::Twiddle(bool consoleOutput) : consoleOutput_(consoleOutput) {}
-
+Twiddle::Twiddle() {}
 Twiddle::~Twiddle() {}
 
 void Twiddle::Init(double Kp, double Ki, double Kd) {
-  PID::Init(Kp, Ki, Kd);
-}
-
-void Twiddle::Init(double Kp, double Ki, double Kd,
-                   double dKp, double dKi, double dKd, bool active) {
-  Init(Kp, Ki, Kd);
-  active_ = active;
-  if (active_) {
-    active_ = active;
-    dKp_ = dKp;
-    dKi_ = dKi;
-    dKd_ = dKp;
-    lowestError_ = HUGE_VAL;
-    accumulatedError_ = 0.0;
-    nextTuning_ = INIT;
-    currentCoefficient_ = 0;
-    iteration_ = 0;
-  }
+  Init(Kp, Ki, Kd, false);
 }
 
 void Twiddle::Init(double Kp, double Ki, double Kd, bool active) {
   double dKp = fabs(Kp * 0.1);
   double dKi = fabs(Ki * 0.1);
   double dKd = fabs(Kp * 0.1);
-  Init(Kp, Ki, Kd, dKp, dKi, dKd, active);
+  Init(Kp, Ki, Kd, dKp, dKi, dKd, active, "", false);
+}
+
+void Twiddle::Init(double Kp, double Ki, double Kd,
+                   double dKp, double dKi, double dKd,
+                   bool active, string name, bool consoleOutput) {
+  PID::Init(Kp, Ki, Kd);
+  dKp_ = dKp;
+  dKi_ = dKi;
+  dKd_ = dKp;
+  active_ = active;
+  name_ = name;
+  consoleOutput_ = consoleOutput;
+  lowestError_ = HUGE_VAL;
+  nextTuning_ = INIT;
+  currentCoefficient_ = 0;
+  iteration_ = 0;
+  Reset();
+}
+
+
+void Twiddle::Reset() {
+  accumulatedError_ = 0.0;
+  resetNeeded_ = false;
+  PID::Reset();
 }
 
 double Twiddle::CalcError(double cte) {
+  assert(!resetNeeded_);
   accumulatedError_ += pow(cte, 2);
   return PID::CalcError(cte);
 }
 
+double Twiddle::GetAccumulatedError() {
+  return accumulatedError_;
+}
+
 void Twiddle::SetNextParams() {
+  // No additional external error
+  SetNextParams(0.0);
+
+  /* If twiddle is used without external error then it should be safe to reset
+   * internal state here, since no one will ask for the accumulatedError_ of
+   * this instance. */
+  if (active_) {
+    Reset();
+  }
+}
+
+void Twiddle::SetNextParams(double externalError) {
   if (active_) {
     double *p[] = {&Kp_, &Ki_, &Kd_};
     double *dp[] = {&dKp_, &dKi_, &dKd_};
 
-    if (accumulatedError_ < lowestError_) {
+    double totalError = accumulatedError_ + externalError;
+    if (totalError < lowestError_) {
       // This tuning is the best so far.
-      lowestError_ = accumulatedError_;
+      lowestError_ = totalError;
+
 
       if (consoleOutput_) {
-        cout << ANSI_GREEN << iteration_ << " " << accumulatedError_ << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
-          << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_ << " " << currentCoefficient_<< ANSI_RESET << endl;
+        cout << ANSI_GREEN << name_ << " " << iteration_ << " " << totalError
+          << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
+          << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_
+          << " " << currentCoefficient_<< ANSI_RESET << endl;
       }
 
       if (nextTuning_ != INIT) {
@@ -71,8 +98,10 @@ void Twiddle::SetNextParams() {
     } else {
       // No improvement
       if (consoleOutput_) {
-        cout << ANSI_RED << iteration_ << " " << accumulatedError_ << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
-          << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_ << " " << currentCoefficient_ << ANSI_RESET << endl;
+        cout << ANSI_RED << name_ << " " << iteration_ << " " << totalError
+          << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
+          << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_
+          << " " << currentCoefficient_ << ANSI_RESET << endl;
       }
     }
 
@@ -103,9 +132,8 @@ void Twiddle::SetNextParams() {
     };
 
     // Prepare internal state for next run.
-    accumulatedError_ = 0.0;
-    Reset();
     ++iteration_;
+    resetNeeded_ = true;
   }
 }
 

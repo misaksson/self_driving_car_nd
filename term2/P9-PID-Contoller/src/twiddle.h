@@ -1,12 +1,15 @@
 #ifndef TWIDDLE_H
 #define TWIDDLE_H
 
+#include <string>
 #include "PID.h"
 
 class Twiddle : public PID {
 public:
   Twiddle();
+  Twiddle(std::string name);
   Twiddle(bool consoleOutput);
+
   virtual ~Twiddle();
 
   /** Initialize the PID controller and twiddle.
@@ -27,18 +30,37 @@ public:
    */
   void Init(double Kp, double Ki, double Kd, bool active);
 
+  /** Initialize the PID controller and twiddle.
+   * @param Kp Proportional coefficient
+   * @param Ki Integral coefficient
+   * @param Kd Derivative coefficient
+   * @param active Set to true to activate the twiddle algorithm.
+   * @param name Name of instance used for debug purpose.
+   * @param consoleOutput Outputs debug info to stout if true.
+   */
   void Init(double Kp, double Ki, double Kd,
-            double dKp, double dKi, double dKd, bool active);
+            double dKp, double dKi, double dKd,
+            bool active, std::string name, bool consoleOutput);
 
-  /**
-   * Extends this method in the PID controller by also accumulating the error.
+  /** Reset internal states. */
+  void Reset();
+
+  /** Extends this method in the PID controller by also accumulating the error.
    * @param cte Crosstrack error.
    * @output PID error.
    */
   double CalcError(double cte);
 
+  /** Get accumulated error. */
+  double GetAccumulatedError();
+
   /** Update the PID controller with next parameters to try out. */
   void SetNextParams();
+
+  /** Update the PID controller with next parameters to try out.
+   * @param externalError Optional additional error for evaluation of current parameters.
+   */
+  void SetNextParams(double externalError);
 
   /** Aborts any ongoing tuning and reset to best parameters. */
   void Abort();
@@ -47,6 +69,9 @@ public:
   void Continue();
 
 private:
+
+  /** Name identifying this instance. */
+  std::string name_;
 
   /** Set to false to avoid tuning result in the console. */
   bool consoleOutput_;
@@ -74,6 +99,9 @@ private:
 
   /** Keeps track of number of iteration just to  give a hint about the progress. */
   int iteration_;
+
+  /** Used to assert correct implementations. */
+  bool resetNeeded_;
 
   /** Internal state for the twiddle algorithm. */
   enum NextTuningState {

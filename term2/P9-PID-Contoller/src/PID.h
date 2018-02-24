@@ -23,7 +23,7 @@ public:
 
 protected:
   /** Reset internal state. */
-  void Reset();
+  virtual void Reset();
 
   /** Accumulated crosstrack error */
   double integral_cte_;

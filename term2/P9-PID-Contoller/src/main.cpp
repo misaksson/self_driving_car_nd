@@ -1,12 +1,11 @@
-#include <uWS/uWS.h>
+#include <algorithm>
 #include <iostream>
+#include <math.h>
+#include <uWS/uWS.h>
 #include "cte_eval.h"
 #include "json.hpp"
-#include "PID.h"
 #include "simple_timer.h"
-#include "twiddle.h"
-#include <math.h>
-#include <algorithm>
+#include "vehicle_controller.h"
 
 // for convenience
 using json = nlohmann::json;
@@ -42,16 +41,11 @@ int main()
 {
   uWS::Hub h;
 
-  Twiddle steeringControl;
-  double distance = 0.0;
-  const double targetSpeed = milesPerHour2MetersPerSecond(35.0);
-  const double coeffFactor = targetSpeed / 35.0;
-  steeringControl.Init(10.8906 * coeffFactor, 0.239709 * coeffFactor, 106.529 * coeffFactor, 0.1, 0.001, 0.1, false);
-  Twiddle throttleControl;
-  throttleControl.Init(0.707856, 0.000713845, 0.99455, false);
+  VehicleController vehicleController(true, false);
   SimpleTimer timer;
   CrosstrackErrorEvaluator cteEval;
-  h.onMessage([&steeringControl, &throttleControl, &targetSpeed, &distance, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  double distance = 0.0;
+  h.onMessage([&vehicleController, &distance, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -72,25 +66,20 @@ int main()
 //                    << std::stod(j[1]["steering_angle"].get<std::string>()) << std::endl;
 
           distance += speed * deltaTime;
-          if (distance > (distancePerLap * 1.0)) {
-            steeringControl.SetNextParams();
-            throttleControl.SetNextParams();
+          if (distance > (distancePerLap * 2.0)) {
+            std::cout << "SetNextParams" << std::endl;
+            vehicleController.SetNextParams();
             distance = 0.0;
           }
 
-          // For now don't do anything with this evaluation.
-          (void)cteEval.IsOk(deltaTime, cte);
+          if (cteEval.IsOk(deltaTime, cte)) {
+            vehicleController.SetNormalMode();
+          } else {
+            vehicleController.SetSafeMode();
+          }
 
-          /* Calculate steering_value. This should depend on the speed, for now
-           * it's just set inversely proportional.
-           */
-          double steerValue = -steeringControl.CalcError(cte) / speed;
-
-          // Saturate steerValue to valid range [-1, 1]
-          steerValue = std::max(-1.0, std::min(1.0, steerValue));
-
-          // Calculate throttle value
-          double throttleValue = -throttleControl.CalcError(speed - targetSpeed);
+          double steerValue = vehicleController.CalcSteeringValue(deltaTime, speed, cte);
+          double throttleValue = vehicleController.CalcThrottleValue(deltaTime, speed);
 
           // DEBUG
           json msgJson;
