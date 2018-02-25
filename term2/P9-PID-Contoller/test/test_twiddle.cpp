@@ -10,7 +10,7 @@ using namespace std;
 TEST_CASE("Twiddle should behave just as the PID controller when inactive", "[twiddle]") {
   PID pid;
   Twiddle twiddle;
-  twiddle.Init(1.0, 2.0, 3.0, false);
+  twiddle.Init(1.0, 2.0, 3.0);
   pid.Init(1.0, 2.0, 3.0);
 
   default_random_engine gen;
@@ -70,7 +70,7 @@ public:
 TEST_CASE("Twiddle should improve PID controller performance", "[twiddle]") {
   TestSystem sys;
   Twiddle twiddle;
-  twiddle.Init(0.01, 0.0001, 0.03, true);
+  twiddle.Init(0.01, 0.0001, 0.03, true, "", false);
   double lowestError = HUGE_VAL;
   array<int, 4> verifyRuns = {0, 100, 500, 1000};
   auto nextVerifyRun = verifyRuns.begin();

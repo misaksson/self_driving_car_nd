@@ -7,27 +7,29 @@
 
 using namespace std;
 
-VehicleController::VehicleController(bool tuneSafeMode, bool tuneNormalMode) {
+VehicleController::VehicleController() {
   /* Setup safe mode. */
-  tune_[SAFE] = tuneSafeMode;
+  tune_[SAFE] = false;
   controllers_[SAFE].targetSpeed = 15.0; // Meter per second
   controllers_[SAFE].steering = Twiddle();
-  controllers_[SAFE].steering.Init(4.868533823999999, 0.10715951136, 47.62272416,
-                                   0.1, 0.001, 0.1,
-                                   tuneSafeMode, "SafeSteering", true);
+  controllers_[SAFE].steering.Init(4.91194, 0.110417, 47.7133,
+                                   0.00936508, 9.45968e-05, 0.00851371,
+                                   tune_[SAFE], "SafeSteering", true);
   controllers_[SAFE].throttle = Twiddle();
-  controllers_[SAFE].throttle.Init(0.707856, 0.000713845, 0.99455, false);
-
+  controllers_[SAFE].throttle.Init(1.01684, 0.00078523, 0.868024,
+                                   0.0490737, 2.21772e-05, 0.0401512,
+                                   false, "SafeThrottle", true);
 
   /* Setup normal mode */
-  tune_[NORMAL] = tuneNormalMode;
-  controllers_[NORMAL].targetSpeed = 30.0; // Meter per second
+  tune_[NORMAL] = false;
+  controllers_[NORMAL].targetSpeed = 28.0; // Meter per second
   controllers_[NORMAL].steering = Twiddle();
-  controllers_[NORMAL].steering.Init(4.868533823999999, 0.10715951136, 47.62272416,
-                                   0.1, 0.001, 0.1,
-                                   tuneNormalMode, "NormalSteering", true);
+  controllers_[NORMAL].steering.Init(4.86809, 0.109132, 47.6244,
+                                     1.29692e-05, 1.07632e-06, 1.44102e-05,
+                                     tune_[NORMAL], "NormalSteering", true);
   controllers_[NORMAL].throttle = Twiddle();
-  controllers_[NORMAL].throttle.Init(0.707856, 0.000713845, 0.99455, false);
+  controllers_[NORMAL].throttle.Init(0.707856, 0.000713845, 0.99455,
+                                     false, "NormalThrottle", true);
 
   /* Start in safe mode. */
   currentMode_ = SAFE;
@@ -69,6 +71,7 @@ void VehicleController::SetNextParams() {
     controllers_[NORMAL].steering.SetNextParams(externalError);
   }
   for (int controlMode = SAFE; controlMode < NUM_CONTROL_MODES; ++controlMode) {
+    controllers_[controlMode].throttle.SetNextParams();
     controllers_[controlMode].steering.Reset();
   }
 }

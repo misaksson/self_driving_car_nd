@@ -24,11 +24,12 @@ public:
    * @param Kp Proportional coefficient
    * @param Ki Integral coefficient
    * @param Kd Derivative coefficient
-   * @param active Set to true to activate the twiddle algorithm. Otherwise,
-   *               if this argument is false (or skipped), then this class
-   *               behaves just like the PID class.
+   * @param active Set to true to activate the twiddle algorithm.
+   * @param name Name of instance used for debug purpose.
+   * @param consoleOutput Outputs debug info to stout if true.
    */
-  void Init(double Kp, double Ki, double Kd, bool active);
+  void Init(double Kp, double Ki, double Kd,
+            bool active, std::string name, bool consoleOutput);
 
   /** Initialize the PID controller and twiddle.
    * @param Kp Proportional coefficient

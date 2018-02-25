@@ -41,7 +41,7 @@ int main()
 {
   uWS::Hub h;
 
-  VehicleController vehicleController(true, false);
+  VehicleController vehicleController;
   SimpleTimer timer;
   CrosstrackErrorEvaluator cteEval;
   double distance = 0.0;
@@ -67,7 +67,6 @@ int main()
 
           distance += speed * deltaTime;
           if (distance > (distancePerLap * 2.0)) {
-            std::cout << "SetNextParams" << std::endl;
             vehicleController.SetNextParams();
             distance = 0.0;
           }

@@ -14,14 +14,15 @@ Twiddle::Twiddle() {}
 Twiddle::~Twiddle() {}
 
 void Twiddle::Init(double Kp, double Ki, double Kd) {
-  Init(Kp, Ki, Kd, false);
+  Init(Kp, Ki, Kd, false, "", false);
 }
 
-void Twiddle::Init(double Kp, double Ki, double Kd, bool active) {
+void Twiddle::Init(double Kp, double Ki, double Kd,
+                   bool active, string name, bool consoleOutput) {
   double dKp = fabs(Kp * 0.1);
   double dKi = fabs(Ki * 0.1);
   double dKd = fabs(Kp * 0.1);
-  Init(Kp, Ki, Kd, dKp, dKi, dKd, active, "", false);
+  Init(Kp, Ki, Kd, dKp, dKi, dKd, active, name, consoleOutput);
 }
 
 void Twiddle::Init(double Kp, double Ki, double Kd,
@@ -79,7 +80,6 @@ void Twiddle::SetNextParams(double externalError) {
     if (totalError < lowestError_) {
       // This tuning is the best so far.
       lowestError_ = totalError;
-
 
       if (consoleOutput_) {
         cout << ANSI_GREEN << name_ << " " << iteration_ << " " << totalError

@@ -22,7 +22,7 @@ private:
   ControlMode currentMode_;
 
 public:
-  VehicleController(bool tuneSafeMode, bool tuneNormalMode);
+  VehicleController();
   ~VehicleController();
   void SetSafeMode();
   void SetNormalMode();
