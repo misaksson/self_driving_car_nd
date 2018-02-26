@@ -1,14 +1,10 @@
+#include "ansi_color_codes.h"
 #include "twiddle.h"
 #include <assert.h>
 #include <cmath>
 #include <iostream>
 
 using namespace std;
-
-const string ANSI_RED = "\033[;31m";
-const string ANSI_GREEN = "\033[;32m";
-const string ANSI_RESET = "\033[0m";
-
 
 Twiddle::Twiddle() {}
 Twiddle::~Twiddle() {}
@@ -82,10 +78,10 @@ void Twiddle::SetNextParams(double externalError) {
       lowestError_ = totalError;
 
       if (consoleOutput_) {
-        cout << ANSI_GREEN << name_ << " " << iteration_ << " " << totalError
+        cout << ANSI::GREEN << name_ << " " << iteration_ << " " << totalError
           << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
           << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_
-          << " " << currentCoefficient_<< ANSI_RESET << endl;
+          << " " << currentCoefficient_<< ANSI::RESET << endl;
       }
 
       if (nextTuning_ != INIT) {
@@ -98,10 +94,10 @@ void Twiddle::SetNextParams(double externalError) {
     } else {
       // No improvement
       if (consoleOutput_) {
-        cout << ANSI_RED << name_ << " " << iteration_ << " " << totalError
+        cout << ANSI::RED << name_ << " " << iteration_ << " " << totalError
           << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
           << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_
-          << " " << currentCoefficient_ << ANSI_RESET << endl;
+          << " " << currentCoefficient_ << ANSI::RESET << endl;
       }
     }
 

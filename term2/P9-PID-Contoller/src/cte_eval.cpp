@@ -2,93 +2,112 @@
 #include <cmath>
 #include <algorithm>
 #include <deque>
-#include <sstream>
 
+#include "ansi_color_codes.h"
 #include "cte_eval.h"
 
 using namespace std;
 
-const string ANSI_RED = "\033[;31m";
-const string ANSI_GREEN = "\033[;32m";
-const string ANSI_YELLOW = "\033[;33m";
-const string ANSI_RESET = "\033[0m";
+CrosstrackErrorEvaluator::CrosstrackErrorEvaluator(bool consoleOutput) : consoleOutput_(consoleOutput),
+                                                                         currentPerformance_(DEFECTIVE),
+                                                                         previousCte_(0.0) {
+  longestIntegralPeriod_ = 0.0;
+  for (auto pl = performanceLevels_.begin(); pl != performanceLevels_.end(); ++pl) {
+    longestIntegralPeriod_ = max(longestIntegralPeriod_, pl->triggerPeriod_);
+    longestIntegralPeriod_ = max(longestIntegralPeriod_, pl->releasePeriod_);
+  }
+};
 
-CrosstrackErrorEvaluator::CrosstrackErrorEvaluator() : isOk_(true), previousCte_(0.0) {};
 CrosstrackErrorEvaluator::~CrosstrackErrorEvaluator() {};
 
-bool CrosstrackErrorEvaluator::IsOk(double deltaTime, double cte) {
-  stringstream debugstream;
+CrosstrackErrorEvaluator::Performance CrosstrackErrorEvaluator::Evaluate(double deltaTime, double cte) {
+  const Performance previousPerformance = currentPerformance_;
   history_.push_front({.deltaTime = deltaTime,
                        .cteSq = pow(cte, 2.0),
                        .deltaCteSq = pow(cte - previousCte_, 2.0)});
   previousCte_ = cte;
 
+  // Check if performance is worse.
+  for (int p = currentPerformance_ - 1; p >= DEFECTIVE; --p) {
+    if (TryTrigger(performanceLevels_[p])) {
+      currentPerformance_ = static_cast<Performance>(p);
+    } else {
+      // No need to evaluate any worse level since this one didn't trigger.
+      break;
+    }
+  }
+
+  // Check if performance is better.
+  for (int p = currentPerformance_; p <= IDEAL; ++p) {
+    if (TryRelease(performanceLevels_[p])) {
+      currentPerformance_ = static_cast<Performance>(p + 1);
+    } else {
+      // No need to evaluate any better level since this one didn't release.
+      break;
+    }
+  }
+  ReduceHistory();
+
+  if (consoleOutput_ && previousPerformance != currentPerformance_) {
+    const array<string, NUM_PERFORMANCE_LEVELS> colorMap = {
+      {ANSI::RED, ANSI::PURPLE, ANSI::YELLOW, ANSI::CYAN, ANSI::BLUE, ANSI::GREEN}
+    };
+    cout << colorMap[currentPerformance_];
+    cout << "New performance level " << performanceLevels_[currentPerformance_].name << endl;
+    cout << ANSI::RESET;
+  }
+  return currentPerformance_;
+}
+
+bool CrosstrackErrorEvaluator::TryTrigger(const PerformanceLevel &pl) {
+  double integralCteSqPerSecond, integralDeltaCteSqPerSecond;
+  tie(integralCteSqPerSecond, integralDeltaCteSqPerSecond) = Integrate(pl.triggerPeriod_);
+
+  // Only one threshold must be passed to trigger performance level.
+  return (integralCteSqPerSecond > pl.cteSqUpperTh_) ||
+         (integralDeltaCteSqPerSecond > pl.deltaCteSqUpperTh_);
+}
+
+bool CrosstrackErrorEvaluator::TryRelease(const PerformanceLevel &pl) {
+  double integralCteSqPerSecond, integralDeltaCteSqPerSecond;
+  tie(integralCteSqPerSecond, integralDeltaCteSqPerSecond) = Integrate(pl.releasePeriod_);
+  // Both thresholds must be passed to release performance level.
+  return (integralCteSqPerSecond < pl.cteSqLowerTh_) &&
+         (integralDeltaCteSqPerSecond < pl.deltaCteSqLowerTh_);
+}
+
+tuple<double, double> CrosstrackErrorEvaluator::Integrate(const double integralPeriod) {
   double integralTime = 0.0;
   double integralCteSq = 0.0;
   double integralDeltaCteSq = 0.0;
-  const double integralPeriod = isOk_ ? triggerPeriod_ : releasePeriod_;
-
-  auto histElem = history_.begin();
-  for (; histElem != history_.end(); ++histElem) {
-    integralTime += histElem->deltaTime;
+  for (auto histElem = history_.begin(); histElem != history_.end(); ++histElem) {
     double deltaTime;
-    if (integralTime <= integralPeriod) {
+    if ((integralTime + histElem->deltaTime) <= integralPeriod) {
       // Use full delta time for this element.
       deltaTime = histElem->deltaTime;
     } else {
-      /* Integral time period exceeded, adjust delta time for this last
-       * element. */
-      deltaTime = integralPeriod - (integralTime - histElem->deltaTime);
-      break;
+      /* Integral time period exceeded, adjust delta time for this last element. */
+      deltaTime = integralPeriod - integralTime;
+      histElem = history_.end() - 1; // Skip to end.
     }
+    integralTime += deltaTime;
     integralCteSq += histElem->cteSq * deltaTime;
     integralDeltaCteSq += histElem->deltaCteSq * deltaTime;
   }
+  const double integralCteSqPerSecond = integralCteSq / integralTime;
+  const double integralDeltaCteSqPerSecond = integralDeltaCteSq / integralTime;
+  return make_tuple(integralCteSqPerSecond, integralDeltaCteSqPerSecond);
+}
+
+void CrosstrackErrorEvaluator::ReduceHistory() {
+  double integralTime = 0.0;
 
   // Erase unnecessary history.
-  for (; histElem != history_.end(); ++histElem) {
-    if (integralTime > max(triggerPeriod_, releasePeriod_)) {
-    //if (integralTime > triggerPeriod_) {
+  for (auto histElem = history_.begin(); histElem != history_.end(); ++histElem) {
+    integralTime += histElem->deltaTime;
+    if (integralTime > longestIntegralPeriod_) {
       history_.erase(histElem + 1, history_.end());
       break;
     }
   }
-
-  const double integralCteSqPerSecond = integralCteSq / integralPeriod;
-  const double integralDeltaCteSqPerSecond = integralDeltaCteSq / integralPeriod;
-
-
-  debugstream.setf(ios::fixed, ios::floatfield);
-  debugstream.precision(8);
-  if (isOk_) {
-    // Only one threshold must be passed to set state not OK.
-    if ((integralCteSqPerSecond > cteSqUpperTh_) ||
-        (integralDeltaCteSqPerSecond > deltaCteSqUpperTh_)) {
-      isOk_ = false;
-      debugstream << ANSI_RED << "NOK: ";
-    } else {
-      debugstream << ANSI_GREEN << "OK: ";
-    }
-    debugstream << (integralCteSqPerSecond > cteSqUpperTh_ ? ANSI_RED : ANSI_YELLOW) << integralCteSqPerSecond << " ";
-    debugstream << (integralDeltaCteSqPerSecond > deltaCteSqUpperTh_ ? ANSI_RED : ANSI_YELLOW) << integralDeltaCteSqPerSecond << " ";
-  } else {
-    // Both thresholds must be passed to set state OK.
-    if ((integralCteSqPerSecond < cteSqLowerTh_) &&
-        (integralDeltaCteSqPerSecond < deltaCteSqLowerTh_)) {
-      isOk_ = true;
-      debugstream << ANSI_GREEN << "OK: ";
-    } else {
-      debugstream << ANSI_RED << "NOK: ";
-    }
-    debugstream << (integralCteSqPerSecond < cteSqLowerTh_ ? ANSI_GREEN : ANSI_YELLOW) << integralCteSqPerSecond << " ";
-    debugstream << (integralDeltaCteSqPerSecond < deltaCteSqLowerTh_ ? ANSI_GREEN : ANSI_YELLOW) << integralDeltaCteSqPerSecond << " ";
-  }
-  debugstream << ANSI_RESET << endl;
-
-#ifdef DEBUG_PRINT
-  cout << debugstream.str();
-#endif
-
-  return isOk_;
 }
-

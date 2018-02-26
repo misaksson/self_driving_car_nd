@@ -43,7 +43,7 @@ int main()
 
   VehicleController vehicleController;
   SimpleTimer timer;
-  CrosstrackErrorEvaluator cteEval;
+  CrosstrackErrorEvaluator cteEval(true);
   double distance = 0.0;
   h.onMessage([&vehicleController, &distance, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -71,10 +71,18 @@ int main()
             distance = 0.0;
           }
 
-          if (cteEval.IsOk(deltaTime, cte)) {
-            vehicleController.SetNormalMode();
-          } else {
-            vehicleController.SetSafeMode();
+          switch(cteEval.Evaluate(deltaTime, cte)) {
+            case CrosstrackErrorEvaluator::IDEAL:
+            case CrosstrackErrorEvaluator::GOOD:
+            case CrosstrackErrorEvaluator::OK:
+            case CrosstrackErrorEvaluator::RISKY:
+            case CrosstrackErrorEvaluator::BAD:
+              vehicleController.SetNormalMode();
+              break;
+            case CrosstrackErrorEvaluator::DEFECTIVE:
+            default:
+              vehicleController.SetSafeMode();
+              break;
           }
 
           double steerValue = vehicleController.CalcSteeringValue(deltaTime, speed, cte);

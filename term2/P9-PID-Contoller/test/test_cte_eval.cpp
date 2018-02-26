@@ -7,53 +7,55 @@
 
 using namespace std;
 
-TEST_CASE("CTE should be evaluated as OK when error is constant small", "[cte_eval]") {
-  CrosstrackErrorEvaluator cteEval;
+TEST_CASE("CTE should be evaluated as IDEAL when error is constant small", "[cte_eval]") {
+  CrosstrackErrorEvaluator cteEval(false);
   double deltaTime = 0.05;
-  double cte = 0.4;
-  for (int i = 0; i < 1000; ++i) {
-    REQUIRE(cteEval.IsOk(deltaTime, cte));
+  double cte = 0.01;
+  for (int i = 0; i < 100; ++i) {
+    REQUIRE(cteEval.Evaluate(deltaTime, cte) == CrosstrackErrorEvaluator::IDEAL);
   }
 }
 
-TEST_CASE("CTE should be evaluated as NOK when error is constant large", "[cte_eval]") {
-  CrosstrackErrorEvaluator cteEval;
+TEST_CASE("CTE should be evaluated as defective when error is constant large", "[cte_eval]") {
+  CrosstrackErrorEvaluator cteEval(false);
   double deltaTime = 0.05;
   double cte = 1.0;
-  for (int i = 0; i < 1000; ++i) {
-    REQUIRE(!cteEval.IsOk(deltaTime, cte));
+  for (int i = 0; i < 100; ++i) {
+    REQUIRE(cteEval.Evaluate(deltaTime, cte) == CrosstrackErrorEvaluator::DEFECTIVE);
   }
 }
 
-TEST_CASE("CTE should be evaluated as NOK when error is small but with large deviations", "[cte_eval]") {
-  CrosstrackErrorEvaluator cteEval;
+TEST_CASE("CTE should be evaluated as defective when error is small but with large deviations", "[cte_eval]") {
+  CrosstrackErrorEvaluator cteEval(false);
   double deltaTime = 0.05;
   for (int i = 0; i < 100; ++i) {
     double cte = i % 2 ? 0.3 : -0.3;
-    bool isOk = cteEval.IsOk(deltaTime, cte);
+    CrosstrackErrorEvaluator::Performance performance = cteEval.Evaluate(deltaTime, cte);
     if (i != 0) {
-      REQUIRE(!isOk);
+      REQUIRE(performance == CrosstrackErrorEvaluator::DEFECTIVE);
     }
   }
 }
 
-TEST_CASE("CTE should be evaluated as NOK until error becomes both constant and small", "[cte_eval]") {
-  CrosstrackErrorEvaluator cteEval;
+TEST_CASE("CTE should be evaluated as defective until error becomes both constant and small", "[cte_eval]") {
+  CrosstrackErrorEvaluator cteEval(false);
   double deltaTime = 0.05;
   for (int i = 0; i < 100; ++i) {
     // Large constant CTE.
     double largeConstantCte = 1.0;
-    REQUIRE(!cteEval.IsOk(deltaTime, largeConstantCte));
+    if (i > 5) {
+      REQUIRE(cteEval.Evaluate(deltaTime, largeConstantCte) == CrosstrackErrorEvaluator::DEFECTIVE);
+    }
   }
   for (int i = 0; i < 100; ++i) {
     // Small but deviating CTE.
     double smallDeviatingCte = i % 2 ? 0.1 : -0.1;
-    REQUIRE(!cteEval.IsOk(deltaTime, smallDeviatingCte));
+    REQUIRE(cteEval.Evaluate(deltaTime, smallDeviatingCte) == CrosstrackErrorEvaluator::DEFECTIVE);
   }
   double smallConstantCte = 0.1;
   for (int i = 0; i < 10; ++i) {
     // Give the algorithm some time to transition.
-    (void)cteEval.IsOk(deltaTime, smallConstantCte);
+    (void)cteEval.Evaluate(deltaTime, smallConstantCte);
   }
-  REQUIRE(cteEval.IsOk(deltaTime, smallConstantCte));
+  REQUIRE(cteEval.Evaluate(deltaTime, smallConstantCte) == CrosstrackErrorEvaluator::IDEAL);
 }
