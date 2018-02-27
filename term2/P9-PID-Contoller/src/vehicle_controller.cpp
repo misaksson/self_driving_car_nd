@@ -80,15 +80,19 @@ double VehicleController::CalcThrottleValue(double deltaTime, double speed) {
 }
 
 void VehicleController::SetNextParams() {
-  // Accumulate total error from all controllers.
-  double totalSteeringError = 0.0;
-  for (auto controller = controllers_.begin(); controller != controllers_.end(); ++controller) {
-    totalSteeringError += controller->steering.GetAccumulatedError();
+  if (gatheredErrors_.size() == 0) {
+    GatherError();
   }
+
+  // Calculated the median error
+  nth_element(gatheredErrors_.begin(), gatheredErrors_.begin() + gatheredErrors_.size() / 2, gatheredErrors_.end());
+  const double medianError = gatheredErrors_[gatheredErrors_.size() / 2];
+  gatheredErrors_.clear();
+  cout << "Median error: " << medianError << endl;
 
   // Evaluate and update parameters for next tuning iteration.
   for (auto controller = controllers_.begin(); controller != controllers_.end(); ++controller) {
-    controller->steering.SetNextParams(totalSteeringError);
+    controller->steering.SetNextParams(medianError);
     controller->throttle.SetNextParams();
   }
 
@@ -102,4 +106,15 @@ void VehicleController::SetNextParams() {
       ++tuningCount_;
     }
   }
+}
+
+void VehicleController::GatherError() {
+  // Accumulate errors from all controllers and reset.
+  double totalSteeringError = 0.0;
+  for (auto controller = controllers_.begin(); controller != controllers_.end(); ++controller) {
+    totalSteeringError += controller->steering.GetAccumulatedError();
+    controller->steering.Reset();
+  }
+  cout << "Gathered error: " << totalSteeringError << endl;
+  gatheredErrors_.push_back(totalSteeringError);
 }

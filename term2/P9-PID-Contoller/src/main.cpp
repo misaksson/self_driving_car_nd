@@ -45,7 +45,8 @@ int main()
   SimpleTimer timer;
   CrosstrackErrorEvaluator cteEval(false);
   double distance = 0.0;
-  h.onMessage([&vehicleController, &distance, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  int lapCounter = 0;
+  h.onMessage([&vehicleController, &distance, &lapCounter, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -66,9 +67,13 @@ int main()
 //                    << std::stod(j[1]["steering_angle"].get<std::string>()) << std::endl;
 
           distance += speed * deltaTime;
-          if (distance > (distancePerLap * 4.0)) {
-            vehicleController.SetNextParams();
-            distance = 0.0;
+
+          if (distance > (distancePerLap * (double)(lapCounter + 1))) {
+            ++lapCounter;
+            vehicleController.GatherError();
+            if (lapCounter % 5 == 0) {
+              vehicleController.SetNextParams();
+            }
           }
 
           switch(cteEval.Evaluate(deltaTime, cte)) {
