@@ -43,7 +43,7 @@ int main()
 
   VehicleController vehicleController;
   SimpleTimer timer;
-  CrosstrackErrorEvaluator cteEval(true);
+  CrosstrackErrorEvaluator cteEval(false);
   double distance = 0.0;
   h.onMessage([&vehicleController, &distance, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -66,7 +66,7 @@ int main()
 //                    << std::stod(j[1]["steering_angle"].get<std::string>()) << std::endl;
 
           distance += speed * deltaTime;
-          if (distance > (distancePerLap * 2.0)) {
+          if (distance > (distancePerLap * 4.0)) {
             vehicleController.SetNextParams();
             distance = 0.0;
           }

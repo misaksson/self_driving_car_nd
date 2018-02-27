@@ -70,8 +70,11 @@ public:
   /** Aborts any ongoing tuning and reset to best parameters. */
   void Abort();
 
-  /** Continue tuning (from where it was aborted). */
+  /** Continue tuning. */
   void Continue();
+
+  /** Get number of times that the algorithm has tuned all coefficients. */
+  int GetTuningCount();
 
 private:
 
@@ -102,8 +105,8 @@ private:
   /** The lowest accumulated error so far. */
   double lowestError_;
 
-  /** Keeps track of number of iteration just to  give a hint about the progress. */
-  int iteration_;
+  /** Number of times that the algorithm has tuned all coefficients. */
+  int tuningCount_;
 
   /** Internal state for the twiddle algorithm. */
   enum NextTuningState {

@@ -34,7 +34,7 @@ void Twiddle::Init(double Kp, double Ki, double Kd,
   lowestError_ = HUGE_VAL;
   nextTuning_ = INIT;
   currentCoefficient_ = 0;
-  iteration_ = 0;
+  tuningCount_ = 0;
   Reset();
 }
 
@@ -68,7 +68,7 @@ void Twiddle::SetNextParams(double totalError) {
       lowestError_ = totalError;
 
       if (consoleOutput_) {
-        cout << ANSI::GREEN << name_ << " " << iteration_ << " " << totalError
+        cout << ANSI::GREEN << name_ << " " << tuningCount_ << " " << totalError
           << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
           << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_
           << " " << currentCoefficient_<< ANSI::RESET << endl;
@@ -84,7 +84,7 @@ void Twiddle::SetNextParams(double totalError) {
     } else {
       // No improvement
       if (consoleOutput_) {
-        cout << ANSI::RED << name_ << " " << iteration_ << " " << totalError
+        cout << ANSI::RED << name_ << " " << tuningCount_ << " " << totalError
           << " Kp=" << Kp_ << " Ki=" << Ki_ << " Kd=" << Kd_
           << " dKp=" << dKp_ << " dKi=" << dKi_ << " dKd=" << dKd_
           << " " << currentCoefficient_ << ANSI::RESET << endl;
@@ -104,6 +104,9 @@ void Twiddle::SetNextParams(double totalError) {
         // Note: Intentional fall-through (no break).
       case INCREASE:
         currentCoefficient_ = (currentCoefficient_ + 1) % 3;
+        if (currentCoefficient_ == 0) {
+          ++tuningCount_;
+        }
 
         // Note: Intentional fall-through (no break).
       case INIT:
@@ -116,9 +119,6 @@ void Twiddle::SetNextParams(double totalError) {
         nextTuning_ = REVERT; // If the decrease also fails, then revert and continue with next coefficient.
         break;
     };
-
-    // Prepare internal state for next run.
-    ++iteration_;
   }
 
   // Always reset, even if twiddle not is active for this controller.
@@ -144,10 +144,15 @@ void Twiddle::Abort() {
       /* Otherwise do nothing. */
       break;
   };
-  nextTuning_ = INIT;
-  accumulatedError_ = 0.0;
 }
 
 void Twiddle::Continue() {
   active_ = true;
+  lowestError_ = HUGE_VAL;
+  nextTuning_ = INIT;
+  currentCoefficient_ = 0;
+}
+
+int Twiddle::GetTuningCount() {
+  return tuningCount_;
 }

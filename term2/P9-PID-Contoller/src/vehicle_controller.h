@@ -36,9 +36,14 @@ private:
     Twiddle steering;
     Twiddle throttle;
   };
-
+  /** Vehicle controllers for each control mode. */
   std::array<Controller, NUM_CONTROL_MODES> controllers_;
+  /** The active vehicle control mode. */
   ControlMode currentMode_;
+  /** Number of times all controllers have been tuned. */
+  int tuningCount_;
+  /** The controller currently being tuned. */
+  ControlMode currentlyTuning_;
 };
 
 #endif /* VEHICLE_CONTROLLER_H */
