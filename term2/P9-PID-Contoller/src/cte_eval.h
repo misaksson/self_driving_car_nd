@@ -52,34 +52,34 @@ private:
   const std::array<PerformanceLevel, NUM_PERFORMANCE_LEVELS> performanceLevels_ = {{
     {
       .name = "DEFECTIVE",
-      .cteSqUpperTh_ = 0.5, .cteSqLowerTh_ = 0.2,
-      .deltaCteSqUpperTh_ = 0.15, .deltaCteSqLowerTh_ = 0.001,
+      .cteSqUpperTh_ = 1.00, .cteSqLowerTh_ = 0.65,
+      .deltaCteSqUpperTh_ = 0.40, .deltaCteSqLowerTh_ = 0.25,
       .triggerPeriod_ = 0.12, .releasePeriod_ = 0.3
     }, {
       .name = "BAD",
-      .cteSqUpperTh_ = 0.5, .cteSqLowerTh_ = 0.2,
-      .deltaCteSqUpperTh_ = 0.15, .deltaCteSqLowerTh_ = 0.001,
+      .cteSqUpperTh_ = 0.70, .cteSqLowerTh_ = 0.35,
+      .deltaCteSqUpperTh_ = 0.30, .deltaCteSqLowerTh_ = 0.15,
       .triggerPeriod_ = 0.12, .releasePeriod_ = 0.3
     }, {
       .name = "RISKY",
-      .cteSqUpperTh_ = 0.5, .cteSqLowerTh_ = 0.2,
-      .deltaCteSqUpperTh_ = 0.15, .deltaCteSqLowerTh_ = 0.001,
+      .cteSqUpperTh_ = 0.50, .cteSqLowerTh_ = 0.30,
+      .deltaCteSqUpperTh_ = 0.20, .deltaCteSqLowerTh_ = 0.08,
       .triggerPeriod_ = 0.12, .releasePeriod_ = 0.3
     }, {
       .name = "OK",
-      .cteSqUpperTh_ = 0.5, .cteSqLowerTh_ = 0.2,
-      .deltaCteSqUpperTh_ = 0.15, .deltaCteSqLowerTh_ = 0.001,
+      .cteSqUpperTh_ = 0.35, .cteSqLowerTh_ = 0.20,
+      .deltaCteSqUpperTh_ = 0.10, .deltaCteSqLowerTh_ = 0.01,
       .triggerPeriod_ = 0.12, .releasePeriod_ = 0.3
     }, {
       .name = "GOOD",
-      .cteSqUpperTh_ = 0.5, .cteSqLowerTh_ = 0.2,
-      .deltaCteSqUpperTh_ = 0.15, .deltaCteSqLowerTh_ = 0.001,
+      .cteSqUpperTh_ = 0.25, .cteSqLowerTh_ = 0.10,
+      .deltaCteSqUpperTh_ = 0.02, .deltaCteSqLowerTh_ = 0.001,
       .triggerPeriod_ = 0.12, .releasePeriod_ = 0.3
     }, {
       .name = "IDEAL",
-      .cteSqUpperTh_ = 0.5, .cteSqLowerTh_ = 0.2,
-      .deltaCteSqUpperTh_ = 0.0, .deltaCteSqLowerTh_ = 0.0,
-      .triggerPeriod_ = 0.0, .releasePeriod_ = 0.0
+      .cteSqUpperTh_ = NAN, .cteSqLowerTh_ = 0.0,
+      .deltaCteSqUpperTh_ = NAN, .deltaCteSqLowerTh_ = 0.0,
+      .triggerPeriod_ = NAN, .releasePeriod_ = 0.0
     },
   }};
 

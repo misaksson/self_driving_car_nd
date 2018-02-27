@@ -55,13 +55,17 @@ public:
   /** Get accumulated error. */
   double GetAccumulatedError();
 
-  /** Update the PID controller with next parameters to try out. */
+  /** Update the PID controller with next parameters to try out.
+   * Note, only the internal accumulated error is used for parameter
+   * evaluation when using this method.
+   */
   void SetNextParams();
 
   /** Update the PID controller with next parameters to try out.
-   * @param externalError Optional additional error for evaluation of current parameters.
+   * @param totalError Accumulated error from all relevant controllers,
+   *                   including this instance.
    */
-  void SetNextParams(double externalError);
+  void SetNextParams(double totalError);
 
   /** Aborts any ongoing tuning and reset to best parameters. */
   void Abort();
@@ -100,9 +104,6 @@ private:
 
   /** Keeps track of number of iteration just to  give a hint about the progress. */
   int iteration_;
-
-  /** Used to assert correct implementations. */
-  bool resetNeeded_;
 
   /** Internal state for the twiddle algorithm. */
   enum NextTuningState {

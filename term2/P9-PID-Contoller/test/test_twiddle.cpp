@@ -18,7 +18,6 @@ TEST_CASE("Twiddle should behave just as the PID controller when inactive", "[tw
   for (int i = 0; i < 1000; ++i) {
     const double cte = dis(gen);
     REQUIRE(twiddle.CalcError(cte) == Approx(pid.CalcError(cte)));
-    twiddle.SetNextParams();
   }
 }
 

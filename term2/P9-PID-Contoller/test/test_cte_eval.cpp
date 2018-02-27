@@ -29,9 +29,9 @@ TEST_CASE("CTE should be evaluated as defective when error is small but with lar
   CrosstrackErrorEvaluator cteEval(false);
   double deltaTime = 0.05;
   for (int i = 0; i < 100; ++i) {
-    double cte = i % 2 ? 0.3 : -0.3;
+    double cte = i % 2 ? 0.35 : -0.35;
     CrosstrackErrorEvaluator::Performance performance = cteEval.Evaluate(deltaTime, cte);
-    if (i != 0) {
+    if (i > 10) {
       REQUIRE(performance == CrosstrackErrorEvaluator::DEFECTIVE);
     }
   }
@@ -42,14 +42,14 @@ TEST_CASE("CTE should be evaluated as defective until error becomes both constan
   double deltaTime = 0.05;
   for (int i = 0; i < 100; ++i) {
     // Large constant CTE.
-    double largeConstantCte = 1.0;
+    double largeConstantCte = 2.0;
     if (i > 5) {
       REQUIRE(cteEval.Evaluate(deltaTime, largeConstantCte) == CrosstrackErrorEvaluator::DEFECTIVE);
     }
   }
   for (int i = 0; i < 100; ++i) {
     // Small but deviating CTE.
-    double smallDeviatingCte = i % 2 ? 0.1 : -0.1;
+    double smallDeviatingCte = i % 2 ? 0.26 : -0.26;
     REQUIRE(cteEval.Evaluate(deltaTime, smallDeviatingCte) == CrosstrackErrorEvaluator::DEFECTIVE);
   }
   double smallConstantCte = 0.1;

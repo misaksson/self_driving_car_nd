@@ -8,28 +8,42 @@
 using namespace std;
 
 VehicleController::VehicleController() {
-  /* Setup safe mode. */
-  tune_[SAFE] = false;
-  controllers_[SAFE].targetSpeed = 15.0; // Meter per second
-  controllers_[SAFE].steering = Twiddle();
-  controllers_[SAFE].steering.Init(4.91194, 0.110417, 47.7133,
-                                   0.00936508, 9.45968e-05, 0.00851371,
-                                   tune_[SAFE], "SafeSteering", true);
-  controllers_[SAFE].throttle = Twiddle();
-  controllers_[SAFE].throttle.Init(1.01684, 0.00078523, 0.868024,
-                                   0.0490737, 2.21772e-05, 0.0401512,
-                                   false, "SafeThrottle", true);
+  /* Setup RECOVERY control mode. */
+  controllers_[RECOVERY].targetSpeed = 11.1760; // Meter per second (25 MPH)
+  controllers_[RECOVERY].steering.Init(4.91194, 0.110417, 47.7133,
+                                   false, "RecoverySteering", true);
+  controllers_[RECOVERY].throttle.Init(1.01684, 0.00078523, 0.868024);
 
-  /* Setup normal mode */
-  tune_[NORMAL] = false;
-  controllers_[NORMAL].targetSpeed = 28.0; // Meter per second
-  controllers_[NORMAL].steering = Twiddle();
-  controllers_[NORMAL].steering.Init(4.86809, 0.109132, 47.6244,
-                                     1.29692e-05, 1.07632e-06, 1.44102e-05,
-                                     tune_[NORMAL], "NormalSteering", true);
-  controllers_[NORMAL].throttle = Twiddle();
-  controllers_[NORMAL].throttle.Init(0.707856, 0.000713845, 0.99455,
-                                     false, "NormalThrottle", true);
+  /* Setup SAFE control mode. */
+  controllers_[SAFE].targetSpeed = 13.4112; // Meter per second (30 MPH)
+  controllers_[SAFE].steering.Init(4.91194, 0.110417, 47.7133,
+                                   false, "SafeSteering", true);
+  controllers_[SAFE].throttle.Init(1.01684, 0.00078523, 0.868024);
+
+  /* Setup CAREFUL control mode */
+  controllers_[CAREFUL].targetSpeed = 20.1168; // Meter per second (45 MPH)
+  controllers_[CAREFUL].steering.Init(4.86809, 0.109132, 47.6244,
+                                      false, "CarefulSteering", true);
+  controllers_[CAREFUL].throttle.Init(0.707856, 0.000713845, 0.99455);
+
+  /* Setup MODERATE control mode */
+  controllers_[MODERATE].targetSpeed = 26.8224; // Meter per second (60 MPH)
+  controllers_[MODERATE].steering.Init(4.86809, 0.109132, 47.6244,
+                                       false, "ModerateSteering", true);
+  controllers_[MODERATE].throttle.Init(0.707856, 0.000713845, 0.99455);
+
+  /* Setup CHALLENGING control mode */
+  controllers_[CHALLENGING].targetSpeed = 35.7632; // Meter per second (80 MPH)
+  controllers_[CHALLENGING].steering.Init(4.86809, 0.109132, 47.6244,
+                                          false, "ChallengingSteering", true);
+  controllers_[CHALLENGING].throttle.Init(0.707856, 0.000713845, 0.99455);
+
+  /* Setup BOLD control mode */
+  controllers_[BOLD].targetSpeed = 44.7040; // Meter per second (100 MPH)
+  controllers_[BOLD].steering.Init(4.86809, 0.109132, 47.6244,
+                                   false, "BoldSteering", true);
+  controllers_[BOLD].throttle.Init(0.707856, 0.000713845, 0.99455);
+
 
   /* Start in safe mode. */
   currentMode_ = SAFE;
@@ -37,12 +51,8 @@ VehicleController::VehicleController() {
 
 VehicleController::~VehicleController() {}
 
-void VehicleController::SetSafeMode() {
-  currentMode_ = SAFE;
-}
-
-void VehicleController::SetNormalMode() {
-  currentMode_ = NORMAL;
+void VehicleController::SetMode(VehicleController::ControlMode mode) {
+  currentMode_ = mode;
 }
 
 double VehicleController::CalcSteeringValue(double deltaTime, double speed, double cte) {
@@ -57,21 +67,22 @@ double VehicleController::CalcSteeringValue(double deltaTime, double speed, doub
 }
 
 double VehicleController::CalcThrottleValue(double deltaTime, double speed) {
-  double throttleValue = -controllers_[currentMode_].throttle.CalcError(speed - controllers_[currentMode_].targetSpeed);
+  const double targetSpeed = controllers_[currentMode_].targetSpeed;
+  const double speedError = speed - targetSpeed;
+  const double throttleValue = -controllers_[currentMode_].throttle.CalcError(speedError);
   return throttleValue;
 }
 
 void VehicleController::SetNextParams() {
-  if (tune_[SAFE]) {
-    double externalError = controllers_[NORMAL].steering.GetAccumulatedError();
-    controllers_[SAFE].steering.SetNextParams(externalError);
+  // Accumulate total error from all controllers.
+  double totalSteeringError = 0.0;
+  for (auto controller = controllers_.begin(); controller != controllers_.end(); ++controller) {
+    totalSteeringError += controller->steering.GetAccumulatedError();
   }
-  if (tune_[NORMAL]) {
-    double externalError = controllers_[SAFE].steering.GetAccumulatedError();
-    controllers_[NORMAL].steering.SetNextParams(externalError);
-  }
-  for (int controlMode = SAFE; controlMode < NUM_CONTROL_MODES; ++controlMode) {
-    controllers_[controlMode].throttle.SetNextParams();
-    controllers_[controlMode].steering.Reset();
+
+  // Evaluate and update parameters for next tuning iteration.
+  for (auto controller = controllers_.begin(); controller != controllers_.end(); ++controller) {
+    controller->steering.SetNextParams(totalSteeringError);
+    controller->throttle.SetNextParams();
   }
 }

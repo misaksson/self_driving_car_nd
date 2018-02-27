@@ -41,12 +41,10 @@ void Twiddle::Init(double Kp, double Ki, double Kd,
 
 void Twiddle::Reset() {
   accumulatedError_ = 0.0;
-  resetNeeded_ = false;
   PID::Reset();
 }
 
 double Twiddle::CalcError(double cte) {
-  assert(!resetNeeded_);
   accumulatedError_ += pow(cte, 2);
   return PID::CalcError(cte);
 }
@@ -57,22 +55,14 @@ double Twiddle::GetAccumulatedError() {
 
 void Twiddle::SetNextParams() {
   // No additional external error
-  SetNextParams(0.0);
-
-  /* If twiddle is used without external error then it should be safe to reset
-   * internal state here, since no one will ask for the accumulatedError_ of
-   * this instance. */
-  if (active_) {
-    Reset();
-  }
+  SetNextParams(accumulatedError_);
 }
 
-void Twiddle::SetNextParams(double externalError) {
+void Twiddle::SetNextParams(double totalError) {
   if (active_) {
     double *p[] = {&Kp_, &Ki_, &Kd_};
     double *dp[] = {&dKp_, &dKi_, &dKd_};
 
-    double totalError = accumulatedError_ + externalError;
     if (totalError < lowestError_) {
       // This tuning is the best so far.
       lowestError_ = totalError;
@@ -129,8 +119,10 @@ void Twiddle::SetNextParams(double externalError) {
 
     // Prepare internal state for next run.
     ++iteration_;
-    resetNeeded_ = true;
   }
+
+  // Always reset, even if twiddle not is active for this controller.
+  Reset();
 }
 
 void Twiddle::Abort() {

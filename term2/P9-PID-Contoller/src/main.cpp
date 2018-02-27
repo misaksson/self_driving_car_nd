@@ -72,17 +72,26 @@ int main()
           }
 
           switch(cteEval.Evaluate(deltaTime, cte)) {
-            case CrosstrackErrorEvaluator::IDEAL:
-            case CrosstrackErrorEvaluator::GOOD:
-            case CrosstrackErrorEvaluator::OK:
-            case CrosstrackErrorEvaluator::RISKY:
-            case CrosstrackErrorEvaluator::BAD:
-              vehicleController.SetNormalMode();
-              break;
             case CrosstrackErrorEvaluator::DEFECTIVE:
-            default:
-              vehicleController.SetSafeMode();
+              vehicleController.SetMode(VehicleController::RECOVERY);
               break;
+            case CrosstrackErrorEvaluator::BAD:
+              vehicleController.SetMode(VehicleController::SAFE);
+              break;
+            case CrosstrackErrorEvaluator::RISKY:
+              vehicleController.SetMode(VehicleController::CAREFUL);
+              break;
+            case CrosstrackErrorEvaluator::OK:
+              vehicleController.SetMode(VehicleController::MODERATE);
+              break;
+            case CrosstrackErrorEvaluator::GOOD:
+              vehicleController.SetMode(VehicleController::CHALLENGING);
+              break;
+            case CrosstrackErrorEvaluator::IDEAL:
+              vehicleController.SetMode(VehicleController::BOLD);
+              break;
+            default:
+              assert(false); // Unknown evaluation performance.
           }
 
           double steerValue = vehicleController.CalcSteeringValue(deltaTime, speed, cte);
