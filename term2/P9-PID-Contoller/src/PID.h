@@ -21,6 +21,18 @@ public:
    */
   virtual double CalcError(double cte);
 
+  /** Set internal state as in provided PID controller.
+   * This makes it possible to implement interchangeable PID controllers
+   * that doesn't loose internal state when changing.
+   */
+  void SetState(const PID &pid);
+
+  /** Get the integrated Crosstrack error. */
+  double GetIntegralCte() const;
+
+  /** Get previous Crosstrack error. */
+  double GetPreviousCte() const;
+
 protected:
   /** Reset internal state. */
   virtual void Reset();

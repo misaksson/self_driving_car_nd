@@ -2,6 +2,7 @@
 #define VEHICLE_CONTROLLER_H
 
 #include <array>
+#include "PID.h"
 #include "twiddle.h"
 
 class VehicleController {

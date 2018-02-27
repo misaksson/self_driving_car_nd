@@ -2,6 +2,7 @@
 #include "../src/PID.h"
 #include <iostream>
 #include <cmath>
+#include <random>
 #include <vector>
 
 using namespace std;
@@ -123,4 +124,28 @@ TEST_CASE("PID controller should behave as in python lesson example", "[pid]") {
     const double actual = pid.CalcError(testElement->cte);
     REQUIRE(actual == Approx(testElement->expected));
   }
+}
+
+
+TEST_CASE("PID controller should propagate internal state", "[pid]") {
+
+  /* Initialize two PID controllers with the exact same parameters. */
+  PID p1, p2;
+  p1.Init(1.0, 2.0, 3.0);
+  p2.Init(1.0, 2.0, 3.0);
+
+  /* Run one of them on a biased distribution */
+  default_random_engine gen;
+  uniform_real_distribution<> dis(-1.0, 10.0);
+  for (int i = 0; i < 1000; ++i) {
+    double cte = dis(gen);
+    p1.CalcError(cte);
+  }
+
+  /* Propagate internal state */
+  p2.SetState(p1);
+
+  /* The both controllers should now give the same value. */
+  double cte = dis(gen);
+  REQUIRE(p1.CalcError(cte) == p2.CalcError(cte));
 }

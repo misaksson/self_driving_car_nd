@@ -52,6 +52,8 @@ VehicleController::VehicleController() {
 VehicleController::~VehicleController() {}
 
 void VehicleController::SetMode(VehicleController::ControlMode mode) {
+  // Propagate internal PID controller state.
+  controllers_[mode].steering.SetState(controllers_[currentMode_].steering);
   currentMode_ = mode;
 }
 

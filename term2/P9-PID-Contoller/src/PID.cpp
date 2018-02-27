@@ -37,3 +37,16 @@ double PID::CalcError(double cte) {
   const double totalError = p_error + i_error + d_error;
   return totalError;
 }
+
+void PID::SetState(const PID &pid) {
+  integral_cte_ = pid.GetIntegralCte();
+  previous_cte_ = pid.GetPreviousCte();
+}
+
+double PID::GetIntegralCte() const {
+  return integral_cte_;
+}
+
+double PID::GetPreviousCte() const {
+  return previous_cte_;
+}

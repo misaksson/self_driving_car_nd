@@ -18,7 +18,7 @@ public:
    * @param Ki Integral coefficient
    * @param Kd Derivative coefficient
    */
-  void Init(double Kp, double Ki, double Kd);
+  void Init(double Kp, double Ki, double Kd) override;
 
   /** Initialize the PID controller and twiddle.
    * @param Kp Proportional coefficient
@@ -44,13 +44,13 @@ public:
             bool active, std::string name, bool consoleOutput);
 
   /** Reset internal states. */
-  void Reset();
+  void Reset() override;
 
   /** Extends this method in the PID controller by also accumulating the error.
    * @param cte Crosstrack error.
    * @output PID error.
    */
-  double CalcError(double cte);
+  double CalcError(double cte) override;
 
   /** Get accumulated error. */
   double GetAccumulatedError();
