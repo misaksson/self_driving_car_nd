@@ -17,37 +17,43 @@ VehicleController::VehicleController() {
 
   /* Setup RECOVERY control mode. */
   controllers_[RECOVERY].targetSpeed = 11.1760; // Meter per second (25 MPH)
-  controllers_[RECOVERY].steering.Init(4.91194, 0.110417, 47.7133,
+  controllers_[RECOVERY].steering.Init(2.99833, 0.117943, 47.614,
+                                       0.513833, 0.00575124, 0.697799,
                                        currentlyTuning_ == RECOVERY, "RecoverySteering", true);
   controllers_[RECOVERY].throttle.Init(1.01684, 0.00078523, 0.868024);
 
   /* Setup SAFE control mode. */
   controllers_[SAFE].targetSpeed = 13.4112; // Meter per second (30 MPH)
-  controllers_[SAFE].steering.Init(4.91194, 0.110417, 47.7133,
+  controllers_[SAFE].steering.Init(6.07426, 0.107155, 48.0287,
+                                   0.378368, 0.00569372, 0.28143,
                                    currentlyTuning_ == SAFE, "SafeSteering", true);
   controllers_[SAFE].throttle.Init(1.01684, 0.00078523, 0.868024);
 
   /* Setup CAREFUL control mode */
   controllers_[CAREFUL].targetSpeed = 20.1168; // Meter per second (45 MPH)
-  controllers_[CAREFUL].steering.Init(4.86809, 0.109132, 47.6244,
+  controllers_[CAREFUL].steering.Init(5.40832, 0.10714, 48.8081,
+                                      0.691568, 0.00516756, 0.51439,
                                       currentlyTuning_ == CAREFUL, "CarefulSteering", true);
   controllers_[CAREFUL].throttle.Init(0.707856, 0.000713845, 0.99455);
 
   /* Setup MODERATE control mode */
   controllers_[MODERATE].targetSpeed = 26.8224; // Meter per second (60 MPH)
-  controllers_[MODERATE].steering.Init(4.86809, 0.109132, 47.6244,
+  controllers_[MODERATE].steering.Init(2.74351, 0.117893, 46.5252,
+                                       0.853788, 0.00857715, 0.776171,
                                        currentlyTuning_ == MODERATE, "ModerateSteering", true);
   controllers_[MODERATE].throttle.Init(0.707856, 0.000713845, 0.99455);
 
   /* Setup CHALLENGING control mode */
   controllers_[CHALLENGING].targetSpeed = 35.7632; // Meter per second (80 MPH)
-  controllers_[CHALLENGING].steering.Init(4.86809, 0.109132, 47.6244,
+  controllers_[CHALLENGING].steering.Init(5.40352, 0.135581, 47.9793,
+                                          0.519586, 0.00866379, 0.425116,
                                           currentlyTuning_ == CHALLENGING, "ChallengingSteering", true);
   controllers_[CHALLENGING].throttle.Init(0.707856, 0.000713845, 0.99455);
 
   /* Setup BOLD control mode */
   controllers_[BOLD].targetSpeed = 44.7040; // Meter per second (100 MPH)
-  controllers_[BOLD].steering.Init(4.86809, 0.109132, 47.6244,
+  controllers_[BOLD].steering.Init(6.75553, 0.13746, 46.0841,
+                                   0.776171, 0.00953017, 0.577318,
                                    currentlyTuning_ == BOLD, "BoldSteering", true);
   controllers_[BOLD].throttle.Init(0.707856, 0.000713845, 0.99455);
 
@@ -80,14 +86,14 @@ double VehicleController::CalcThrottleValue(double deltaTime, double speed) {
 }
 
 void VehicleController::SetNextParams() {
-  if (gatheredErrors_.size() == 0) {
-    GatherError();
+  if (costValues_.size() == 0) {
+    SetCost();
   }
 
   // Calculated the median error
-  nth_element(gatheredErrors_.begin(), gatheredErrors_.begin() + gatheredErrors_.size() / 2, gatheredErrors_.end());
-  const double medianError = gatheredErrors_[gatheredErrors_.size() / 2];
-  gatheredErrors_.clear();
+  nth_element(costValues_.begin(), costValues_.begin() + costValues_.size() / 2, costValues_.end());
+  const double medianError = costValues_[costValues_.size() / 2];
+  costValues_.clear();
   cout << "Median error: " << medianError << endl;
 
   // Evaluate and update parameters for next tuning iteration.
@@ -108,7 +114,7 @@ void VehicleController::SetNextParams() {
   }
 }
 
-void VehicleController::GatherError() {
+void VehicleController::SetCost() {
   // Accumulate errors from all controllers and reset.
   double totalSteeringError = 0.0;
   for (auto controller = controllers_.begin(); controller != controllers_.end(); ++controller) {
@@ -116,5 +122,10 @@ void VehicleController::GatherError() {
     controller->steering.Reset();
   }
   cout << "Gathered error: " << totalSteeringError << endl;
-  gatheredErrors_.push_back(totalSteeringError);
+  costValues_.push_back(totalSteeringError);
+}
+
+void VehicleController::SetCost(double lapTime) {
+  cout << "Lap time: " << lapTime << endl;
+  costValues_.push_back(lapTime);
 }

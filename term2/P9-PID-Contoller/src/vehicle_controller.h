@@ -37,7 +37,8 @@ public:
   /** Gather the total error from all controllers.
    * Call this method, e.g. for each lap on the track. The errors are stored
    * internally and evaluated when preparing next parameter tuning. */
-  void GatherError();
+  void SetCost();
+  void SetCost(double lapTime);
 
 private:
   struct Controller {
@@ -59,7 +60,7 @@ private:
   ControlMode currentlyTuning_;
 
   /** Gathered errors that are analyzed in preparation of next parameter tuning. */
-  std::vector<double> gatheredErrors_;
+  std::vector<double> costValues_;
 };
 
 #endif /* VEHICLE_CONTROLLER_H */

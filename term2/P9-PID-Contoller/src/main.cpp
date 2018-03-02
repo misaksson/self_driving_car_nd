@@ -42,11 +42,11 @@ int main()
   uWS::Hub h;
 
   VehicleController vehicleController;
-  SimpleTimer timer;
+  SimpleTimer lapTimer, telemetryTimer;
   CrosstrackErrorEvaluator cteEval(false);
   double distance = 0.0;
   int lapCounter = 0;
-  h.onMessage([&vehicleController, &distance, &lapCounter, &timer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&vehicleController, &distance, &lapCounter, &lapTimer, &telemetryTimer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -61,7 +61,7 @@ int main()
           double cte = std::stod(j[1]["cte"].get<std::string>()); // meters?
           double speed = milesPerHour2MetersPerSecond(std::stod(j[1]["speed"].get<std::string>()));
 //          double angle = deg2rad(std::stod(j[1]["steering_angle"].get<std::string>()));
-          double deltaTime = timer.GetDelta();
+          double deltaTime = telemetryTimer.GetDelta();
 
 //          std::cout << std::stod(j[1]["speed"].get<std::string>()) << " "
 //                    << std::stod(j[1]["steering_angle"].get<std::string>()) << std::endl;
@@ -70,7 +70,7 @@ int main()
 
           if (distance > (distancePerLap * (double)(lapCounter + 1))) {
             ++lapCounter;
-            vehicleController.GatherError();
+            vehicleController.SetCost(lapTimer.GetDelta());
             if (lapCounter % 5 == 0) {
               vehicleController.SetNextParams();
             }
