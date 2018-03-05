@@ -9,7 +9,8 @@ add_definitions(-std=c++11 -O3)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 
-set(sources src/MPC.cpp src/main.cpp)
+set(sources src/MPC.cpp src/polynomial.cpp)
+set(test_sources test/setup.cpp test/test_polynomial.cpp)
 
 include_directories(/usr/local/include)
 link_directories(/usr/local/lib)
@@ -23,7 +24,13 @@ link_directories(/usr/local/Cellar/libuv/1*/lib)
 
 endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
-add_executable(mpc ${sources})
+# Add source files to a library to avoid additional compile for unit tests.
+add_library (mpc_lib ${sources})
 
-target_link_libraries(mpc ipopt z ssl uv uWS)
+# Target app
+add_executable(mpc src/main.cpp)
+target_link_libraries(mpc mpc_lib ipopt z ssl uv uWS)
 
+# Unit tests
+add_executable(mpc_unit_tests ${test_sources})
+target_link_libraries(mpc_unit_tests mpc_lib)
