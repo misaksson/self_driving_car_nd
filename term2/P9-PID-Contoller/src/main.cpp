@@ -18,8 +18,13 @@ double rad2deg(double x) { return x * 180 / pi(); }
 /** Convert miles/hour to meters/second. */
 double milesPerHour2MetersPerSecond(double x) { return x * 0.44704; }
 
-// Measured 7 laps, which is about 8000 meters (of drunk driving)
+/** Distance of one lap.
+ * This was measured by taking the average of 7 laps (of drunk driving).
+ */
 const double distancePerLap = 8000./7.; // meters
+
+/** Number of laps to evaluate each parameter tuning. */
+const int numTuningLaps = 7;
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -44,8 +49,8 @@ int main()
   VehicleController vehicleController;
   SimpleTimer lapTimer, telemetryTimer;
   CrosstrackErrorEvaluator cteEval(false);
-  double distance = 0.0;
-  int lapCounter = 0;
+  double distance = -distancePerLap;
+  int lapCounter = -1;
   h.onMessage([&vehicleController, &distance, &lapCounter, &lapTimer, &telemetryTimer, &cteEval](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -67,13 +72,20 @@ int main()
 //                    << std::stod(j[1]["steering_angle"].get<std::string>()) << std::endl;
 
           distance += speed * deltaTime;
-
           if (distance > (distancePerLap * (double)(lapCounter + 1))) {
-            ++lapCounter;
-            vehicleController.SetCost(lapTimer.GetDelta());
-            if (lapCounter % 5 == 0) {
-              vehicleController.SetNextParams();
+            const double lapTime = lapTimer.GetDelta();
+            if (lapCounter == -1) {
+              // Ignore first warm up lap (starting from stand still).
+              std::cout << "Warm up time: " << lapTime << std::endl;
+            } else {
+              const int tuningLap = (lapCounter % numTuningLaps) + 1;
+              std::cout << "Lap " << tuningLap << " time: " << lapTime << std::endl;
+              vehicleController.SetCost(lapTime);
+              if (tuningLap == numTuningLaps) {
+                vehicleController.SetNextParams();
+              }
             }
+            ++lapCounter;
           }
 
           switch(cteEval.Evaluate(deltaTime, cte)) {
