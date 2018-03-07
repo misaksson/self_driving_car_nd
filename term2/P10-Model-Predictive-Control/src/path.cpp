@@ -57,7 +57,7 @@ inline tuple<double, double> global2LocalTransform(const double globalX, const d
   return make_tuple(local[0], local[1]);
 }
 
-Eigen::VectorXd Path::GetPoly(double vehicleX, double vehicleY, double vehiclePhi) {
+Eigen::VectorXd Path::GetPoly(const double vehicleX, const double vehicleY, const double vehiclePhi) {
   // Find waypoint at shortest distance from vehicle
   double shortestDistance = HUGE_VAL;
   size_t shortestDistanceIdx = 0;
@@ -73,12 +73,28 @@ Eigen::VectorXd Path::GetPoly(double vehicleX, double vehicleY, double vehiclePh
   /* Extract a few waypoints neighboring the one at shortest distance, and
    * transform them to a local coordinate system for the vehicle.
    */
-  const size_t nWaypointsToFit = 9;
+  const size_t nWaypointsToFitBefore = 4;
+  const size_t nWaypointsToFitAfter = 4;
+  const size_t nWaypointsToFit = nWaypointsToFitBefore + 1 + nWaypointsToFitAfter;
+
   Eigen::VectorXd localX(nWaypointsToFit), localY(nWaypointsToFit);
   for (size_t localIdx = 0; localIdx < nWaypointsToFit; ++localIdx) {
-    size_t waypointsIdx = (shortestDistanceIdx - (nWaypointsToFit / 2) + localIdx + nWaypoints_) % nWaypoints_;
+    size_t waypointsIdx = (shortestDistanceIdx - nWaypointsToFitBefore + localIdx + nWaypoints_) % nWaypoints_;
     tie(localX[localIdx], localY[localIdx]) = global2LocalTransform(waypointsX_[waypointsIdx], waypointsY_[waypointsIdx],
                                                                     vehicleX, vehicleY, vehiclePhi);
+  }
+
+  // Fit a polynomial to the waypoints given in vehicle local coordinates
+  Eigen::VectorXd coeffs = Polynomial::Fit(localX, localY, 3);
+  return coeffs;
+}
+
+Eigen::VectorXd Path::GetPoly(const vector<double> waypointsX, const vector<double> waypointsY,
+                              const double vehicleX, const double vehicleY, const double vehiclePhi) {
+  const size_t nWaypointsToFit = waypointsX.size();
+  Eigen::VectorXd localX(nWaypointsToFit), localY(nWaypointsToFit);
+  for (size_t i = 0; i < nWaypointsToFit; ++i) {
+    tie(localX[i], localY[i]) = global2LocalTransform(waypointsX[i], waypointsY[i], vehicleX, vehicleY, vehiclePhi);
   }
 
   // Fit a polynomial to the waypoints given in vehicle local coordinates
