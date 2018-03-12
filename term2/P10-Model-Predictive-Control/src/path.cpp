@@ -57,7 +57,7 @@ inline tuple<double, double> global2LocalTransform(const double globalX, const d
   return make_tuple(local[0], local[1]);
 }
 
-Eigen::VectorXd Path::GetPoly(const double vehicleX, const double vehicleY, const double vehiclePhi) {
+Path::Description Path::GetPoly(const double vehicleX, const double vehicleY, const double vehiclePhi) {
   // Find waypoint at shortest distance from vehicle
   double shortestDistance = HUGE_VAL;
   size_t shortestDistanceIdx = 0;
@@ -70,34 +70,36 @@ Eigen::VectorXd Path::GetPoly(const double vehicleX, const double vehicleY, cons
     }
   }
 
-  /* Extract a few waypoints neighboring the one at shortest distance, and
-   * transform them to a local coordinate system for the vehicle.
-   */
+  /* Extract a few waypoints neighboring the one at shortest distance. */
   const size_t nWaypointsToFitBefore = 4;
   const size_t nWaypointsToFitAfter = 4;
   const size_t nWaypointsToFit = nWaypointsToFitBefore + 1 + nWaypointsToFitAfter;
 
-  Eigen::VectorXd localX(nWaypointsToFit), localY(nWaypointsToFit);
-  for (size_t localIdx = 0; localIdx < nWaypointsToFit; ++localIdx) {
-    size_t waypointsIdx = (shortestDistanceIdx - nWaypointsToFitBefore + localIdx + nWaypoints_) % nWaypoints_;
-    tie(localX[localIdx], localY[localIdx]) = global2LocalTransform(waypointsX_[waypointsIdx], waypointsY_[waypointsIdx],
-                                                                    vehicleX, vehicleY, vehiclePhi);
+  vector<double> extractedX, extractedY;
+
+  for (size_t extractedIdx = 0; extractedIdx < nWaypointsToFit; ++extractedIdx) {
+    size_t waypointsIdx = (shortestDistanceIdx - nWaypointsToFitBefore + extractedIdx + nWaypoints_) % nWaypoints_;
+    extractedX.push_back(waypointsX_[waypointsIdx]);
+    extractedY.push_back(waypointsY_[waypointsIdx]);
   }
 
-  // Fit a polynomial to the waypoints given in vehicle local coordinates
-  Eigen::VectorXd coeffs = Polynomial::Fit(localX, localY, 3);
-  return coeffs;
+  return GetPoly(extractedX, extractedY, vehicleX, vehicleY, vehiclePhi);
 }
 
-Eigen::VectorXd Path::GetPoly(const vector<double> waypointsX, const vector<double> waypointsY,
+Path::Description Path::GetPoly(const vector<double> waypointsX, const vector<double> waypointsY,
                               const double vehicleX, const double vehicleY, const double vehiclePhi) {
   const size_t nWaypointsToFit = waypointsX.size();
-  Eigen::VectorXd localX(nWaypointsToFit), localY(nWaypointsToFit);
+
+  Description result;
+  result.waypointsX.resize(nWaypointsToFit);
+  result.waypointsY.resize(nWaypointsToFit);
   for (size_t i = 0; i < nWaypointsToFit; ++i) {
-    tie(localX[i], localY[i]) = global2LocalTransform(waypointsX[i], waypointsY[i], vehicleX, vehicleY, vehiclePhi);
+    tie(result.waypointsX[i], result.waypointsY[i]) = global2LocalTransform(waypointsX[i], waypointsY[i], vehicleX, vehicleY, vehiclePhi);
   }
 
   // Fit a polynomial to the waypoints given in vehicle local coordinates
-  Eigen::VectorXd coeffs = Polynomial::Fit(localX, localY, 3);
-  return coeffs;
+  Eigen::VectorXd eigenX = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(result.waypointsX.data(), result.waypointsX.size());
+  Eigen::VectorXd eigenY = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(result.waypointsY.data(), result.waypointsY.size());
+  result.coeffs = Polynomial::Fit(eigenX, eigenY, 3);
+  return result;
 }

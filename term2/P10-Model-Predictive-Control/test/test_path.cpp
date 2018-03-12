@@ -19,8 +19,8 @@ TEST_CASE("Path should go around the track", "[path]") {
 
   // Travel around the track until reaching start position again.
   do {
-    Eigen::VectorXd coeffs = path.GetPoly(x, y, direction);
-    double dydx = Polynomial::Evaluate(Polynomial::Derivative(coeffs), 0.0);
+    Path::Description currentPath = path.GetPoly(x, y, direction);
+    double dydx = Polynomial::Evaluate(Polynomial::Derivative(currentPath.coeffs), 0.0);
     double steeringAngle = atan(dydx);
     direction += steeringAngle;
     x += velocity * cos(direction);

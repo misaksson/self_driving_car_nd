@@ -25,7 +25,7 @@ const double dt = 0.05;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-const double target_speed = 40.0;
+const double target_speed = 22.35; //44.704; // 100 MPH
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -67,21 +67,32 @@ class FG_eval {
 
     // Reference state cost
     for (size_t i = 0; i < N; ++i) {
-      fg[fg_cost_idx] += CppAD::pow(vars[cte_start + i], 2);
-      fg[fg_cost_idx] += CppAD::pow(vars[epsi_start + i], 2);
-      fg[fg_cost_idx] += CppAD::pow(vars[v_start + i] - target_speed, 2);
+      // High factor to keep the vehicle centered on the road (for now).
+      fg[fg_cost_idx] += 1000.0 * CppAD::pow(vars[cte_start + i], 2);
+      // Small factor (don't care much about epsi for now).
+      fg[fg_cost_idx] += 0.1 * CppAD::pow(vars[epsi_start + i], 2);
+      // High factor to not make vehicle stop in curves due to the very high cost on delta.
+      fg[fg_cost_idx] += 10.0 * CppAD::pow(vars[v_start + i] - target_speed, 2);
     }
 
     // Actuators cost
     for (size_t i = 0; i < N - 1; ++i) {
-      fg[fg_cost_idx] += CppAD::pow(vars[delta_start + i], 2);
-      fg[fg_cost_idx] += CppAD::pow(vars[a_start + i], 2);
+      /* Very high cost on delta to avoid bad prediction when compensating for
+       * latency. The problem is that the implemented motion model doesn't seem
+       * to work when the vehicle is turning sharply, which can be seen by the
+       * incorrect visualization of the expected vehicle track. ToDo: This might
+       * be improved by a more advanced motion model that accounts for the turn
+       * rate also in the translation changes. */
+      fg[fg_cost_idx] += 100000 * CppAD::pow(vars[delta_start + i], 2);
+      // Small factor (don't care much about acceleration for now).
+      fg[fg_cost_idx] += 1.0 * CppAD::pow(vars[a_start + i], 2);
     }
 
     // Change cost
     for (size_t i = 0; i < N - 2; ++i) {
-      fg[fg_cost_idx] += CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
-      fg[fg_cost_idx] += CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
+      // Small factor, actuator changes doesn't seem to be a problem at this point.
+      fg[fg_cost_idx] += 0.0 * CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
+      fg[fg_cost_idx] += 0.0 * CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
     }
 
     // Should evaluate to initial state.
@@ -113,7 +124,7 @@ class FG_eval {
       const AD<double> f0 = polyeval(coeffs_, x0);
       const AD<double> psiDes0 = CppAD::atan(polyeval(Polynomial::Derivative(coeffs_), x0));
 
-      // Should evaluate to 0
+      // Should evaluate to 0 (optimally)
       fg[fg_constraints_start + x_start + i] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[fg_constraints_start + y_start + i] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
       fg[fg_constraints_start + psi_start + i] = psi1 - (psi0 + (v0 / Lf) * delta0 * dt);
@@ -125,75 +136,76 @@ class FG_eval {
 };
 
 
-MPC::MPC() {}
+MPC::MPC(const double latency) : latency_(latency) {}
+
 MPC::~MPC() {}
 
-tuple<double, double, std::vector<double>, std::vector<double>> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
+tuple<MPC::Actuations, std::vector<double>, std::vector<double>> MPC::Solve(const Eigen::VectorXd state,
+                                                                           const Eigen::VectorXd coeffs) {
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
-  const double x = state[0];
-  const double y = state[1];
-  const double psi = state[2];
-  const double v = state[3];
-  const double cte = state[4];
-  const double epsi = state[5];
-
-  // The number of model variables (includes both states and inputs).
-  const size_t n_vars = N * state.size() + (N - 1) * 2;
+  // The number of actuation steps in the model.
+  const size_t nActuationSteps = N - 1;
+  // The number of model variables (includes both states and actuations).
+  const size_t nModelVars = N * state.size() + nActuationSteps * 2;
   // The number of constraints
-  const size_t n_constraints = N * state.size();
+  const size_t nModelConstraints = N * state.size();
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
-  Dvector vars(n_vars);
-  for (size_t i = 0; i < n_vars; ++i) {
-    vars[i] = 0;
+  Dvector modelVars(nModelVars);
+  for (size_t i = 0; i < nModelVars; ++i) {
+    modelVars[i] = 0;
   }
 
-  Dvector vars_lowerbound(n_vars);
-  Dvector vars_upperbound(n_vars);
+  // Set the initial variable values
+  modelVars[x_start] = state[StateIdx::x];
+  modelVars[y_start] = state[StateIdx::y];
+  modelVars[psi_start] = state[StateIdx::psi];
+  modelVars[v_start] = state[StateIdx::v];
+  modelVars[cte_start] = state[StateIdx::cte];
+  modelVars[epsi_start] = state[StateIdx::epsi];
+
+  Dvector modelVarsLowerBound(nModelVars);
+  Dvector modelVarsUpperBound(nModelVars);
   // Set all non-actuators upper and lowerlimits
   // to the max negative and positive values.
   for (size_t i = 0; i < delta_start; ++i) {
-    vars_lowerbound[i] = -1.0e19;
-    vars_upperbound[i] = 1.0e19;
+    modelVarsLowerBound[i] = -1.0e19;
+    modelVarsUpperBound[i] = 1.0e19;
   }
 
-  // The upper and lower limits of delta are set to -25 and 25
-  // degrees (values in radians).
-  for (size_t i = delta_start; i < a_start; ++i) {
-    vars_lowerbound[i] = -0.436332;
-    vars_upperbound[i] = 0.436332;
-  }
-
-  // Acceleration/decceleration upper and lower limits.
-  for (size_t i = a_start; i < n_vars; ++i) {
-    vars_lowerbound[i] = -1.0;
-    vars_upperbound[i] = 1.0;
+  for (size_t i = 0; i < nActuationSteps; ++i) {
+    // Delta upper and lower limits are set to -25 and 25 degrees (in radians).
+    modelVarsLowerBound[delta_start + i] = -0.436332;
+    modelVarsUpperBound[delta_start + i] = 0.436332;
+    // Acceleration/decceleration upper and lower limits.
+    modelVarsLowerBound[a_start + i] = -1.0;
+    modelVarsUpperBound[a_start + i] = 1.0;
   }
 
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
-  Dvector constraints_lowerbound(n_constraints);
-  Dvector constraints_upperbound(n_constraints);
-  for (size_t i = 0; i < n_constraints; ++i) {
-    constraints_lowerbound[i] = 0.0;
-    constraints_upperbound[i] = 0.0;
+  Dvector modelConstraintsLowerBound(nModelConstraints);
+  Dvector modelConstraintsUpperBound(nModelConstraints);
+  for (size_t i = 0; i < nModelConstraints; ++i) {
+    modelConstraintsLowerBound[i] = 0.0;
+    modelConstraintsUpperBound[i] = 0.0;
   }
 
-  constraints_lowerbound[x_start] = x;
-  constraints_lowerbound[y_start] = y;
-  constraints_lowerbound[psi_start] = psi;
-  constraints_lowerbound[v_start] = v;
-  constraints_lowerbound[cte_start] = cte;
-  constraints_lowerbound[epsi_start] = epsi;
+  modelConstraintsLowerBound[x_start] = state[StateIdx::x];
+  modelConstraintsLowerBound[y_start] = state[StateIdx::y];
+  modelConstraintsLowerBound[psi_start] = state[StateIdx::psi];
+  modelConstraintsLowerBound[v_start] = state[StateIdx::v];
+  modelConstraintsLowerBound[cte_start] = state[StateIdx::cte];
+  modelConstraintsLowerBound[epsi_start] = state[StateIdx::epsi];
 
-  constraints_upperbound[x_start] = x;
-  constraints_upperbound[y_start] = y;
-  constraints_upperbound[psi_start] = psi;
-  constraints_upperbound[v_start] = v;
-  constraints_upperbound[cte_start] = cte;
-  constraints_upperbound[epsi_start] = epsi;
+  modelConstraintsUpperBound[x_start] = state[StateIdx::x];
+  modelConstraintsUpperBound[y_start] = state[StateIdx::y];
+  modelConstraintsUpperBound[psi_start] = state[StateIdx::psi];
+  modelConstraintsUpperBound[v_start] = state[StateIdx::v];
+  modelConstraintsUpperBound[cte_start] = state[StateIdx::cte];
+  modelConstraintsUpperBound[epsi_start] = state[StateIdx::epsi];
 
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
@@ -208,8 +220,8 @@ tuple<double, double, std::vector<double>, std::vector<double>> MPC::Solve(Eigen
   // solve the problem
   CppAD::ipopt::solve_result<Dvector> solution;
   CppAD::ipopt::solve<Dvector, FG_eval>(
-      options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
-      constraints_upperbound, fg_eval, solution);
+      options, modelVars, modelVarsLowerBound, modelVarsUpperBound, modelConstraintsLowerBound,
+      modelConstraintsUpperBound, fg_eval, solution);
 
   // Check some of the solution values
   if (solution.status != CppAD::ipopt::solve_result<Dvector>::success) {
@@ -223,5 +235,18 @@ tuple<double, double, std::vector<double>, std::vector<double>> MPC::Solve(Eigen
     predictedY.push_back(solution.x[y_start + i]);
   }
 
-  return make_tuple(-solution.x[delta_start], solution.x[a_start], predictedX, predictedY);
+  const Actuations actuations = {
+    .delta = solution.x[delta_start],
+    .a = solution.x[a_start]
+  };
+  return make_tuple(actuations, predictedX, predictedY);
+}
+
+Eigen::VectorXd MPC::Predict(const Eigen::VectorXd state, const MPC::Actuations actuations) {
+  Eigen::VectorXd predicted(static_cast<int>(StateIdx::nStates));
+  predicted[StateIdx::x] = state[StateIdx::x] + state[StateIdx::v] * cos(state[StateIdx::psi]) * latency_;
+  predicted[StateIdx::y] = state[StateIdx::y] + state[StateIdx::v] * sin(state[StateIdx::psi]) * latency_;
+  predicted[StateIdx::psi] = state[StateIdx::psi] + (state[StateIdx::v] / Lf) * actuations.delta * latency_;
+  predicted[StateIdx::v] = state[StateIdx::v] + actuations.a * latency_;
+  return predicted;
 }

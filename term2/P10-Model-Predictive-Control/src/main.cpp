@@ -18,6 +18,10 @@ using json = nlohmann::json;
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
+double seconds2milliseconds(double x) { return x * 1000.0; }
+double milesPerHour2MetersPerSecond(double x) { return x * 0.44704; }
+
+const double latency = 0.1;
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -38,7 +42,7 @@ int main() {
   uWS::Hub h;
 
   // MPC is initialized here!
-  MPC mpc;
+  MPC mpc(latency);
   Path path("../lake_track_waypoints.csv");
   h.onMessage([&mpc, &path](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -56,45 +60,57 @@ int main() {
           // j[1] is the data JSON object
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
-          double px = j[1]["x"];
-          double py = j[1]["y"];
-          double psi = j[1]["psi"];
-          double v = j[1]["speed"];
+          double px = static_cast<double>(j[1]["x"]);
+          double py = static_cast<double>(j[1]["y"]);
+          double psi = static_cast<double>(j[1]["psi"]);
+          double v = milesPerHour2MetersPerSecond(static_cast<double>(j[1]["speed"]));
+          MPC::Actuations currentActuations;
+          currentActuations.delta = -static_cast<double>(j[1]["steering_angle"]);
+          currentActuations.a = static_cast<double>(j[1]["throttle"]);
+
+          // State vector in global coordinates.
+          Eigen::VectorXd currentState(static_cast<int>(MPC::StateIdx::nStates));
+          currentState << px, py, psi, v, 0.0, 0.0;
+          Eigen::VectorXd predictedState = mpc.Predict(currentState, currentActuations);
 
           /* Fits a third degree polynomial to the track waypoints. The output
-           * polynomial is in the vehicles local coordinate system. */
-          Eigen::VectorXd coeffs = path.GetPoly(ptsx, ptsy, px, py, psi);
+           * polynomial is in the vehicles local coordinate system at
+           * predicted time. */
+          Path::Description predictedPath = path.GetPoly(ptsx, ptsy, predictedState[0], predictedState[1], predictedState[2]);
 
-          /* Calculate a reference line from the fitted waypoints. This line
-           * will be displayed in yellow by the simulator. */
-          vector<double> referenceX, referenceY;
-          for (double x = 2.0; x <= 75.0; x += 5.0) {
-            referenceX.push_back(x);
-            referenceY.push_back(Polynomial::Evaluate(coeffs, x));
-          }
+          /* Adapt the state vector to the vehicle local coordinate system. */
+          predictedState[MPC::StateIdx::x] = 0.0;
+          predictedState[MPC::StateIdx::y] = 0.0;
+          predictedState[MPC::StateIdx::psi] = 0.0;
 
           /* Crosstrack error measured as the perpendicular distance from the
            * vehicle direction vector to track.
            * ToDo: should it be the closest distance instead? */
-          double cte = Polynomial::Evaluate(coeffs, 0.0);
+          predictedState[MPC::StateIdx::cte] = Polynomial::Evaluate(predictedPath.coeffs, 0.0);
 
-          /* Track angle error measured as the perpendicular distance from the
-           * vehicle direction vector to track. */
-          double epsi = atan(Polynomial::Evaluate(Polynomial::Derivative(coeffs), 0.0));
+          /* Orientation error measured at the point on the track that is
+           * perpendicular to the vehicle direction. */
+          predictedState[MPC::StateIdx::epsi] = atan(Polynomial::Evaluate(Polynomial::Derivative(predictedPath.coeffs), 0.0));
 
-          // State vector in vehicle local coordinate system (x, y and psi is all zero).
-          Eigen::VectorXd state(6);
-          state << 0.0, 0.0, 0.0, v, cte, epsi;
-          // Actuator values to be provided by the MPC solver.
-          double steerValue, throttleValue;
-          /* Predicted trajectory output by MPC solver. This line will be
+          /* Calculate a reference line from the fitted waypoints. This line
+           * is displayed in yellow by the simulator. */
+          vector<double> referenceX, referenceY;
+          for (double x = 2.0; x <= 75.0; x += 5.0) {
+            referenceX.push_back(x);
+            referenceY.push_back(Polynomial::Evaluate(predictedPath.coeffs, x));
+          }
+
+          /* Predicted trajectory will be output by MPC solver. This line is
            * displayed in green by the simulator. */
           vector<double> predictedX, predictedY;
-          std::tie(steerValue, throttleValue, predictedX, predictedY) = mpc.Solve(state, coeffs);
+
+          /* MPC calculates next actuations to apply. */
+          MPC::Actuations nextActuations;
+          std::tie(nextActuations, predictedX, predictedY) = mpc.Solve(predictedState, predictedPath.coeffs);
 
           json msgJson;
-          msgJson["steering_angle"] = steerValue;
-          msgJson["throttle"] = throttleValue;
+          msgJson["steering_angle"] = -nextActuations.delta / deg2rad(25); // Map to range [-1..1]
+          msgJson["throttle"] = nextActuations.a;
           msgJson["mpc_x"] = predictedX;
           msgJson["mpc_y"] = predictedY;
           msgJson["next_x"] = referenceX;
@@ -112,7 +128,7 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          //this_thread::sleep_for(chrono::milliseconds(100));
+          this_thread::sleep_for(chrono::milliseconds(static_cast<int>(seconds2milliseconds(latency))));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
