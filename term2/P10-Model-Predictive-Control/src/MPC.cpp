@@ -8,10 +8,15 @@
 
 using CppAD::AD;
 
-/** Number of timesteps. */
-const size_t N = 25;
-/** Timestep duration. */
-const double dt = 0.05;
+/** Timestep duration is set to the same as the latency in an attempt to mimic
+ * the actuations possible in reality. Note that the actuaions are executed
+ * sequencial with the latency as period time, and not pipelined as one might
+ * have expected. */
+const double dt = 0.1;
+/** Number of timesteps. This is choosen to let the model look far enough to
+ * prepare for curves in time, still not so far that the uncertain predictions
+ * at longer distance influence the costs too much. */
+const size_t N = 15;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -25,7 +30,7 @@ const double dt = 0.05;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-const double target_speed = 22.35; //44.704; // 100 MPH
+const double target_speed = 44.704; // 100 MPH
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -68,31 +73,35 @@ class FG_eval {
     // Reference state cost
     for (size_t i = 0; i < N; ++i) {
       // High factor to keep the vehicle centered on the road (for now).
-      fg[fg_cost_idx] += 1000.0 * CppAD::pow(vars[cte_start + i], 2);
-      // Small factor (don't care much about epsi for now).
-      fg[fg_cost_idx] += 0.1 * CppAD::pow(vars[epsi_start + i], 2);
-      // High factor to not make vehicle stop in curves due to the very high cost on delta.
-      fg[fg_cost_idx] += 10.0 * CppAD::pow(vars[v_start + i] - target_speed, 2);
+      fg[fg_cost_idx] += 5000.0 * CppAD::pow(vars[cte_start + i], 2);
+      // Quite high factor to reduce the CTE overshoots.
+      fg[fg_cost_idx] += 100.0 * CppAD::pow(vars[epsi_start + i], 2);
+      /* Quite high factor to not make the vehicle stop in curves due to the very
+       * high cost on delta. This factor was however reduced as the target_speed
+       * was increased to allow for the model to slow down in curves.
+       */
+      fg[fg_cost_idx] += 200.0 * CppAD::pow(vars[v_start + i] - target_speed, 2);
     }
 
     // Actuators cost
     for (size_t i = 0; i < N - 1; ++i) {
-      /* Very high cost on delta to avoid bad prediction when compensating for
-       * latency. The problem is that the implemented motion model doesn't seem
-       * to work when the vehicle is turning sharply, which can be seen by the
-       * incorrect visualization of the expected vehicle track. ToDo: This might
-       * be improved by a more advanced motion model that accounts for the turn
-       * rate also in the translation changes. */
-      fg[fg_cost_idx] += 100000 * CppAD::pow(vars[delta_start + i], 2);
-      // Small factor (don't care much about acceleration for now).
-      fg[fg_cost_idx] += 1.0 * CppAD::pow(vars[a_start + i], 2);
+      /* Extremly high factor on delta to:
+         - Force less turn rate, which would make the motion model produce worse predictions.
+         - Reduce CTE overshoots
+         - Keep a straigter trajectory through curves, which allows for higher speed.
+       */
+      fg[fg_cost_idx] += 45000000 * CppAD::pow(vars[delta_start + i], 2);
+      // Zero factor (don't care much about acceleration for now).
+      fg[fg_cost_idx] += 0.0 * CppAD::pow(vars[a_start + i], 2);
     }
 
-    // Change cost
+    // Actuators delta cost
     for (size_t i = 0; i < N - 2; ++i) {
-      // Small factor, actuator changes doesn't seem to be a problem at this point.
+      /* Zero factor for now, but might be used later on e.g. if the controller
+       * starts doing annoying micro adjustments. */
       fg[fg_cost_idx] += 0.0 * CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
-      fg[fg_cost_idx] += 0.0 * CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
+      // Small factor, but still some cost to avoid blinking brake lights.
+      fg[fg_cost_idx] += 1.0 * CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
     }
 
     // Should evaluate to initial state.
