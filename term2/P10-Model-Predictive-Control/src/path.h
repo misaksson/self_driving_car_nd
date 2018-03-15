@@ -1,54 +1,41 @@
 #ifndef PATH_H
 #define PATH_H
 
-#include <string>
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include "MPC.h"
 
 class Path {
 public:
-  /** Constructor
-   * @param filename Path to CSV file containing waypoints.
+  /** Calculates target path in vehicle local coordinates-
+   * @param waypointsX Global x coordinates of the path waypoints.
+   * @param waypointsX Global y coordinates of the path waypoints.
+   * @param globalState State vector of the vehicle in global coordinates.
    */
-  Path(std::string filename);
-  ~Path();
+  Path(const std::vector<double> &waypointsX, const std::vector<double> &waypointsY, const MPC::State globalState);
+  virtual ~Path();
 
-  struct Description {
-    Eigen::VectorXd coeffs;         /**< Third order polynomial describing the road in vehicle coordinates. */
-    std::vector<double> waypointsX; /**< Waypoints transformed to the vehicle coordinate system. */
-    std::vector<double> waypointsY; /**< Waypoints transformed to the vehicle coordinate system. */
-  };
-
-  /** Fits a third order polynomial to waypoints representing the road nearby
-   * the vehicle. The polynomial is calculated in the vehicles local coordinate
-   * system.
-   * @param vehicleX Vehicle x in global coordinates.
-   * @param vehicleY Vehicle y in global coordinates.
-   * @param vehiclePsi Vehicle yaw angle in global coordinates.
-   * @output Third order polynomial describing the road in vehicle coordinates.
+  /** Get polynomial coefficients representing the expected road path.
+   * The polynomial is in vehicle local coordinates.
+   * @output Coefficients of a third degree polynomial.
    */
-  Description GetPoly(const double vehicleX, const double vehicleY, const double vehiclePsi);
-
-  /** Fits a third order polynomial to provided waypoints.The polynomial is
-   * calculated in the vehicles local coordinate system.
-   * @param waypointsX Global x coordinates of the waypoints to be fitted.
-   * @param waypointsX Global y coordinates of the waypoints to be fitted.
-   * @param vehicleX Vehicle x in global coordinates.
-   * @param vehicleY Vehicle y in global coordinates.
-   * @param vehiclePsi Vehicle yaw angle in global coordinates.
-   * @output Third order polynomial describing the road in vehicle coordinates.
+  Eigen::VectorXd GetLocalCoeffs() const;
+  /** Get vehicle state in vehicle local coordinates.
+   * @output Vehicle state in local coordinates.
    */
-  Description GetPoly(const std::vector<double> waypointsX, const std::vector<double> waypointsY,
-                      const double vehicleX, const double vehicleY, const double vehiclePhi);
+  MPC::State GetLocalState() const;
+  /** Get points of a line representing the expected road path.
+   * The points are in vehicle local coordinates.
+   * @output Two vectors, containing x- resp. y-coordinates of the line.
+   */
+  std::tuple<std::vector<double>, std::vector<double>> GetLocalLine() const;
 
 private:
-  /** Number of waypoints. */
-  size_t nWaypoints_;
-  /** Waypoints x coordinates. */
-  std::vector<double> waypointsX_;
-  /** Waypoints y coordinates. */
-  std::vector<double> waypointsY_;
+  void SetLocalState(MPC::State globalState);
+
+  Eigen::VectorXd localCoeffs_;
+  MPC::State localState_;
 };
 
 #endif /* PATH_H */

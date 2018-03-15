@@ -20,19 +20,17 @@ public:
     double delta; /**< Steering angle in radians. */
     double a;     /**< Acceleration in meter per second. */
   };
+  const size_t nActuations = 2;
 
-  /** State vector indexes. */
-  enum StateIdx {
-    x = 0,  /**< State vector index of vehicle x position. */
-    y,      /**< State vector index of vehicle y position. */
-    psi,    /**< State vector index of vehicle psi angle. */
-    v,      /**< State vector index of vehicle velocity. */
-    cte,    /**< State vector index of vehicle cross-track error. */
-    epsi,   /**< State vector index of vehicle orientation error. */
-
-    /** Number of state variables. */
-    nStates
+  struct State {
+    double x;     /**< Vehicle x position. */
+    double y;     /**< Vehicle y position. */
+    double psi;   /**< Vehicle psi angle. */
+    double v;     /**< Vehicle velocity. */
+    double cte;   /**< Vehicle cross-track error. */
+    double epsi;  /**< Vehicle orientation error. */
   };
+  const size_t nStates = 6;
 
   /** Solve the model given the vehicle state vector and target path.
    * @param state State vector of the vehicle, x, y, phi, v, cte, epsi
@@ -40,13 +38,13 @@ public:
    * @output Actuations to be applied on the system. The predicted path of the
    *         vehicle is also provided for debugging.
    */
-  std::tuple<Actuations, std::vector<double>, std::vector<double>> Solve(const Eigen::VectorXd state, const Eigen::VectorXd coeffs);
+  std::tuple<Actuations, std::vector<double>, std::vector<double>> Solve(const State state, const Eigen::VectorXd coeffs);
 
   /** Predict the future state to compensate for latency.
    * @param state Current state.
    * @param actuations The actuations applied during the latency.
-   * @output predicted future state. */
-  Eigen::VectorXd Predict(const Eigen::VectorXd state, const Actuations actuations);
+   * @output predicted state. */
+  State Predict(const State current, const Actuations actuations);
 
 private:
   /** The expected latency for actuations. */

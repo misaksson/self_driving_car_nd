@@ -140,16 +140,16 @@ MPC::MPC(const double latency) : latency_(latency) {}
 
 MPC::~MPC() {}
 
-tuple<MPC::Actuations, std::vector<double>, std::vector<double>> MPC::Solve(const Eigen::VectorXd state,
-                                                                           const Eigen::VectorXd coeffs) {
+tuple<MPC::Actuations, std::vector<double>, std::vector<double>> MPC::Solve(const MPC::State state,
+                                                                            const Eigen::VectorXd coeffs) {
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // The number of actuation steps in the model.
   const size_t nActuationSteps = N - 1;
   // The number of model variables (includes both states and actuations).
-  const size_t nModelVars = N * state.size() + nActuationSteps * 2;
+  const size_t nModelVars = N * nStates + nActuationSteps * nActuations;
   // The number of constraints
-  const size_t nModelConstraints = N * state.size();
+  const size_t nModelConstraints = N * nStates;
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
@@ -159,12 +159,12 @@ tuple<MPC::Actuations, std::vector<double>, std::vector<double>> MPC::Solve(cons
   }
 
   // Set the initial variable values
-  modelVars[x_start] = state[StateIdx::x];
-  modelVars[y_start] = state[StateIdx::y];
-  modelVars[psi_start] = state[StateIdx::psi];
-  modelVars[v_start] = state[StateIdx::v];
-  modelVars[cte_start] = state[StateIdx::cte];
-  modelVars[epsi_start] = state[StateIdx::epsi];
+  modelVars[x_start] = state.x;
+  modelVars[y_start] = state.y;
+  modelVars[psi_start] = state.psi;
+  modelVars[v_start] = state.v;
+  modelVars[cte_start] = state.cte;
+  modelVars[epsi_start] = state.epsi;
 
   Dvector modelVarsLowerBound(nModelVars);
   Dvector modelVarsUpperBound(nModelVars);
@@ -193,19 +193,19 @@ tuple<MPC::Actuations, std::vector<double>, std::vector<double>> MPC::Solve(cons
     modelConstraintsUpperBound[i] = 0.0;
   }
 
-  modelConstraintsLowerBound[x_start] = state[StateIdx::x];
-  modelConstraintsLowerBound[y_start] = state[StateIdx::y];
-  modelConstraintsLowerBound[psi_start] = state[StateIdx::psi];
-  modelConstraintsLowerBound[v_start] = state[StateIdx::v];
-  modelConstraintsLowerBound[cte_start] = state[StateIdx::cte];
-  modelConstraintsLowerBound[epsi_start] = state[StateIdx::epsi];
+  modelConstraintsLowerBound[x_start] = state.x;
+  modelConstraintsLowerBound[y_start] = state.y;
+  modelConstraintsLowerBound[psi_start] = state.psi;
+  modelConstraintsLowerBound[v_start] = state.v;
+  modelConstraintsLowerBound[cte_start] = state.cte;
+  modelConstraintsLowerBound[epsi_start] = state.epsi;
 
-  modelConstraintsUpperBound[x_start] = state[StateIdx::x];
-  modelConstraintsUpperBound[y_start] = state[StateIdx::y];
-  modelConstraintsUpperBound[psi_start] = state[StateIdx::psi];
-  modelConstraintsUpperBound[v_start] = state[StateIdx::v];
-  modelConstraintsUpperBound[cte_start] = state[StateIdx::cte];
-  modelConstraintsUpperBound[epsi_start] = state[StateIdx::epsi];
+  modelConstraintsUpperBound[x_start] = state.x;
+  modelConstraintsUpperBound[y_start] = state.y;
+  modelConstraintsUpperBound[psi_start] = state.psi;
+  modelConstraintsUpperBound[v_start] = state.v;
+  modelConstraintsUpperBound[cte_start] = state.cte;
+  modelConstraintsUpperBound[epsi_start] = state.epsi;
 
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
@@ -242,11 +242,11 @@ tuple<MPC::Actuations, std::vector<double>, std::vector<double>> MPC::Solve(cons
   return make_tuple(actuations, predictedX, predictedY);
 }
 
-Eigen::VectorXd MPC::Predict(const Eigen::VectorXd state, const MPC::Actuations actuations) {
-  Eigen::VectorXd predicted(static_cast<int>(StateIdx::nStates));
-  predicted[StateIdx::x] = state[StateIdx::x] + state[StateIdx::v] * cos(state[StateIdx::psi]) * latency_;
-  predicted[StateIdx::y] = state[StateIdx::y] + state[StateIdx::v] * sin(state[StateIdx::psi]) * latency_;
-  predicted[StateIdx::psi] = state[StateIdx::psi] + (state[StateIdx::v] / Lf) * actuations.delta * latency_;
-  predicted[StateIdx::v] = state[StateIdx::v] + actuations.a * latency_;
+MPC::State MPC::Predict(const MPC::State current, const MPC::Actuations actuations) {
+  MPC::State predicted;
+  predicted.x = current.x + current.v * cos(current.psi) * latency_;
+  predicted.y = current.y + current.v * sin(current.psi) * latency_;
+  predicted.psi = current.psi + (current.v / Lf) * actuations.delta * latency_;
+  predicted.v = current.v + actuations.a * latency_;
   return predicted;
 }
