@@ -5,8 +5,7 @@
 #include <tuple>
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
-
-using namespace std;
+#include "../../P9-PID-Contoller/src/simple_timer.h"
 
 class MPC {
 public:
@@ -49,6 +48,28 @@ public:
 private:
   /** The expected latency for actuations. */
   const double latency_;
+
+  /** Calculates the dt value for the model based on actual period intervals. */
+  class PeriodTimer {
+  public:
+    /** The time period is initialized to what was measured on my computer. */
+    PeriodTimer() : timePeriod_(0.116) {};
+    virtual ~PeriodTimer() {};
+
+    /** @output the dt value for the MPC model. */
+    double GetDeltaTime() {
+      const double filterCoeff = 0.9;
+      timePeriod_ = timePeriod_ * filterCoeff +
+                    simpleTimer_.GetDelta() * (1.0 - filterCoeff);
+      return timePeriod_;
+    }
+  private:
+    /** Timer to measure the update period. */
+    SimpleTimer simpleTimer_;
+    /** The low-pass filtered time period. */
+    double timePeriod_;
+
+  } timer_;
 };
 
 #endif /* MPC_H */

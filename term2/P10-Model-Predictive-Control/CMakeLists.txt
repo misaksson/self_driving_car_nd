@@ -9,7 +9,7 @@ add_definitions(-std=c++11 -O3)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 
-set(sources src/MPC.cpp src/path.cpp src/polynomial.cpp)
+set(sources src/MPC.cpp src/path.cpp src/polynomial.cpp ../P9-PID-Contoller/src/simple_timer.cpp)
 set(test_sources test/setup.cpp test/test_path.cpp test/test_polynomial.cpp)
 
 include_directories(/usr/local/include)

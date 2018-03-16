@@ -7,10 +7,10 @@
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include "json.hpp"
 #include "MPC.h"
 #include "path.h"
 #include "polynomial.h"
-#include "json.hpp"
 
 // for convenience
 using json = nlohmann::json;

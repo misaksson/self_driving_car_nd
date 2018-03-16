@@ -1,5 +1,6 @@
 #include "MPC.h"
 #include "polynomial.h"
+#include "../../P9-PID-Contoller/src/simple_timer.h"
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include "Eigen-3.3/Eigen/Core"
@@ -7,16 +8,12 @@
 #include <vector>
 
 using CppAD::AD;
+using namespace std;
 
-/** Timestep duration is set to the same as the latency in an attempt to mimic
- * the actuations possible in reality. Note that the actuaions are executed
- * sequencial with the latency as period time, and not pipelined as one might
- * have expected. */
-const double dt = 0.1;
 /** Number of timesteps. This is choosen to let the model look far enough to
  * prepare for curves in time, still not so far that the uncertain predictions
  * at longer distance influence the costs too much. */
-const size_t N = 15;
+const size_t N = 13;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -30,7 +27,7 @@ const size_t N = 15;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-const double target_speed = 44.704; // 100 MPH
+const double target_speed = 47.0; // 105 MPH
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -58,8 +55,17 @@ class FG_eval {
   /** Polynomial coefficients fitted to track waypoints. */
   const Eigen::VectorXd coeffs_;
 
+  /** The update period to use in the model. This should be as close as possible
+   * to the actual update period of the system in order to mimic the actuations
+   * that is possible in reality. Note that there is no pipelining in the system,
+   * i.e. there will not be another websocket message with new state measurement
+   * until current message has been responded to, so this time period will depend
+   * very much on the extra latency of 100 ms.
+   */
+  const double dt_;
+
   /** @param coeffs Polynomial coefficients fitted to track waypoints. */
-  FG_eval(Eigen::VectorXd coeffs) : coeffs_(coeffs) {}
+  FG_eval(Eigen::VectorXd coeffs, double dt) : coeffs_(coeffs), dt_(dt) {}
 
   typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
 
@@ -70,17 +76,17 @@ class FG_eval {
     const size_t fg_constraints_start = 1;
     fg[fg_cost_idx] = 0;
 
-    // Reference state cost
+    // Errors cost
     for (size_t i = 0; i < N; ++i) {
       // High factor to keep the vehicle centered on the road (for now).
-      fg[fg_cost_idx] += 5000.0 * CppAD::pow(vars[cte_start + i], 2);
+      fg[fg_cost_idx] += 7000.0 * CppAD::pow(vars[cte_start + i], 2);
       // Quite high factor to reduce the CTE overshoots.
-      fg[fg_cost_idx] += 100.0 * CppAD::pow(vars[epsi_start + i], 2);
+      fg[fg_cost_idx] += 250.0 * CppAD::pow(vars[epsi_start + i], 2);
       /* Quite high factor to not make the vehicle stop in curves due to the very
        * high cost on delta. This factor was however reduced as the target_speed
        * was increased to allow for the model to slow down in curves.
        */
-      fg[fg_cost_idx] += 200.0 * CppAD::pow(vars[v_start + i] - target_speed, 2);
+      fg[fg_cost_idx] += 150.0 * CppAD::pow(vars[v_start + i] - target_speed, 2);
     }
 
     // Actuators cost
@@ -90,7 +96,7 @@ class FG_eval {
          - Reduce CTE overshoots
          - Keep a straigter trajectory through curves, which allows for higher speed.
        */
-      fg[fg_cost_idx] += 45000000 * CppAD::pow(vars[delta_start + i], 2);
+      fg[fg_cost_idx] += 47000000 * CppAD::pow(vars[delta_start + i], 2);
       // Zero factor (don't care much about acceleration for now).
       fg[fg_cost_idx] += 0.0 * CppAD::pow(vars[a_start + i], 2);
     }
@@ -134,12 +140,12 @@ class FG_eval {
       const AD<double> psiDes0 = CppAD::atan(polyeval(Polynomial::Derivative(coeffs_), x0));
 
       // Should evaluate to 0 (optimally)
-      fg[fg_constraints_start + x_start + i] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
-      fg[fg_constraints_start + y_start + i] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
-      fg[fg_constraints_start + psi_start + i] = psi1 - (psi0 + (v0 / Lf) * delta0 * dt);
-      fg[fg_constraints_start + v_start + i] = v1 - (v0 + a0 * dt);
-      fg[fg_constraints_start + cte_start + i] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
-      fg[fg_constraints_start + epsi_start + i] = epsi1 - (psi0 - psiDes0 + (v0 / Lf) * delta0 * dt);
+      fg[fg_constraints_start + x_start + i] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt_);
+      fg[fg_constraints_start + y_start + i] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt_);
+      fg[fg_constraints_start + psi_start + i] = psi1 - (psi0 + (v0 / Lf) * delta0 * dt_);
+      fg[fg_constraints_start + v_start + i] = v1 - (v0 + a0 * dt_);
+      fg[fg_constraints_start + cte_start + i] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt_));
+      fg[fg_constraints_start + epsi_start + i] = epsi1 - (psi0 - psiDes0 + (v0 / Lf) * delta0 * dt_);
     }
   }
 };
@@ -217,7 +223,7 @@ tuple<MPC::Actuations, std::vector<double>, std::vector<double>> MPC::Solve(cons
   modelConstraintsUpperBound[epsi_start] = state.epsi;
 
   // object that computes objective and constraints
-  FG_eval fg_eval(coeffs);
+  FG_eval fg_eval(coeffs, timer_.GetDeltaTime());
 
   // options for IPOPT solver
   std::string options;
