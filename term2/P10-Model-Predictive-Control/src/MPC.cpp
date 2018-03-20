@@ -79,9 +79,9 @@ class FG_eval {
     // Errors cost
     for (size_t i = 0; i < N; ++i) {
       // High factor to keep the vehicle centered on the road (for now).
-      fg[fg_cost_idx] += 7000.0 * CppAD::pow(vars[cte_start + i], 2);
+      fg[fg_cost_idx] += 5000.0 * CppAD::pow(vars[cte_start + i], 2);
       // Quite high factor to reduce the CTE overshoots.
-      fg[fg_cost_idx] += 250.0 * CppAD::pow(vars[epsi_start + i], 2);
+      fg[fg_cost_idx] += 1000.0 * CppAD::pow(vars[epsi_start + i], 2);
       /* Quite high factor to not make the vehicle stop in curves due to the very
        * high cost on delta. This factor was however reduced as the target_speed
        * was increased to allow for the model to slow down in curves.
@@ -96,7 +96,7 @@ class FG_eval {
          - Reduce CTE overshoots
          - Keep a straigter trajectory through curves, which allows for higher speed.
        */
-      fg[fg_cost_idx] += 47000000 * CppAD::pow(vars[delta_start + i], 2);
+      fg[fg_cost_idx] += 45000000 * CppAD::pow(vars[delta_start + i], 2);
       // Zero factor (don't care much about acceleration for now).
       fg[fg_cost_idx] += 0.0 * CppAD::pow(vars[a_start + i], 2);
     }
