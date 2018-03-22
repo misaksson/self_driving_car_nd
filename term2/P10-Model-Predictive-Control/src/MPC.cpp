@@ -10,7 +10,7 @@
 using CppAD::AD;
 using namespace std;
 
-/** Number of timesteps. This is choosen to let the model look far enough to
+/** Number of time steps. This is chosen to let the model look far enough to
  * prepare for curves in time, still not so far that the uncertain predictions
  * at longer distance influence the costs too much. */
 const size_t N = 13;
@@ -91,10 +91,10 @@ class FG_eval {
 
     // Actuators cost
     for (size_t i = 0; i < N - 1; ++i) {
-      /* Extremly high factor on delta to:
+      /* Extremely high factor on delta to:
          - Force less turn rate, which would make the motion model produce worse predictions.
          - Reduce CTE overshoots
-         - Keep a straigter trajectory through curves, which allows for higher speed.
+         - Keep a straighter trajectory through curves, which allows for higher speed.
        */
       fg[fg_cost_idx] += 45000000 * CppAD::pow(vars[delta_start + i], 2);
       // Zero factor (don't care much about acceleration for now).
@@ -136,16 +136,22 @@ class FG_eval {
       const AD<double> epsi0 = vars[epsi_start + i - 1];
       const AD<double> delta0 = vars[delta_start + i - 1];
       const AD<double> a0 = vars[a_start + i - 1];
-      const AD<double> f0 = polyeval(coeffs_, x0);
-      const AD<double> psiDes0 = CppAD::atan(polyeval(Polynomial::Derivative(coeffs_), x0));
 
-      // Should evaluate to 0 (optimally)
-      fg[fg_constraints_start + x_start + i] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt_);
-      fg[fg_constraints_start + y_start + i] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt_);
-      fg[fg_constraints_start + psi_start + i] = psi1 - (psi0 + (v0 / Lf) * delta0 * dt_);
-      fg[fg_constraints_start + v_start + i] = v1 - (v0 + a0 * dt_);
-      fg[fg_constraints_start + cte_start + i] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt_));
-      fg[fg_constraints_start + epsi_start + i] = epsi1 - (psi0 - psiDes0 + (v0 / Lf) * delta0 * dt_);
+      // Predict current from previous time step
+      const AD<double> x1_predicted = x0 + v0 * CppAD::cos(psi0) * dt_;
+      const AD<double> y1_predicted = y0 + v0 * CppAD::sin(psi0) * dt_;
+      const AD<double> psi1_predicted = psi0 + (v0 / Lf) * delta0 * dt_;
+      const AD<double> v1_predicted = v0 + a0 * dt_;
+      const AD<double> cte1_predicted = polyeval(coeffs_, x1_predicted) - y1_predicted;
+      const AD<double> epsi1_predicted = CppAD::atan(polyeval(Polynomial::Derivative(coeffs_), x1_predicted)) - psi1_predicted;
+
+      // Should optimally evaluate to 0
+      fg[fg_constraints_start + x_start + i] = x1 - x1_predicted;
+      fg[fg_constraints_start + y_start + i] = y1 - y1_predicted;
+      fg[fg_constraints_start + psi_start + i] = psi1 - psi1_predicted;
+      fg[fg_constraints_start + v_start + i] = v1 - v1_predicted;
+      fg[fg_constraints_start + cte_start + i] = cte1 - cte1_predicted;
+      fg[fg_constraints_start + epsi_start + i] = epsi1 - epsi1_predicted;
     }
   }
 };
