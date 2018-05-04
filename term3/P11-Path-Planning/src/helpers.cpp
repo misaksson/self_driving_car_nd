@@ -1,5 +1,7 @@
 #include <math.h>
 #include <vector>
+#include <tuple>
+#include "Eigen-3.3/Eigen/Dense"
 
 using namespace std;
 
@@ -9,6 +11,7 @@ namespace Helpers {
   constexpr double pi() { return M_PI; }
   double deg2rad(double x) { return x * pi() / 180; }
   double rad2deg(double x) { return x * 180 / pi(); }
+  double milesPerHour2MetersPerSecond(double x) { return x * 0.44704; }
 
   double distance(double x1, double y1, double x2, double y2)
   {
@@ -60,7 +63,7 @@ namespace Helpers {
     return closestWaypoint;
   }
 
-  vector<double> getFrenet(double x, double y, double theta, const vector<double> &maps_x, const vector<double> &maps_y)
+  tuple<double, double> getFrenet(double x, double y, double theta, const vector<double> &maps_x, const vector<double> &maps_y)
   {
     int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y);
 
@@ -104,11 +107,11 @@ namespace Helpers {
 
     frenet_s += distance(0,0,proj_x,proj_y);
 
-    return {frenet_s,frenet_d};
+    return make_tuple(frenet_s, frenet_d);
 
   }
 
-  vector<double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y)
+  tuple<double, double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y)
   {
     int prev_wp = -1;
 
@@ -131,6 +134,31 @@ namespace Helpers {
     double x = seg_x + d*cos(perp_heading);
     double y = seg_y + d*sin(perp_heading);
 
-    return {x,y};
+    return make_tuple(x, y);
+  }
+
+  tuple<double, double> global2LocalTransform(const double global_x, const double global_y,
+                                              const double localOffset_x, const double localOffset_y,
+                                              const double localOffset_psi) {
+    Eigen::Matrix3d local2Global;
+    local2Global << cos(localOffset_psi), -sin(localOffset_psi), localOffset_x,
+                    sin(localOffset_psi), cos(localOffset_psi), localOffset_y,
+                    0.0, 0.0, 1.0;
+    Eigen::Matrix3d global2Local = local2Global.inverse();
+    Eigen::Vector3d global(global_x, global_y, 1.0);
+    Eigen::Vector3d local = global2Local * global;
+    return make_tuple(local[0], local[1]);
+  }
+
+  tuple<double, double> local2GlobalTransform(const double local_x, const double local_y,
+                                              const double localOffset_x, const double localOffset_y,
+                                              const double localOffset_psi) {
+    Eigen::Matrix3d local2Global;
+    local2Global << cos(localOffset_psi), -sin(localOffset_psi), localOffset_x,
+                    sin(localOffset_psi), cos(localOffset_psi), localOffset_y,
+                    0.0, 0.0, 1.0;
+    Eigen::Vector3d local(local_x, local_y, 1.0);
+    Eigen::Vector3d global = local2Global * local;
+    return make_tuple(global[0], global[1]);
   }
 }
