@@ -47,6 +47,7 @@ public:
       y.resize(nCoords);
     };
     Path(std::vector<double> path_x, std::vector<double> path_y) : x(path_x), y(path_y) {};
+
     std::vector<double> x;
     std::vector<double> y;
   };
