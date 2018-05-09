@@ -1,7 +1,9 @@
 #ifndef PATH_PLANNER_H
 #define PATH_PLANNER_H
 
+#include "helpers.h"
 #include <string>
+#include <tuple>
 #include <vector>
 
 class PathPlanner {
@@ -10,7 +12,7 @@ public:
    * @param waypointsMapFile A CSV file path containing track waypoints.
    * @param trackLength The length of the track.
    */
-  PathPlanner(std::string waypointsMapFile, double trackLength);
+  PathPlanner(std::string waypointsMapFile, double trackLength, int pathLength);
   virtual ~PathPlanner();
 
   /** Localization data of ego vehicle. */
@@ -63,16 +65,35 @@ public:
    Path CalcNext(const EgoVehicleData &egoVehicle, const std::vector<OtherVehicleData> &otherVehicles, const Path &previousPath,
                  double previousEnd_s, double previousEnd_d);
 
-private:
   /* Map values for waypoint's x,y,s and d normalized normal vectors that are
-   * extracted from file during construction. */
+   * extracted from file during construction.
+   * Belongs to the public interface only for convenience. */
   std::vector<double> map_waypoints_x;
   std::vector<double> map_waypoints_y;
   std::vector<double> map_waypoints_s;
   std::vector<double> map_waypoints_dx;
   std::vector<double> map_waypoints_dy;
 
-  const double laneWidth = 4.0;
+  /** Extra margin to compensate for numerical and approximation errors. */
+  const double EXTRA_MARGIN = 0.2;
+  /** Speed limit in the simulator given in meter per second. */
+  const double speedLimit = Helpers::milesPerHour2MetersPerSecond(50.0) - EXTRA_MARGIN;
+  /** Acceleration limit in the simulator given in meter per second squared. */
+  const double accelerationLimit = 10.0 - EXTRA_MARGIN;
+  /** Jerk limit in the simulator given in meter per second cubed. */
+  const double jerkLimit = 10.0 - EXTRA_MARGIN;
+  /** Time in seconds between updates in the simulator. */
+  const double deltaTime = 0.02;
+
+private:
+  const int numFinePathCoords;
+  const double laneWidth = 4.0; /**< Lane width in meters. */
+
+  double speed; /**< Vehicle speed at end of calculated path. */
+  double acceleration; /**< Vehicle acceleration at end of calculated path. */
+
+  std::tuple<std::vector<double>, double> CalcDeltaDistances(int numDistances, const double targetSpeed);
+  void printSpeedAccJerk(Path path, int num);
 };
 
 #endif /* PATH_PLANNER_H */

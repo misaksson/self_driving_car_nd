@@ -1,18 +1,27 @@
 #include "helpers.h"
 #include "path_planner.h"
 #include "spline.h"
+#include <algorithm>
 #include <array>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <math.h>
 #include <sstream>
+#include <string>
+#include <tuple>
 #include <vector>
 
 using namespace std;
 
-PathPlanner::PathPlanner(string waypointsMapFile, double trackLength) {
-  ifstream in_map_(waypointsMapFile.c_str(), ifstream::in);
+/** Helper function to print a path to terminal. */
+static void printVector(string name, vector<double> xs, vector<double> ys);
+/** Helper function to round values in the same way as the simulator interface. */
+static double roundToSevenSignificantDigits(double value);
 
+PathPlanner::PathPlanner(string waypointsMapFile, double trackLength, int pathLength) : numFinePathCoords(pathLength) {
+
+  ifstream in_map_(waypointsMapFile.c_str(), ifstream::in);
   string line;
   while (getline(in_map_, line)) {
     istringstream iss(line);
@@ -37,14 +46,6 @@ PathPlanner::PathPlanner(string waypointsMapFile, double trackLength) {
 PathPlanner::~PathPlanner() {
 }
 
-static void printVector(string name, vector<double> xs, vector<double> ys) {
-  cout << name << "=";
-  for (int i = 0; i < xs.size(); ++i) {
-    cout << "(" << xs[i] << ", " << ys[i] << ") ";
-  }
-  cout << endl;
-}
-
 PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVehicle, const vector<PathPlanner::OtherVehicleData> &otherVehicles, const PathPlanner::Path &previousPath,
                                         double previousEnd_s, double previousEnd_d) {
   int numPreviousCoords = previousPath.x.size();
@@ -62,6 +63,8 @@ PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVe
     localOffset_yaw = egoVehicle.yaw;
     localOffset_s = egoVehicle.s;
     localOffset_d = egoVehicle.d;
+    speed = egoVehicle.speed;
+    acceleration = 0.0;
     numPreviousCoords = 0;
 
     // Initialize the course path vector using current position, and also a extrapolated coordinate behind the vehicle.
@@ -116,18 +119,19 @@ PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVe
    * spline is used to calculate the distance between each local x-coordinate, such that each step approximately will
    * equal the expected step length at target speed.
    */
-  const int numFinePathCoords = 50;
   Path globalFinePath = previousPath;
-  const double deltaDistance = 0.25;
   const int numExtendedCoords = (numFinePathCoords - numPreviousCoords);
-  if (numExtendedCoords > 0) {
+  const double targetSpeed = speedLimit;
+  vector<double> deltaDistances;
+  double extendedDistance;
+  tie(deltaDistances, extendedDistance) = CalcDeltaDistances(numExtendedCoords, targetSpeed);
 
-    const double extendedDistance = numExtendedCoords * deltaDistance;
-    const double extendedDistance_x = pow(extendedDistance, 2.0) / sqrt(pow(localPathSpline(extendedDistance), 2.0) + pow(extendedDistance, 2.0));
-    const double deltaDistance_x = extendedDistance_x / numExtendedCoords;
-    for(int i = numPreviousCoords; i < numFinePathCoords; ++i) {
-      double local_x = deltaDistance_x * (double)(i - numPreviousCoords + 1);
-      double local_y = localPathSpline(local_x);
+  if (numExtendedCoords > 0) {
+    const double distanceFactor_x = extendedDistance / sqrt(pow(localPathSpline(extendedDistance), 2.0) + pow(extendedDistance, 2.0));
+    double local_x = 0.0;
+    for(int i = 0; i < numExtendedCoords; ++i) {
+      local_x += deltaDistances[i] * distanceFactor_x;
+      const double local_y = localPathSpline(local_x);
       double global_x, global_y;
       tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
                                                                localOffset_x, localOffset_y, localOffset_yaw);
@@ -135,6 +139,88 @@ PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVe
       globalFinePath.y.push_back(global_y);
     }
   }
-
+//  printSpeedAccJerk(globalFinePath, numExtendedCoords);
   return globalFinePath;
 }
+
+
+tuple<vector<double>, double> PathPlanner::CalcDeltaDistances(int numDistances, const double targetSpeed) {
+  vector<double> deltaDistances;
+  double totalDistance = 0.0;
+
+  for (int i = 0; i < numDistances; ++i) {
+    /* Calculate the largest acceleration value (a0) from which it will be possible to settle the speed without
+     * overshooting the targetSpeed. This is derived from integrating the acceleration decrease function that gives
+     * the minimum delta speed change needed to reach acceleration = 0.
+     * accelerationMin(t) = a0 - jerkLimit * t
+     * deltaSpeedMin = integrate a0 - jerkLimit * t dt from 0 to T1 =
+     *               = a0 * T1 - jerkLimit * T1^2 / 2
+     * accelerationMin(T1) = a0 - jerkLimit * T1 = 0, gives
+     * T1 = a0 / jerkLimit
+     * Substituting T1 then results in
+     * deltaSpeedMin = a0^2 / jerkLimit - jerkLimit * (a0 / jerkLimit)^2 / 2 =
+     *               = a0^2 / (2 * jerkLimit)
+     * The deltaSpeedMin is given, e.g. it's the remainingSpeedChange, so the settlingAcceleration (a0) is calculated as
+     * a0 = sqrt(deltaSpeedMin * 2 * jerkLimit)
+     *
+     * To compensate for non-continuous function the settlingAccleration is further reduced by (jerkLimit * deltaTime) / 2.0.
+     */
+    double remainingSpeedChange = targetSpeed - speed;
+    double settlingAcceleration = remainingSpeedChange > 0.0 ? sqrt(fabs(remainingSpeedChange) * 2.0 * jerkLimit) - (jerkLimit * deltaTime) / 2.0 :
+                                                              -sqrt(fabs(remainingSpeedChange) * 2.0 * jerkLimit) + (jerkLimit * deltaTime) / 2.0;
+    // Max possible value for next acceleration.
+    double maxAcceleration = min(accelerationLimit, acceleration + jerkLimit * deltaTime);
+    // Min possible value for next acceleration.
+    double minAcceleration = max(-accelerationLimit, acceleration - jerkLimit * deltaTime);
+    // Limit the wanted settling acceleration by what's actually possible.
+    acceleration = max(minAcceleration, min(maxAcceleration, settlingAcceleration));
+
+    // Update speed and calculate the delta distance for this delta time.
+    speed += acceleration * deltaTime;
+    deltaDistances.push_back(speed * deltaTime);
+    totalDistance += deltaDistances.back();
+  }
+  return make_tuple(deltaDistances, totalDistance);
+}
+
+void PathPlanner::printSpeedAccJerk(PathPlanner::Path path, int num) {
+  vector<double> speeds, accelerations, jerks;
+  for (int i = 1; i < path.x.size(); ++i) {
+    speeds.push_back(Helpers::distance(path.x[i - 1], path.y[i - 1], path.x[i], path.y[i]) / deltaTime);
+  }
+  for (int i = 1; i < speeds.size(); ++i) {
+    accelerations.push_back((speeds[i] - speeds[i - 1]) / deltaTime);
+  }
+  for (int i = 1; i < accelerations.size(); ++i) {
+    jerks.push_back((accelerations[i] - accelerations[i - 1]) / deltaTime);
+  }
+  num = min(num, static_cast<int>(jerks.size()));
+  auto speed = speeds.end() - num;
+  auto acc = accelerations.end() - num;
+  auto jerk = jerks.end() - num;
+  for (int i = 0; i < num; ++i) {
+    cout << "speed = " << *speed <<
+            ", acc = " << *acc <<
+            ", jerk = " << *jerk <<
+            endl;
+    speed++;
+    acc++;
+    jerk++;
+  }
+}
+
+static void printVector(string name, vector<double> xs, vector<double> ys) {
+  cout.precision(10);
+  cout << name << "=" << fixed;
+  for (int i = 0; i < xs.size(); ++i) {
+    cout << "(" << xs[i] << ", " << ys[i] << ") ";
+  }
+  cout << endl;
+}
+
+static double roundToSevenSignificantDigits(double value) {
+  std::stringstream lStream;
+  lStream << setprecision(7) << value;
+  return stod(lStream.str());
+}
+
