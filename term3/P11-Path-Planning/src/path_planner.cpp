@@ -45,10 +45,10 @@ PathPlanner::PathPlanner(string waypointsMapFile, double trackLength, int pathLe
 PathPlanner::~PathPlanner() {
 }
 
-PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVehicle, const vector<PathPlanner::OtherVehicleData> &otherVehicles, const PathPlanner::Path &previousPath,
+PathPlanner::Path PathPlanner::CalcNext(const VehicleData &vehicleData, const PathPlanner::Path &previousPath,
                                         double previousEnd_s, double previousEnd_d) {
 
-  double targetSpeed = Logic(egoVehicle, otherVehicles);
+  double targetSpeed = Logic(vehicleData);
 
   int numPreviousCoords = previousPath.x.size();
 
@@ -60,20 +60,20 @@ PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVe
     /* Calculate next path from current vehicle state.
      * The local coordinate system is set at the vehicles current position.
      */
-    localOffset_x = egoVehicle.x;
-    localOffset_y = egoVehicle.y;
-    localOffset_yaw = egoVehicle.yaw;
-    localOffset_s = egoVehicle.s;
-    localOffset_d = egoVehicle.d;
-    speed = egoVehicle.speed;
+    localOffset_x = vehicleData.ego.x;
+    localOffset_y = vehicleData.ego.y;
+    localOffset_yaw = vehicleData.ego.yaw;
+    localOffset_s = vehicleData.ego.s;
+    localOffset_d = vehicleData.ego.d;
+    speed = vehicleData.ego.speed;
     acceleration = 0.0;
     numPreviousCoords = 0;
 
     // Initialize the course path vector using current position, and also a extrapolated coordinate behind the vehicle.
-    globalCoursePath.x.push_back(egoVehicle.x - cos(localOffset_yaw));
-    globalCoursePath.y.push_back(egoVehicle.y - sin(localOffset_yaw));
-    globalCoursePath.x.push_back(egoVehicle.x);
-    globalCoursePath.y.push_back(egoVehicle.y);
+    globalCoursePath.x.push_back(vehicleData.ego.x - cos(localOffset_yaw));
+    globalCoursePath.y.push_back(vehicleData.ego.y - sin(localOffset_yaw));
+    globalCoursePath.x.push_back(vehicleData.ego.x);
+    globalCoursePath.y.push_back(vehicleData.ego.y);
   } else {
     /* Calculate next path by extending previous path.
      * The local coordinate system is set at end of previous path.
@@ -144,10 +144,10 @@ PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVe
   return globalFinePath;
 }
 
-double PathPlanner::Logic(const PathPlanner::EgoVehicleData &egoVehicle, const vector<PathPlanner::OtherVehicleData> &otherVehicles) {
+double PathPlanner::Logic(const VehicleData &vehicleData) {
   double targetSpeed = speedLimit;
   double minLongitudinalDiff = HUGE_VAL;
-  for (auto otherVehicle = otherVehicles.begin(); otherVehicle != otherVehicles.end(); ++otherVehicle) {
+  for (auto otherVehicle = vehicleData.others.begin(); otherVehicle != vehicleData.others.end(); ++otherVehicle) {
     cout << "id=" << otherVehicle->id <<
             ", x=" << otherVehicle->x <<
             ", y=" << otherVehicle->y <<
@@ -156,25 +156,25 @@ double PathPlanner::Logic(const PathPlanner::EgoVehicleData &egoVehicle, const v
             ", s=" << otherVehicle->s <<
             ", d=" << otherVehicle->d;
 
-    bool isSameLane = egoVehicle.d < otherVehicle->d + laneWidth / 2.0 &&
-                      egoVehicle.d > otherVehicle->d - laneWidth / 2.0;
+    bool isSameLane = vehicleData.ego.d < otherVehicle->d + laneWidth / 2.0 &&
+                      vehicleData.ego.d > otherVehicle->d - laneWidth / 2.0;
     cout << (isSameLane ? " Same lane ": " Another lane ");
     double longitudinalDiff;
-    if ((otherVehicle->s < 1000.0) && (egoVehicle.s > (trackLength - 1000.0))) {
+    if ((otherVehicle->s < 1000.0) && (vehicleData.ego.s > (trackLength - 1000.0))) {
       // Other vehicle has wrapped around the track.
-      longitudinalDiff = otherVehicle->s + (trackLength - egoVehicle.s);
-    } else if ((egoVehicle.s < 1000.0) && (otherVehicle->s > (trackLength - 1000.0))) {
+      longitudinalDiff = otherVehicle->s + (trackLength - vehicleData.ego.s);
+    } else if ((vehicleData.ego.s < 1000.0) && (otherVehicle->s > (trackLength - 1000.0))) {
       // Ego vehicle has wrapped around the track.
-      longitudinalDiff = egoVehicle.s + (trackLength - otherVehicle->s);
+      longitudinalDiff = vehicleData.ego.s + (trackLength - otherVehicle->s);
     } else {
       // No wrap around to consider.
-      longitudinalDiff = otherVehicle->s - egoVehicle.s;
+      longitudinalDiff = otherVehicle->s - vehicleData.ego.s;
     }
 
     bool isAhead = longitudinalDiff > 0.0;
     cout << fabs(longitudinalDiff) << " meters " << (isAhead ? " ahead" : " behind") << " of egoVehicle";
     double otherVehicleSpeed = sqrt(pow(otherVehicle->vx, 2.0) + pow(otherVehicle->vy, 2.0));
-    double speedDiff = otherVehicleSpeed - egoVehicle.speed;
+    double speedDiff = otherVehicleSpeed - vehicleData.ego.speed;
     bool isSlower = speedDiff < 0.0;
     cout << " at a speed that is " << fabs(speedDiff) << " m/s " << (isSlower ? "slower " : "faster");
 
@@ -182,8 +182,8 @@ double PathPlanner::Logic(const PathPlanner::EgoVehicleData &egoVehicle, const v
       /** In Sweden this is the recommended distance to a vehicle ahead, measured in seconds. */
       const double recommendedLongitudinalTimeDiff = 3.0;
       const double criticalLongitudinalTimeDiff = 2.0;
-      double recommendedLongitudinalDiff = egoVehicle.speed * recommendedLongitudinalTimeDiff;
-      double criticalLongitudinalDiff = egoVehicle.speed * criticalLongitudinalTimeDiff;
+      double recommendedLongitudinalDiff = vehicleData.ego.speed * recommendedLongitudinalTimeDiff;
+      double criticalLongitudinalDiff = vehicleData.ego.speed * criticalLongitudinalTimeDiff;
       if (longitudinalDiff < recommendedLongitudinalDiff &&
           longitudinalDiff < minLongitudinalDiff) {
         if (longitudinalDiff < criticalLongitudinalDiff) {

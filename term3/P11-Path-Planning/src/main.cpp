@@ -1,3 +1,9 @@
+#include "Eigen-3.3/Eigen/Core"
+#include "Eigen-3.3/Eigen/QR"
+#include "json.hpp"
+#include "helpers.h"
+#include "path_planner.h"
+#include "vehicle_data.h"
 #include <fstream>
 #include <math.h>
 #include <uWS/uWS.h>
@@ -5,11 +11,6 @@
 #include <iostream>
 #include <thread>
 #include <vector>
-#include "Eigen-3.3/Eigen/Core"
-#include "Eigen-3.3/Eigen/QR"
-#include "json.hpp"
-#include "helpers.h"
-#include "path_planner.h"
 
 using namespace std;
 
@@ -53,16 +54,11 @@ int main() {
         string event = j[0].get<string>();
 
         if (event == "telemetry") {
-        	// Ego vehicle localization data
-          PathPlanner::EgoVehicleData egoVehicle(j[1]["x"], j[1]["y"], j[1]["s"], j[1]["d"],
-                                                 Helpers::deg2rad(j[1]["yaw"]),
-                                                 Helpers::milesPerHour2MetersPerSecond(j[1]["speed"]));
-          // Sensor Fusion Data, a list of all other cars on the same side of the road.
-          vector<vector<double>> sensorFusion = j[1]["sensor_fusion"];
-          vector<PathPlanner::OtherVehicleData> otherVehicles;
-          for (auto vehicleData = sensorFusion.begin(); vehicleData != sensorFusion.end(); ++vehicleData) {
-            otherVehicles.push_back(PathPlanner::OtherVehicleData(*vehicleData));
-          }
+          const VehicleData vehicleData(j[1]["x"], j[1]["y"], j[1]["s"], j[1]["d"],
+                                        Helpers::deg2rad(j[1]["yaw"]),
+                                        Helpers::milesPerHour2MetersPerSecond(j[1]["speed"]),
+                                        j[1]["sensor_fusion"]);
+
          	// Get previous path data not already visited by the simulator.
           PathPlanner::Path previousPath(j[1]["previous_path_x"], j[1]["previous_path_y"]);
 
@@ -71,7 +67,7 @@ int main() {
           double end_path_d = j[1]["end_path_d"];
 
           // Update the path.
-          PathPlanner::Path nextPath = pathPlanner.CalcNext(egoVehicle, otherVehicles, previousPath, end_path_s, end_path_d);
+          PathPlanner::Path nextPath = pathPlanner.CalcNext(vehicleData, previousPath, end_path_s, end_path_d);
 
         	json msgJson;
         	msgJson["next_x"] = nextPath.x;

@@ -2,6 +2,7 @@
 #define PATH_PLANNER_H
 
 #include "helpers.h"
+#include "vehicle_data.h"
 #include <string>
 #include <tuple>
 #include <vector>
@@ -15,32 +16,7 @@ public:
   PathPlanner(std::string waypointsMapFile, double trackLength, int pathLength);
   virtual ~PathPlanner();
 
-  /** Localization data of ego vehicle. */
-  struct EgoVehicleData {
-    EgoVehicleData() {};
-    EgoVehicleData(double x, double y, double s, double d, double yaw, double speed) :
-                   x(x), y(y), s(s), d(d), yaw(yaw), speed(speed) {};
-    double x;
-    double y;
-    double s;
-    double d;
-    double yaw;
-    double speed;
-  };
 
-  /** Localization data of other vehicles. */
-  struct OtherVehicleData {
-    OtherVehicleData() {};
-    OtherVehicleData(std::vector<double> data) : id(static_cast<uint64_t>(data[0])), x(data[1]), y(data[2]),
-                                                 vx(data[3]), vy(data[4]), s(data[5]), d(data[6]) {};
-    uint64_t id;
-    double x;
-    double y;
-    double vx;
-    double vy;
-    double s;
-    double d;
-  };
 
   struct Path {
     Path() {};
@@ -62,7 +38,7 @@ public:
    * @param previousPath Previously calculated path coordinates not yet visited by the simulator.
    * @return Next path coordinates for the simulator.
    */
-   Path CalcNext(const EgoVehicleData &egoVehicle, const std::vector<OtherVehicleData> &otherVehicles, const Path &previousPath,
+   Path CalcNext(const VehicleData &vehicleData, const Path &previousPath,
                  double previousEnd_s, double previousEnd_d);
 
   /* Map values for waypoint's x,y,s and d normalized normal vectors that are
@@ -93,7 +69,7 @@ private:
   double speed; /**< Vehicle speed at end of calculated path. */
   double acceleration; /**< Vehicle acceleration at end of calculated path. */
 
-  double Logic(const EgoVehicleData &egoVehicle, const std::vector<OtherVehicleData> &otherVehicles);
+  double Logic(const VehicleData &vehicleData);
   std::tuple<std::vector<double>, double> CalcDeltaDistances(int numDistances, const double targetSpeed);
   void printSpeedAccJerk(Path path, int num);
 };
