@@ -19,8 +19,7 @@ static void printVector(string name, vector<double> xs, vector<double> ys);
 /** Helper function to round values in the same way as the simulator interface. */
 static double roundToSevenSignificantDigits(double value);
 
-PathPlanner::PathPlanner(string waypointsMapFile, double trackLength, int pathLength) : numFinePathCoords(pathLength) {
-
+PathPlanner::PathPlanner(string waypointsMapFile, double trackLength, int pathLength) : trackLength(trackLength), numFinePathCoords(pathLength) {
   ifstream in_map_(waypointsMapFile.c_str(), ifstream::in);
   string line;
   while (getline(in_map_, line)) {
@@ -48,6 +47,9 @@ PathPlanner::~PathPlanner() {
 
 PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVehicle, const vector<PathPlanner::OtherVehicleData> &otherVehicles, const PathPlanner::Path &previousPath,
                                         double previousEnd_s, double previousEnd_d) {
+
+  double targetSpeed = Logic(egoVehicle, otherVehicles);
+
   int numPreviousCoords = previousPath.x.size();
 
   /* Calculate a course vector of coordinates that the vehicle shall follow. */
@@ -121,7 +123,6 @@ PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVe
    */
   Path globalFinePath = previousPath;
   const int numExtendedCoords = (numFinePathCoords - numPreviousCoords);
-  const double targetSpeed = speedLimit;
   vector<double> deltaDistances;
   double extendedDistance;
   tie(deltaDistances, extendedDistance) = CalcDeltaDistances(numExtendedCoords, targetSpeed);
@@ -143,6 +144,62 @@ PathPlanner::Path PathPlanner::CalcNext(const PathPlanner::EgoVehicleData &egoVe
   return globalFinePath;
 }
 
+double PathPlanner::Logic(const PathPlanner::EgoVehicleData &egoVehicle, const vector<PathPlanner::OtherVehicleData> &otherVehicles) {
+  double targetSpeed = speedLimit;
+  double minLongitudinalDiff = HUGE_VAL;
+  for (auto otherVehicle = otherVehicles.begin(); otherVehicle != otherVehicles.end(); ++otherVehicle) {
+    cout << "id=" << otherVehicle->id <<
+            ", x=" << otherVehicle->x <<
+            ", y=" << otherVehicle->y <<
+            ", vx=" << otherVehicle->vx <<
+            ", vy=" << otherVehicle->vy <<
+            ", s=" << otherVehicle->s <<
+            ", d=" << otherVehicle->d;
+
+    bool isSameLane = egoVehicle.d < otherVehicle->d + laneWidth / 2.0 &&
+                      egoVehicle.d > otherVehicle->d - laneWidth / 2.0;
+    cout << (isSameLane ? " Same lane ": " Another lane ");
+    double longitudinalDiff;
+    if ((otherVehicle->s < 1000.0) && (egoVehicle.s > (trackLength - 1000.0))) {
+      // Other vehicle has wrapped around the track.
+      longitudinalDiff = otherVehicle->s + (trackLength - egoVehicle.s);
+    } else if ((egoVehicle.s < 1000.0) && (otherVehicle->s > (trackLength - 1000.0))) {
+      // Ego vehicle has wrapped around the track.
+      longitudinalDiff = egoVehicle.s + (trackLength - otherVehicle->s);
+    } else {
+      // No wrap around to consider.
+      longitudinalDiff = otherVehicle->s - egoVehicle.s;
+    }
+
+    bool isAhead = longitudinalDiff > 0.0;
+    cout << fabs(longitudinalDiff) << " meters " << (isAhead ? " ahead" : " behind") << " of egoVehicle";
+    double otherVehicleSpeed = sqrt(pow(otherVehicle->vx, 2.0) + pow(otherVehicle->vy, 2.0));
+    double speedDiff = otherVehicleSpeed - egoVehicle.speed;
+    bool isSlower = speedDiff < 0.0;
+    cout << " at a speed that is " << fabs(speedDiff) << " m/s " << (isSlower ? "slower " : "faster");
+
+    if (isSameLane && isAhead) {
+      /** In Sweden this is the recommended distance to a vehicle ahead, measured in seconds. */
+      const double recommendedLongitudinalTimeDiff = 3.0;
+      const double criticalLongitudinalTimeDiff = 2.0;
+      double recommendedLongitudinalDiff = egoVehicle.speed * recommendedLongitudinalTimeDiff;
+      double criticalLongitudinalDiff = egoVehicle.speed * criticalLongitudinalTimeDiff;
+      if (longitudinalDiff < recommendedLongitudinalDiff &&
+          longitudinalDiff < minLongitudinalDiff) {
+        if (longitudinalDiff < criticalLongitudinalDiff) {
+          targetSpeed = min(targetSpeed, otherVehicleSpeed * 0.9);
+          cout << " -> speed set to critical " << targetSpeed;
+        } else {
+          targetSpeed = min(targetSpeed, otherVehicleSpeed);
+          cout << " -> speed set to " << targetSpeed;
+        }
+        minLongitudinalDiff = longitudinalDiff;
+      }
+    }
+    cout << endl;
+  }
+  return targetSpeed;
+}
 
 tuple<vector<double>, double> PathPlanner::CalcDeltaDistances(int numDistances, const double targetSpeed) {
   vector<double> deltaDistances;

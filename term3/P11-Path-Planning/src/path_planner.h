@@ -87,11 +87,13 @@ public:
 
 private:
   const int numFinePathCoords;
+  const double trackLength; /**< Distance around the track. */
   const double laneWidth = 4.0; /**< Lane width in meters. */
 
   double speed; /**< Vehicle speed at end of calculated path. */
   double acceleration; /**< Vehicle acceleration at end of calculated path. */
 
+  double Logic(const EgoVehicleData &egoVehicle, const std::vector<OtherVehicleData> &otherVehicles);
   std::tuple<std::vector<double>, double> CalcDeltaDistances(int numDistances, const double targetSpeed);
   void printSpeedAccJerk(Path path, int num);
 };

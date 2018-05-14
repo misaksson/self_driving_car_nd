@@ -74,6 +74,54 @@ TEST_CASE("Path planner should apply optimal acceleration", "[path_planner]") {
   }
 }
 
+TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]") {
+  PathPlanner pathPlanner("../data/test_map.csv", 0, 100);
+  double x = 0.0, y = 0.0, yaw = 0.0;
+  double s, d;
+  tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
+  PathPlanner::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, pathPlanner.speedLimit);
+  vector<PathPlanner::OtherVehicleData> otherVehicles = {
+    PathPlanner::OtherVehicleData({0,
+                                   egoVehicle.x + egoVehicle.speed * 2.5,
+                                   0.0,
+                                   pathPlanner.speedLimit * 0.6,
+                                   0.0,
+                                   egoVehicle.s + egoVehicle.speed * 2.5,
+                                   egoVehicle.d})
+  };
+  PathPlanner::Path previousPath;
+  PathPlanner::Path nextPath = pathPlanner.CalcNext(egoVehicle, otherVehicles, previousPath, s, d);
+
+  vector<double> speeds, accelerations, jerks;
+  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, pathPlanner.deltaTime);
+  REQUIRE(speeds[0] == Approx(egoVehicle.speed).margin(0.02));
+  REQUIRE(speeds.back() == Approx(otherVehicles[0].vx).margin(0.001));
+}
+
+TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner]") {
+  PathPlanner pathPlanner("../data/test_map.csv", 0, 100);
+  double x = 0.0, y = 0.0, yaw = 0.0;
+  double s, d;
+  tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
+  PathPlanner::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, pathPlanner.speedLimit);
+  vector<PathPlanner::OtherVehicleData> otherVehicles = {
+    PathPlanner::OtherVehicleData({0,
+                                   egoVehicle.x + egoVehicle.speed * 1.9,
+                                   0.0,
+                                   pathPlanner.speedLimit * 0.6,
+                                   0.0,
+                                   egoVehicle.s + egoVehicle.speed * 1.9,
+                                   egoVehicle.d})
+  };
+  PathPlanner::Path previousPath;
+  PathPlanner::Path nextPath = pathPlanner.CalcNext(egoVehicle, otherVehicles, previousPath, s, d);
+
+  vector<double> speeds, accelerations, jerks;
+  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, pathPlanner.deltaTime);
+  REQUIRE(speeds[0] == Approx(egoVehicle.speed).margin(0.02));
+  REQUIRE(speeds.back() < otherVehicles[0].vx - 0.1);
+}
+
 static tuple<vector<double>, vector<double>, vector<double>> calcSpeedAccJerk(const PathPlanner::Path &path, double deltaTime) {
   vector<double> speeds, accelerations, jerks;
   for (int i = 1; i < path.x.size(); ++i) {
