@@ -1,3 +1,4 @@
+#include "constants.h"
 #include "helpers.h"
 #include "path_planner.h"
 #include "spline.h"
@@ -19,7 +20,7 @@ static void printVector(string name, vector<double> xs, vector<double> ys);
 /** Helper function to round values in the same way as the simulator interface. */
 static double roundToSevenSignificantDigits(double value);
 
-PathPlanner::PathPlanner(string waypointsMapFile, double trackLength, int pathLength) : trackLength(trackLength), numFinePathCoords(pathLength) {
+PathPlanner::PathPlanner(string waypointsMapFile, int pathLength) : numFinePathCoords(pathLength) {
   ifstream in_map_(waypointsMapFile.c_str(), ifstream::in);
   string line;
   while (getline(in_map_, line)) {
@@ -93,7 +94,7 @@ PathPlanner::Path PathPlanner::CalcNext(const VehicleData &vehicleData, const Pa
   }
 
   // The course path vector is further extended using Frenet coordinates.
-  const double global_d = 1.5 * laneWidth;
+  const double global_d = 1.5 * constants.laneWidth;
   vector<double> global_ss = {localOffset_s + 30.0,
                               localOffset_s + 60.0,
                               localOffset_s + 90.0};
@@ -145,7 +146,7 @@ PathPlanner::Path PathPlanner::CalcNext(const VehicleData &vehicleData, const Pa
 }
 
 double PathPlanner::Logic(const VehicleData &vehicleData) {
-  double targetSpeed = speedLimit;
+  double targetSpeed = constants.speedLimit;
   double minLongitudinalDiff = HUGE_VAL;
   for (auto otherVehicle = vehicleData.others.begin(); otherVehicle != vehicleData.others.end(); ++otherVehicle) {
     cout << "id=" << otherVehicle->id <<
@@ -156,16 +157,16 @@ double PathPlanner::Logic(const VehicleData &vehicleData) {
             ", s=" << otherVehicle->s <<
             ", d=" << otherVehicle->d;
 
-    bool isSameLane = vehicleData.ego.d < otherVehicle->d + laneWidth / 2.0 &&
-                      vehicleData.ego.d > otherVehicle->d - laneWidth / 2.0;
+    bool isSameLane = vehicleData.ego.d < otherVehicle->d + constants.laneWidth / 2.0 &&
+                      vehicleData.ego.d > otherVehicle->d - constants.laneWidth / 2.0;
     cout << (isSameLane ? " Same lane ": " Another lane ");
     double longitudinalDiff;
-    if ((otherVehicle->s < 1000.0) && (vehicleData.ego.s > (trackLength - 1000.0))) {
+    if ((otherVehicle->s < 1000.0) && (vehicleData.ego.s > (constants.trackLength - 1000.0))) {
       // Other vehicle has wrapped around the track.
-      longitudinalDiff = otherVehicle->s + (trackLength - vehicleData.ego.s);
-    } else if ((vehicleData.ego.s < 1000.0) && (otherVehicle->s > (trackLength - 1000.0))) {
+      longitudinalDiff = otherVehicle->s + (constants.trackLength - vehicleData.ego.s);
+    } else if ((vehicleData.ego.s < 1000.0) && (otherVehicle->s > (constants.trackLength - 1000.0))) {
       // Ego vehicle has wrapped around the track.
-      longitudinalDiff = vehicleData.ego.s + (trackLength - otherVehicle->s);
+      longitudinalDiff = vehicleData.ego.s + (constants.trackLength - otherVehicle->s);
     } else {
       // No wrap around to consider.
       longitudinalDiff = otherVehicle->s - vehicleData.ego.s;
@@ -223,18 +224,18 @@ tuple<vector<double>, double> PathPlanner::CalcDeltaDistances(int numDistances, 
      * To compensate for non-continuous function the settlingAccleration is further reduced by (jerkLimit * deltaTime) / 2.0.
      */
     double remainingSpeedChange = targetSpeed - speed;
-    double settlingAcceleration = remainingSpeedChange > 0.0 ? sqrt(fabs(remainingSpeedChange) * 2.0 * jerkLimit) - (jerkLimit * deltaTime) / 2.0 :
-                                                              -sqrt(fabs(remainingSpeedChange) * 2.0 * jerkLimit) + (jerkLimit * deltaTime) / 2.0;
+    double settlingAcceleration = remainingSpeedChange > 0.0 ? sqrt(fabs(remainingSpeedChange) * 2.0 * constants.jerkLimit) - (constants.jerkLimit * constants.deltaTime) / 2.0 :
+                                                              -sqrt(fabs(remainingSpeedChange) * 2.0 * constants.jerkLimit) + (constants.jerkLimit * constants.deltaTime) / 2.0;
     // Max possible value for next acceleration.
-    double maxAcceleration = min(accelerationLimit, acceleration + jerkLimit * deltaTime);
+    double maxAcceleration = min(constants.accelerationLimit, acceleration + constants.jerkLimit * constants.deltaTime);
     // Min possible value for next acceleration.
-    double minAcceleration = max(-accelerationLimit, acceleration - jerkLimit * deltaTime);
+    double minAcceleration = max(-constants.accelerationLimit, acceleration - constants.jerkLimit * constants.deltaTime);
     // Limit the wanted settling acceleration by what's actually possible.
     acceleration = max(minAcceleration, min(maxAcceleration, settlingAcceleration));
 
     // Update speed and calculate the delta distance for this delta time.
-    speed += acceleration * deltaTime;
-    deltaDistances.push_back(speed * deltaTime);
+    speed += acceleration * constants.deltaTime;
+    deltaDistances.push_back(speed * constants.deltaTime);
     totalDistance += deltaDistances.back();
   }
   return make_tuple(deltaDistances, totalDistance);
@@ -243,13 +244,13 @@ tuple<vector<double>, double> PathPlanner::CalcDeltaDistances(int numDistances, 
 void PathPlanner::printSpeedAccJerk(PathPlanner::Path path, int num) {
   vector<double> speeds, accelerations, jerks;
   for (int i = 1; i < path.x.size(); ++i) {
-    speeds.push_back(Helpers::distance(path.x[i - 1], path.y[i - 1], path.x[i], path.y[i]) / deltaTime);
+    speeds.push_back(Helpers::distance(path.x[i - 1], path.y[i - 1], path.x[i], path.y[i]) / constants.deltaTime);
   }
   for (int i = 1; i < speeds.size(); ++i) {
-    accelerations.push_back((speeds[i] - speeds[i - 1]) / deltaTime);
+    accelerations.push_back((speeds[i] - speeds[i - 1]) / constants.deltaTime);
   }
   for (int i = 1; i < accelerations.size(); ++i) {
-    jerks.push_back((accelerations[i] - accelerations[i - 1]) / deltaTime);
+    jerks.push_back((accelerations[i] - accelerations[i - 1]) / constants.deltaTime);
   }
   num = min(num, static_cast<int>(jerks.size()));
   auto speed = speeds.end() - num;

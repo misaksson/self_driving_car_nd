@@ -11,9 +11,9 @@ class PathPlanner {
 public:
   /** Constructor
    * @param waypointsMapFile A CSV file path containing track waypoints.
-   * @param trackLength The length of the track.
+   * @param pathLength Number of coordinates to send to simulator.
    */
-  PathPlanner(std::string waypointsMapFile, double trackLength, int pathLength);
+  PathPlanner(std::string waypointsMapFile, int pathLength);
   virtual ~PathPlanner();
 
 
@@ -50,21 +50,8 @@ public:
   std::vector<double> map_waypoints_dx;
   std::vector<double> map_waypoints_dy;
 
-  /** Extra margin to compensate for numerical and approximation errors. */
-  const double EXTRA_MARGIN = 0.2;
-  /** Speed limit in the simulator given in meter per second. */
-  const double speedLimit = Helpers::milesPerHour2MetersPerSecond(50.0) - EXTRA_MARGIN;
-  /** Acceleration limit in the simulator given in meter per second squared. */
-  const double accelerationLimit = 10.0 - EXTRA_MARGIN;
-  /** Jerk limit in the simulator given in meter per second cubed. */
-  const double jerkLimit = 10.0 - EXTRA_MARGIN;
-  /** Time in seconds between updates in the simulator. */
-  const double deltaTime = 0.02;
-
 private:
   const int numFinePathCoords;
-  const double trackLength; /**< Distance around the track. */
-  const double laneWidth = 4.0; /**< Lane width in meters. */
 
   double speed; /**< Vehicle speed at end of calculated path. */
   double acceleration; /**< Vehicle acceleration at end of calculated path. */

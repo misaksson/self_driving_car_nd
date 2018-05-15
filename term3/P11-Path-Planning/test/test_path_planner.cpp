@@ -1,11 +1,12 @@
+#include "../src/constants.h"
+#include "../src/helpers.h"
+#include "../src/path_planner.h"
+#include "../src/vehicle_data.h"
 #include <algorithm>
 #include <iostream>
 #include <tuple>
 #include <vector>
 #include "catch.hpp"
-#include "../src/helpers.h"
-#include "../src/path_planner.h"
-#include "../src/vehicle_data.h"
 
 using namespace std;
 
@@ -13,7 +14,7 @@ using namespace std;
 static tuple<vector<double>, vector<double>, vector<double>> calcSpeedAccJerk(const PathPlanner::Path &path, double deltaTime);
 
 TEST_CASE("Path planner should apply optimal acceleration", "[path_planner]") {
-  PathPlanner pathPlanner("../data/test_map.csv", 0, 500);
+  PathPlanner pathPlanner("../data/test_map.csv", 500);
   double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
@@ -24,14 +25,14 @@ TEST_CASE("Path planner should apply optimal acceleration", "[path_planner]") {
   PathPlanner::Path nextPath = pathPlanner.CalcNext(vehicleData, previousPath, s, d);
 
   vector<double> speeds, accelerations, jerks;
-  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, pathPlanner.deltaTime);
+  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
 
   REQUIRE(*min_element(speeds.begin(), speeds.end()) == Approx(0.01).margin(0.01));
-  REQUIRE(*max_element(speeds.begin(), speeds.end()) == Approx(pathPlanner.speedLimit).margin(0.001));
+  REQUIRE(*max_element(speeds.begin(), speeds.end()) == Approx(constants.speedLimit).margin(0.001));
   REQUIRE(*min_element(accelerations.begin(), accelerations.end()) == Approx(0.0).margin(0.01));
-  REQUIRE(*max_element(accelerations.begin(), accelerations.end()) == Approx(pathPlanner.accelerationLimit).margin(0.001));
-  REQUIRE(*min_element(jerks.begin(), jerks.end()) == Approx(-pathPlanner.jerkLimit).margin(0.001));
-  REQUIRE(*max_element(jerks.begin(), jerks.end()) == Approx(pathPlanner.jerkLimit).margin(0.001));
+  REQUIRE(*max_element(accelerations.begin(), accelerations.end()) == Approx(constants.accelerationLimit).margin(0.001));
+  REQUIRE(*min_element(jerks.begin(), jerks.end()) == Approx(-constants.jerkLimit).margin(0.001));
+  REQUIRE(*max_element(jerks.begin(), jerks.end()) == Approx(constants.jerkLimit).margin(0.001));
 
   enum AccelerationPhase {
     IncreasingAcceleration = 0,
@@ -43,26 +44,26 @@ TEST_CASE("Path planner should apply optimal acceleration", "[path_planner]") {
   for (int i = 0; i < jerks.size(); ++i) {
     switch (accelerationPhase) {
       case IncreasingAcceleration: // From stand still.
-        if (accelerations[i + 1] < pathPlanner.accelerationLimit - 0.01) {
-          REQUIRE(jerks[i] == Approx(pathPlanner.jerkLimit).margin(0.001));
+        if (accelerations[i + 1] < constants.accelerationLimit - 0.01) {
+          REQUIRE(jerks[i] == Approx(constants.jerkLimit).margin(0.001));
         } else {
-          double expectedSpeed = pow(pathPlanner.accelerationLimit, 2.0) / (2.0 * pathPlanner.jerkLimit);
+          double expectedSpeed = pow(constants.accelerationLimit, 2.0) / (2.0 * constants.jerkLimit);
           REQUIRE(speeds[i + 2] == Approx(expectedSpeed).margin(0.1));
           accelerationPhase = ConstantMaxAcceleration;
         }
         break;
       case ConstantMaxAcceleration:
-        if (accelerations[i + 1] > pathPlanner.accelerationLimit - 0.01) {
+        if (accelerations[i + 1] > constants.accelerationLimit - 0.01) {
           REQUIRE(jerks[i] == Approx(0.0).margin(0.001));
         } else {
-          double expectedSpeed = pathPlanner.speedLimit - pow(pathPlanner.accelerationLimit, 2.0) / (2.0 * pathPlanner.jerkLimit);
+          double expectedSpeed = constants.speedLimit - pow(constants.accelerationLimit, 2.0) / (2.0 * constants.jerkLimit);
           REQUIRE(speeds[i + 2] == Approx(expectedSpeed).margin(0.3));
           accelerationPhase = DecreasingAcceleration;
         }
         break;
       case DecreasingAcceleration:
         if (accelerations[i + 1] > 0.01) {
-          REQUIRE(jerks[i] == Approx(-pathPlanner.jerkLimit).margin(0.001));
+          REQUIRE(jerks[i] == Approx(-constants.jerkLimit).margin(0.001));
         } else {
           accelerationPhase = ConstantZeroAcceleration;
         }
@@ -70,23 +71,23 @@ TEST_CASE("Path planner should apply optimal acceleration", "[path_planner]") {
       case ConstantZeroAcceleration:
         REQUIRE(jerks[i] == Approx(0.0).margin(0.4));
         REQUIRE(accelerations[i + 1] == Approx(0.0).margin(0.004));
-        REQUIRE(speeds[i + 2] == Approx(pathPlanner.speedLimit).margin(0.001));
+        REQUIRE(speeds[i + 2] == Approx(constants.speedLimit).margin(0.001));
         break;
     }
   }
 }
 
 TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]") {
-  PathPlanner pathPlanner("../data/test_map.csv", 0, 100);
+  PathPlanner pathPlanner("../data/test_map.csv", 100);
   const double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
-  const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, pathPlanner.speedLimit);
+  const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, constants.speedLimit);
   const vector<VehicleData::OtherVehicleData> otherVehicles = {
     VehicleData::OtherVehicleData({0,
                                    egoVehicle.x + egoVehicle.speed * 2.5,
                                    0.0,
-                                   pathPlanner.speedLimit * 0.6,
+                                   constants.speedLimit * 0.6,
                                    0.0,
                                    egoVehicle.s + egoVehicle.speed * 2.5,
                                    egoVehicle.d})
@@ -96,22 +97,22 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]")
   PathPlanner::Path nextPath = pathPlanner.CalcNext(vehicleData, previousPath, s, d);
 
   vector<double> speeds, accelerations, jerks;
-  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, pathPlanner.deltaTime);
+  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
   REQUIRE(speeds[0] == Approx(egoVehicle.speed).margin(0.02));
   REQUIRE(speeds.back() == Approx(otherVehicles[0].vx).margin(0.001));
 }
 
 TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner]") {
-  PathPlanner pathPlanner("../data/test_map.csv", 0, 100);
+  PathPlanner pathPlanner("../data/test_map.csv", 100);
   const double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
-  const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, pathPlanner.speedLimit);
+  const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, constants.speedLimit);
   const vector<VehicleData::OtherVehicleData> otherVehicles = {
     VehicleData::OtherVehicleData({0,
                                    egoVehicle.x + egoVehicle.speed * 1.9,
                                    0.0,
-                                   pathPlanner.speedLimit * 0.6,
+                                   constants.speedLimit * 0.6,
                                    0.0,
                                    egoVehicle.s + egoVehicle.speed * 1.9,
                                    egoVehicle.d})
@@ -121,7 +122,7 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner
   PathPlanner::Path nextPath = pathPlanner.CalcNext(vehicleData, previousPath, s, d);
 
   vector<double> speeds, accelerations, jerks;
-  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, pathPlanner.deltaTime);
+  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
   REQUIRE(speeds[0] == Approx(egoVehicle.speed).margin(0.02));
   REQUIRE(speeds.back() < otherVehicles[0].vx - 0.1);
 }
