@@ -14,10 +14,11 @@ using namespace std;
 static tuple<vector<double>, vector<double>, vector<double>> calcSpeedAccJerk(const PathPlanner::Path &path, double deltaTime);
 
 TEST_CASE("Path planner should apply optimal acceleration", "[path_planner]") {
-  PathPlanner pathPlanner("../data/test_map.csv", 500);
+  Helpers helpers("../data/test_map.csv");
+  PathPlanner pathPlanner(helpers, 500);
   double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
-  tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
+  tie(s, d) = helpers.getFrenet(x, y, yaw);
 
   vector<vector<double>> sensorFusion;
   const VehicleData vehicleData(0.0, 0.0, s, d, 0.0, 0.0, sensorFusion);
@@ -78,10 +79,11 @@ TEST_CASE("Path planner should apply optimal acceleration", "[path_planner]") {
 }
 
 TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]") {
-  PathPlanner pathPlanner("../data/test_map.csv", 100);
+  Helpers helpers("../data/test_map.csv");
+  PathPlanner pathPlanner(helpers, 100);
   const double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
-  tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
+  tie(s, d) = helpers.getFrenet(x, y, yaw);
   const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, constants.speedLimit);
   const vector<VehicleData::OtherVehicleData> otherVehicles = {
     VehicleData::OtherVehicleData({0,
@@ -103,10 +105,11 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]")
 }
 
 TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner]") {
-  PathPlanner pathPlanner("../data/test_map.csv", 100);
+  Helpers helpers("../data/test_map.csv");
+  PathPlanner pathPlanner(helpers, 100);
   const double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
-  tie(s, d) = Helpers::getFrenet(x, y, yaw, pathPlanner.map_waypoints_x, pathPlanner.map_waypoints_y);
+  tie(s, d) = helpers.getFrenet(x, y, yaw);
   const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, constants.speedLimit);
   const vector<VehicleData::OtherVehicleData> otherVehicles = {
     VehicleData::OtherVehicleData({0,

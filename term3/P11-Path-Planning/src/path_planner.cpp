@@ -4,7 +4,6 @@
 #include "spline.h"
 #include <algorithm>
 #include <array>
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <math.h>
@@ -20,28 +19,7 @@ static void printVector(string name, vector<double> xs, vector<double> ys);
 /** Helper function to round values in the same way as the simulator interface. */
 static double roundToSevenSignificantDigits(double value);
 
-PathPlanner::PathPlanner(string waypointsMapFile, int pathLength) : numFinePathCoords(pathLength) {
-  ifstream in_map_(waypointsMapFile.c_str(), ifstream::in);
-  string line;
-  while (getline(in_map_, line)) {
-    istringstream iss(line);
-    double x;
-    double y;
-    float s;
-    float d_x;
-    float d_y;
-    iss >> x;
-    iss >> y;
-    iss >> s;
-    iss >> d_x;
-    iss >> d_y;
-    map_waypoints_x.push_back(x);
-    map_waypoints_y.push_back(y);
-    map_waypoints_s.push_back(s);
-    map_waypoints_dx.push_back(d_x);
-    map_waypoints_dy.push_back(d_y);
-  }
-}
+PathPlanner::PathPlanner(const Helpers &helpers, int pathLength) : helpers(helpers), numFinePathCoords(pathLength) {}
 
 PathPlanner::~PathPlanner() {
 }
@@ -101,7 +79,7 @@ PathPlanner::Path PathPlanner::CalcNext(const VehicleData &vehicleData, const Pa
 
   for (auto global_s = global_ss.begin(); global_s != global_ss.end(); ++global_s) {
     double global_x, global_y;
-    tie(global_x, global_y) = Helpers::getXY(*global_s, global_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    tie(global_x, global_y) = helpers.getXY(*global_s, global_d);
     globalCoursePath.x.push_back(global_x);
     globalCoursePath.y.push_back(global_y);
   }

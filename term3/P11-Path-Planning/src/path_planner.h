@@ -13,10 +13,8 @@ public:
    * @param waypointsMapFile A CSV file path containing track waypoints.
    * @param pathLength Number of coordinates to send to simulator.
    */
-  PathPlanner(std::string waypointsMapFile, int pathLength);
+  PathPlanner(const Helpers &helpers, int pathLength);
   virtual ~PathPlanner();
-
-
 
   struct Path {
     Path() {};
@@ -41,21 +39,13 @@ public:
    Path CalcNext(const VehicleData &vehicleData, const Path &previousPath,
                  double previousEnd_s, double previousEnd_d);
 
-  /* Map values for waypoint's x,y,s and d normalized normal vectors that are
-   * extracted from file during construction.
-   * Belongs to the public interface only for convenience. */
-  std::vector<double> map_waypoints_x;
-  std::vector<double> map_waypoints_y;
-  std::vector<double> map_waypoints_s;
-  std::vector<double> map_waypoints_dx;
-  std::vector<double> map_waypoints_dy;
 
 private:
+  const Helpers &helpers;
   const int numFinePathCoords;
 
   double speed; /**< Vehicle speed at end of calculated path. */
   double acceleration; /**< Vehicle acceleration at end of calculated path. */
-
   double Logic(const VehicleData &vehicleData);
   std::tuple<std::vector<double>, double> CalcDeltaDistances(int numDistances, const double targetSpeed);
   void printSpeedAccJerk(Path path, int num);
