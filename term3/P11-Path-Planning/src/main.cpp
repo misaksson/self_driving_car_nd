@@ -2,9 +2,9 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "helpers.h"
-#include "path_planner.h"
-#include "vehicle_data.h"
+#include "path/planner.h"
 #include "path/trajectory.h"
+#include "vehicle_data.h"
 #include <fstream>
 #include <math.h>
 #include <uWS/uWS.h>
@@ -36,9 +36,9 @@ string hasData(string s) {
 
 int main() {
   uWS::Hub h;
-  Helpers helpers("../data/highway_map.csv");
-  Path::TrajectoryCalculator trajectoryCalculator(helpers);
-  PathPlanner pathPlanner(helpers, trajectoryCalculator, 50);
+  const Helpers helpers("../data/highway_map.csv");
+  const Path::TrajectoryCalculator pathTrajectoryCalculator(helpers);
+  Path::Planner pathPlanner(helpers, pathTrajectoryCalculator, 50);
 
   h.onMessage([&pathPlanner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.

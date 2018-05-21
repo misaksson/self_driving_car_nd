@@ -1,8 +1,8 @@
-#include "constants.h"
-#include "helpers.h"
-#include "path_planner.h"
-#include "path/trajectory.h"
-#include "spline.h"
+#include "../constants.h"
+#include "../helpers.h"
+#include "../spline.h"
+#include "planner.h"
+#include "trajectory.h"
 #include <algorithm>
 #include <array>
 #include <fstream>
@@ -19,13 +19,13 @@ using namespace std;
 /** Helper function to round values in the same way as the simulator interface. */
 static double roundToSevenSignificantDigits(double value);
 
-PathPlanner::PathPlanner(const Helpers &helpers, const Path::TrajectoryCalculator &trajectoryCalculator, int pathLength) :
+Path::Planner::Planner(const Helpers &helpers, const Path::TrajectoryCalculator &trajectoryCalculator, int pathLength) :
     helpers(helpers), trajectoryCalculator(trajectoryCalculator), pathLength(pathLength) {}
 
-PathPlanner::~PathPlanner() {
+Path::Planner::~Planner() {
 }
 
-Path::Trajectory PathPlanner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory,
+Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory,
                                        double previousEnd_s, double previousEnd_d) {
   double targetSpeed = Logic(vehicleData);
   int numPreviousCoords = previousTrajectory.x.size();
@@ -44,7 +44,7 @@ Path::Trajectory PathPlanner::CalcNext(const VehicleData &vehicleData, const Pat
   return output;
 }
 
-double PathPlanner::Logic(const VehicleData &vehicleData) {
+double Path::Planner::Logic(const VehicleData &vehicleData) {
   double targetSpeed = constants.speedLimit;
   double minLongitudinalDiff = HUGE_VAL;
   for (auto otherVehicle = vehicleData.others.begin(); otherVehicle != vehicleData.others.end(); ++otherVehicle) {
