@@ -1,6 +1,7 @@
 #ifndef VEHICLE_DATA_H
 #define VEHICLE_DATA_H
 
+#include <iostream>
 #include <vector>
 #include <stdint.h>
 
@@ -17,6 +18,15 @@ public:
     double d;
     double yaw;
     double speed;
+
+    friend std::ostream& operator<<(std::ostream &os, const EgoVehicleData &m) {
+      return os << "x=" << m.x <<
+                 ", y=" << m.y <<
+                 ", s=" << m.s <<
+                 ", d=" << m.d <<
+                 ", yaw=" << m.yaw <<
+                 ", speed=" << m.speed;
+    }
   };
 
   /** Localization data of other vehicles. */
@@ -31,6 +41,16 @@ public:
     double vy;
     double s;
     double d;
+
+    friend std::ostream& operator<<(std::ostream &os, const OtherVehicleData &m) {
+      return os << "id=" << m.id <<
+                 ", x=" << m.x <<
+                 ", y=" << m.y <<
+                 ", vx=" << m.vx <<
+                 ", vy=" << m.vy <<
+                 ", s=" << m.s <<
+                 ", d=" << m.d;
+    }
   };
 
   VehicleData(double ego_x, double ego_y, double ego_s, double ego_d, double ego_yaw, double ego_speed,

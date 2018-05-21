@@ -4,6 +4,7 @@
 #include "helpers.h"
 #include "path_planner.h"
 #include "vehicle_data.h"
+#include "path/trajectory.h"
 #include <fstream>
 #include <math.h>
 #include <uWS/uWS.h>
@@ -36,7 +37,8 @@ string hasData(string s) {
 int main() {
   uWS::Hub h;
   Helpers helpers("../data/highway_map.csv");
-  PathPlanner pathPlanner(helpers, 50);
+  Path::TrajectoryCalculator trajectoryCalculator(helpers);
+  PathPlanner pathPlanner(helpers, trajectoryCalculator, 50);
 
   h.onMessage([&pathPlanner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -60,14 +62,14 @@ int main() {
                                         j[1]["sensor_fusion"]);
 
          	// Get previous path data not already visited by the simulator.
-          PathPlanner::Path previousPath(j[1]["previous_path_x"], j[1]["previous_path_y"]);
+          Path::Trajectory previous(j[1]["previous_path_x"], j[1]["previous_path_y"]);
 
           // Previous path's end s and d values
           double end_path_s = j[1]["end_path_s"];
           double end_path_d = j[1]["end_path_d"];
 
           // Update the path.
-          PathPlanner::Path nextPath = pathPlanner.CalcNext(vehicleData, previousPath, end_path_s, end_path_d);
+          Path::Trajectory nextPath = pathPlanner.CalcNext(vehicleData, previous, end_path_s, end_path_d);
 
         	json msgJson;
         	msgJson["next_x"] = nextPath.x;
