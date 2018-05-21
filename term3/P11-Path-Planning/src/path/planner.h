@@ -1,6 +1,5 @@
-
-#ifndef PATH_PLANNER_H
-#define PATH_PLANNER_H
+#ifndef PLANNER_H
+#define PLANNER_H
 
 #include "../helpers.h"
 #include "../vehicle_data.h"
@@ -12,11 +11,7 @@
 namespace Path {
   class Planner {
   public:
-    /** Constructor
-     * @param waypointsMapFile A CSV file path containing track waypoints.
-     * @param pathLength Number of coordinates to send to simulator.
-     */
-    Planner(const Helpers &helpers, const Path::TrajectoryCalculator &trajectoryCalculator, int pathLength);
+    Planner(const Helpers &helpers, int pathLength);
     virtual ~Planner();
 
     /** Calculate the path to follow.
@@ -32,10 +27,10 @@ namespace Path {
 
   private:
     const Helpers &helpers;
-    const Path::TrajectoryCalculator &trajectoryCalculator;
+    const TrajectoryCalculator trajectoryCalculator;
     const int pathLength; /**< Number of coordinates to send to simulator. */
     double Logic(const VehicleData &vehicleData);
 
   }; /* class Planner */
 }; /* namespace Path */
-#endif /* PATH_PLANNER_H */
+#endif /* PLANNER_H */
