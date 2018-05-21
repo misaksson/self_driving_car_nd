@@ -63,12 +63,8 @@ int main() {
          	// Get previous path data not already visited by the simulator.
           Path::Trajectory previous(j[1]["previous_path_x"], j[1]["previous_path_y"]);
 
-          // Previous path's end s and d values
-          double end_path_s = j[1]["end_path_s"];
-          double end_path_d = j[1]["end_path_d"];
-
           // Update the path.
-          Path::Trajectory nextPath = pathPlanner.CalcNext(vehicleData, previous, end_path_s, end_path_d);
+          Path::Trajectory nextPath = pathPlanner.CalcNext(vehicleData, previous);
 
         	json msgJson;
         	msgJson["next_x"] = nextPath.x;

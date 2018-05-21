@@ -22,8 +22,7 @@ namespace Path {
      * @param previousTrajectory Previously calculated trajectory coordinates not yet visited by the simulator.
      * @return Next path coordinates for the simulator.
      */
-     Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory,
-                               double previousEnd_s, double previousEnd_d);
+     Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory);
 
   private:
     const Helpers &helpers;

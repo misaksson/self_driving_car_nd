@@ -19,7 +19,7 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]")
   const double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
-  const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, constants.speedLimit);
+  const VehicleData::EgoVehicleData egoVehicle(x, y, s, d, yaw, constants.speedLimit);
   const vector<VehicleData::OtherVehicleData> otherVehicles = {
     VehicleData::OtherVehicleData({0,
                                    egoVehicle.x + egoVehicle.speed * 2.5,
@@ -31,7 +31,7 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]")
   };
   const VehicleData vehicleData(egoVehicle, otherVehicles);
   const Path::Trajectory previousPath;
-  Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath, s, d);
+  Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath);
 
   vector<double> speeds, accelerations, jerks;
   tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
@@ -45,7 +45,7 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner
   const double x = 0.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
-  const VehicleData::EgoVehicleData egoVehicle(0.0, 0.0, s, d, 0.0, constants.speedLimit);
+  const VehicleData::EgoVehicleData egoVehicle(x, y, s, d, yaw, constants.speedLimit);
   const vector<VehicleData::OtherVehicleData> otherVehicles = {
     VehicleData::OtherVehicleData({0,
                                    egoVehicle.x + egoVehicle.speed * 1.9,
@@ -57,7 +57,7 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner
   };
   const VehicleData vehicleData(egoVehicle, otherVehicles);
   const Path::Trajectory previousPath;
-  Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath, s, d);
+  Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath);
 
   vector<double> speeds, accelerations, jerks;
   tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);

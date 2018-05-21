@@ -26,8 +26,7 @@ Path::Planner::Planner(const Helpers &helpers, int pathLength) :
 Path::Planner::~Planner() {
 }
 
-Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory,
-                                       double previousEnd_s, double previousEnd_d) {
+Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory) {
   double targetSpeed = Logic(vehicleData);
   int numPreviousCoords = previousTrajectory.x.size();
   VehicleData::EgoVehicleData localRef;
@@ -101,4 +100,3 @@ static double roundToSevenSignificantDigits(double value) {
   lStream << setprecision(7) << value;
   return stod(lStream.str());
 }
-
