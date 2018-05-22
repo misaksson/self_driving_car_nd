@@ -16,53 +16,56 @@ static tuple<vector<double>, vector<double>, vector<double>> calcSpeedAccJerk(co
 TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]") {
   Helpers helpers("../data/test_map.csv");
   Path::Planner planner(helpers, 100);
-  const double x = 0.0, y = 0.0, yaw = 0.0;
+  const double x = 0.0, y = 0.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
-  const VehicleData::EgoVehicleData egoVehicle(x, y, s, d, yaw, constants.speedLimit);
-  const vector<VehicleData::OtherVehicleData> otherVehicles = {
-    VehicleData::OtherVehicleData({0,
-                                   egoVehicle.x + egoVehicle.speed * 2.5,
-                                   0.0,
-                                   constants.speedLimit * 0.6,
-                                   0.0,
-                                   egoVehicle.s + egoVehicle.speed * 2.5,
-                                   egoVehicle.d})
+  const vector<vector<double>> otherVehicles = {
+    {
+      0,
+      x + speed * 2.5,
+      0.0,
+      speed * 0.6,
+      0.0,
+      s + speed * 2.5,
+      d
+    }
   };
-  const VehicleData vehicleData(egoVehicle, otherVehicles);
+  const VehicleData vehicleData(x, y, s, d, yaw, constants.speedLimit, otherVehicles);
   const Path::Trajectory previousPath;
   Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath);
 
   vector<double> speeds, accelerations, jerks;
   tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
-  REQUIRE(speeds[0] == Approx(egoVehicle.speed).margin(0.02));
-  REQUIRE(speeds.back() == Approx(otherVehicles[0].vx).margin(0.15));
+  REQUIRE(speeds[0] == Approx(vehicleData.ego.speed).margin(0.02));
+  REQUIRE(speeds.back() == Approx(vehicleData.others[0].vx).margin(0.15));
 }
 
 TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner]") {
   Helpers helpers("../data/test_map.csv");
   Path::Planner planner(helpers, 100);
-  const double x = 0.0, y = 0.0, yaw = 0.0;
+  const double x = 0.0, y = 0.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
   const VehicleData::EgoVehicleData egoVehicle(x, y, s, d, yaw, constants.speedLimit);
-  const vector<VehicleData::OtherVehicleData> otherVehicles = {
-    VehicleData::OtherVehicleData({0,
-                                   egoVehicle.x + egoVehicle.speed * 1.9,
-                                   0.0,
-                                   constants.speedLimit * 0.6,
-                                   0.0,
-                                   egoVehicle.s + egoVehicle.speed * 1.9,
-                                   egoVehicle.d})
+  const vector<vector<double>> otherVehicles = {
+    {
+      0,
+      x + speed * 1.9,
+      0.0,
+      speed * 0.6,
+      0.0,
+      s + speed * 1.9,
+      d
+    }
   };
-  const VehicleData vehicleData(egoVehicle, otherVehicles);
+  const VehicleData vehicleData(x, y, s, d, yaw, constants.speedLimit, otherVehicles);
   const Path::Trajectory previousPath;
   Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath);
 
   vector<double> speeds, accelerations, jerks;
   tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
-  REQUIRE(speeds[0] == Approx(egoVehicle.speed).margin(0.02));
-  REQUIRE(speeds.back() < otherVehicles[0].vx - 0.1);
+  REQUIRE(speeds[0] == Approx(vehicleData.ego.speed).margin(0.02));
+  REQUIRE(speeds.back() < vehicleData.others[0].vx - 0.1);
 }
 
 static tuple<vector<double>, vector<double>, vector<double>> calcSpeedAccJerk(const Path::Trajectory &path, double deltaTime) {
