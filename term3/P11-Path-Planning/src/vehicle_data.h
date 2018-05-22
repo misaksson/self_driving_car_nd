@@ -2,8 +2,11 @@
 #define VEHICLE_DATA_H
 
 #include <iostream>
+#include <math.h>
 #include <vector>
 #include <stdint.h>
+#include <tuple>
+#include "helpers.h"
 
 class VehicleData {
 public:
@@ -32,19 +35,18 @@ public:
   /** Localization data of other vehicles. */
   struct OtherVehicleData {
     OtherVehicleData() {};
-    OtherVehicleData(std::vector<double> data) : id(static_cast<uint64_t>(data[0])), x(data[1]), y(data[2]),
-                                                 vx(data[3]), vy(data[4]), s(data[5]), d(data[6]) {
-    };
+    OtherVehicleData(std::vector<double> data) : id(static_cast<uint64_t>(data[0])),
+                                                 x(data[1]), y(data[2]),
+                                                 vx(data[3]), vy(data[4]),
+                                                 s(data[5]), d(data[6]) {};
+
     uint64_t id;
     double x;
     double y;
-    double s;
-    double d;
-    double s_dot;
-    double d_dot;
-//  private:
     double vx;
     double vy;
+    double s;
+    double d;
   public:
     friend std::ostream& operator<<(std::ostream &os, const OtherVehicleData &m) {
       return os << "id=" << m.id <<
@@ -64,9 +66,7 @@ public:
       others.push_back(OtherVehicleData(*otherVehicleData));
     }
   };
-
   virtual ~VehicleData() {};
-
 
   EgoVehicleData ego;
   std::vector<OtherVehicleData> others;

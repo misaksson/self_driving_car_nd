@@ -19,12 +19,8 @@ using namespace std;
 /** Helper function to round values in the same way as the simulator interface. */
 static double roundToSevenSignificantDigits(double value);
 
-Path::Planner::Planner(int pathLength) :
-    trajectoryCalculator(Path::TrajectoryCalculator()), pathLength(pathLength) {
-}
-
-Path::Planner::~Planner() {
-}
+Path::Planner::Planner(int pathLength) : pathLength(pathLength) {}
+Path::Planner::~Planner() {}
 
 Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory) {
   double targetSpeed = Logic(vehicleData);
@@ -33,13 +29,13 @@ Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const P
   if (previousTrajectory.size() < 2) {
     localRef = vehicleData.ego;
   } else {
-    localRef = previousTrajectory.getEndState(helpers);
+    localRef = previousTrajectory.getEndState();
   }
-  Path::Trajectory output = previousTrajectory + trajectoryCalculator.Accelerate(localRef, targetSpeed - localRef.speed);
+  Path::Trajectory output = previousTrajectory + Path::TrajectoryCalculator::Accelerate(localRef, targetSpeed - localRef.speed);
 
-  localRef = output.getEndState(helpers);
+  localRef = output.getEndState();
   if (output.size() < pathLength) {
-    output += trajectoryCalculator.ConstantSpeed(localRef, pathLength - output.size());
+    output += Path::TrajectoryCalculator::ConstantSpeed(localRef, pathLength - output.size());
   }
   return output;
 }

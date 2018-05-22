@@ -29,7 +29,7 @@ int Path::Trajectory::size() const {
   return x.size();
 }
 
-VehicleData::EgoVehicleData Path::Trajectory::getEndState(const Helpers &helpers) const {
+VehicleData::EgoVehicleData Path::Trajectory::getEndState() const {
   VehicleData::EgoVehicleData result;
   if (size() > 1) {
     result.x = x[size() - 1];
@@ -59,11 +59,7 @@ Path::Trajectory::Kinematics Path::Trajectory::getKinematics() const {
   return kinematics;
 }
 
-Path::TrajectoryCalculator::TrajectoryCalculator() {};
-
-Path::TrajectoryCalculator::~TrajectoryCalculator() {};
-
-Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVehicleData &start, double delta_speed) const {
+Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVehicleData &start, double delta_speed) {
   Trajectory globalCourse;
 
   globalCourse.x.push_back(start.x - cos(start.yaw));
@@ -164,7 +160,7 @@ static tuple<vector<double>, double> CalcDeltaDistances(double speed, double acc
   return make_tuple(deltaDistances, totalDistance);
 }
 
-Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::EgoVehicleData &start, int numCoords) const {
+Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::EgoVehicleData &start, int numCoords) {
   Trajectory globalCourse;
 
   globalCourse.x.push_back(start.x - cos(start.yaw));
@@ -217,7 +213,7 @@ Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::Eg
   return globalFine;
 }
 
-Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) const {
+Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) {
   Trajectory globalCourse;
 
   globalCourse.x.push_back(start.x - cos(start.yaw));

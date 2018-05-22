@@ -25,7 +25,6 @@ namespace Path {
      Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory);
 
   private:
-    const TrajectoryCalculator trajectoryCalculator;
     const int pathLength; /**< Number of coordinates to send to simulator. */
     double Logic(const VehicleData &vehicleData);
 

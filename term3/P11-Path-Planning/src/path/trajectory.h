@@ -46,7 +46,7 @@ namespace Path {
      * This is useful when concatenating trajectories. The result seems to
      * be smooth enough for the simulator.
      */
-    VehicleData::EgoVehicleData getEndState(const Helpers &helpers) const;
+    VehicleData::EgoVehicleData getEndState() const;
 
     /** Trajectory kinematics estimations. */
     class Kinematics {
@@ -91,21 +91,17 @@ namespace Path {
     Kinematics getKinematics() const;
   };
 
-  class TrajectoryCalculator {
-  public:
-    TrajectoryCalculator();
-    virtual ~TrajectoryCalculator();
-
+  namespace TrajectoryCalculator {
     /** Apply optimal acceleration to reach delta_speed.
      * The d coordinate is kept constant. */
-    Trajectory Accelerate(const VehicleData::EgoVehicleData &start, double delta_speed) const;
+    Trajectory Accelerate(const VehicleData::EgoVehicleData &start, double delta_speed);
     /** Extend vector by a number of coordinates.
      * The speed and d coordinate is kept constant. */
-    Trajectory ConstantSpeed(const VehicleData::EgoVehicleData &start, int numCoords) const;
+    Trajectory ConstantSpeed(const VehicleData::EgoVehicleData &start, int numCoords);
     /** Smoothly transition from position A to B with constant acceleration.
      * The yaw angle will be the same as the road at the end of the trajectory. */
-    Trajectory AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) const;
-  }; /* class TrajectoryCalculator */
+    Trajectory AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed);
+  }; /* namespace TrajectoryCalculator */
 }; /* namespace Path */
 
 #endif /* TRAJECTORY_H */
