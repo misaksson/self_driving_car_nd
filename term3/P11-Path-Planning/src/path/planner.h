@@ -11,7 +11,7 @@
 namespace Path {
   class Planner {
   public:
-    Planner(const Helpers &helpers, int pathLength);
+    Planner(int pathLength);
     virtual ~Planner();
 
     /** Calculate the path to follow.
@@ -25,7 +25,6 @@ namespace Path {
      Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory);
 
   private:
-    const Helpers &helpers;
     const TrajectoryCalculator trajectoryCalculator;
     const int pathLength; /**< Number of coordinates to send to simulator. */
     double Logic(const VehicleData &vehicleData);

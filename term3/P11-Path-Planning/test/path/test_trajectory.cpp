@@ -11,8 +11,7 @@
 using namespace std;
 
 TEST_CASE("Trajectory should find optimal acceleration", "[path]") {
-  Helpers helpers("../data/test_map.csv");
-  Path::TrajectoryCalculator trajectoryCalculator(helpers);
+  Path::TrajectoryCalculator trajectoryCalculator;
   double x = 100.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -73,8 +72,7 @@ TEST_CASE("Trajectory should find optimal acceleration", "[path]") {
 }
 
 TEST_CASE("Trajectory should smoothly get from A to B", "[path]") {
-  Helpers helpers("../data/test_map.csv");
-  Path::TrajectoryCalculator trajectoryCalculator(helpers);
+  Path::TrajectoryCalculator trajectoryCalculator;
   const double x = 100.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -102,8 +100,7 @@ TEST_CASE("Trajectory should smoothly get from A to B", "[path]") {
 }
 
 TEST_CASE("Trajectory should smoothly accelerate from A to B", "[path]") {
-  Helpers helpers("../data/test_map.csv");
-  Path::TrajectoryCalculator trajectoryCalculator(helpers);
+  Path::TrajectoryCalculator trajectoryCalculator;
   const double x = 100.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -131,7 +128,7 @@ TEST_CASE("Trajectory should smoothly accelerate from A to B", "[path]") {
 
 TEST_CASE("Trajectory should smoothly decelerate from A to B", "[path]") {
   Helpers helpers("../data/test_map.csv");
-  Path::TrajectoryCalculator trajectoryCalculator(helpers);
+  Path::TrajectoryCalculator trajectoryCalculator;
   const double x = 100.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -158,8 +155,7 @@ TEST_CASE("Trajectory should smoothly decelerate from A to B", "[path]") {
 }
 
 TEST_CASE("Trajectory should smoothly continue in lane", "[path]") {
-  Helpers helpers("../data/test_map.csv");
-  Path::TrajectoryCalculator trajectoryCalculator(helpers);
+  Path::TrajectoryCalculator trajectoryCalculator;
   const double x = 100.0, y = 0.0, yaw = 0.0;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);

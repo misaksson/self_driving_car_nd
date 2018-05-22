@@ -19,8 +19,8 @@ using namespace std;
 /** Helper function to round values in the same way as the simulator interface. */
 static double roundToSevenSignificantDigits(double value);
 
-Path::Planner::Planner(const Helpers &helpers, int pathLength) :
-    helpers(helpers), trajectoryCalculator(Path::TrajectoryCalculator(helpers)), pathLength(pathLength) {
+Path::Planner::Planner(int pathLength) :
+    trajectoryCalculator(Path::TrajectoryCalculator()), pathLength(pathLength) {
 }
 
 Path::Planner::~Planner() {

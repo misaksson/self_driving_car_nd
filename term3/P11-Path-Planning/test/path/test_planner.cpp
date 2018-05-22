@@ -10,12 +10,8 @@
 
 using namespace std;
 
-/** Helper function to calculate the speed, acceleration and jerk vectors given a path. */
-static tuple<vector<double>, vector<double>, vector<double>> calcSpeedAccJerk(const Path::Trajectory &trajectory, double deltaTime);
-
 TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]") {
-  Helpers helpers("../data/test_map.csv");
-  Path::Planner planner(helpers, 100);
+  Path::Planner planner(100);
   const double x = 0.0, y = 0.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -30,23 +26,19 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path_planner]")
       d
     }
   };
-  const VehicleData vehicleData(x, y, s, d, yaw, constants.speedLimit, otherVehicles);
+  const VehicleData vehicleData(x, y, s, d, yaw, speed, otherVehicles);
   const Path::Trajectory previousPath;
   Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath);
-
-  vector<double> speeds, accelerations, jerks;
-  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
-  REQUIRE(speeds[0] == Approx(vehicleData.ego.speed).margin(0.02));
-  REQUIRE(speeds.back() == Approx(vehicleData.others[0].vx).margin(0.15));
+  Path::Trajectory::Kinematics kinematics = nextPath.getKinematics();
+  REQUIRE(kinematics.speeds[0] == Approx(vehicleData.ego.speed).margin(0.02));
+  REQUIRE(kinematics.speeds.back() == Approx(vehicleData.others[0].vx).margin(0.15));
 }
 
 TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner]") {
-  Helpers helpers("../data/test_map.csv");
-  Path::Planner planner(helpers, 100);
+  Path::Planner planner(100);
   const double x = 0.0, y = 0.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
-  const VehicleData::EgoVehicleData egoVehicle(x, y, s, d, yaw, constants.speedLimit);
   const vector<vector<double>> otherVehicles = {
     {
       0,
@@ -58,26 +50,11 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path_planner
       d
     }
   };
-  const VehicleData vehicleData(x, y, s, d, yaw, constants.speedLimit, otherVehicles);
+  const VehicleData vehicleData(x, y, s, d, yaw, speed, otherVehicles);
   const Path::Trajectory previousPath;
   Path::Trajectory nextPath = planner.CalcNext(vehicleData, previousPath);
+  Path::Trajectory::Kinematics kinematics = nextPath.getKinematics();
 
-  vector<double> speeds, accelerations, jerks;
-  tie(speeds, accelerations, jerks) = calcSpeedAccJerk(nextPath, constants.deltaTime);
-  REQUIRE(speeds[0] == Approx(vehicleData.ego.speed).margin(0.02));
-  REQUIRE(speeds.back() < vehicleData.others[0].vx - 0.1);
-}
-
-static tuple<vector<double>, vector<double>, vector<double>> calcSpeedAccJerk(const Path::Trajectory &path, double deltaTime) {
-  vector<double> speeds, accelerations, jerks;
-  for (int i = 1; i < path.x.size(); ++i) {
-    speeds.push_back(Helpers::distance(path.x[i - 1], path.y[i - 1], path.x[i], path.y[i]) / deltaTime);
-  }
-  for (int i = 1; i < speeds.size(); ++i) {
-    accelerations.push_back((speeds[i] - speeds[i - 1]) / deltaTime);
-  }
-  for (int i = 1; i < accelerations.size(); ++i) {
-    jerks.push_back((accelerations[i] - accelerations[i - 1]) / deltaTime);
-  }
-  return make_tuple(speeds, accelerations, jerks);
+  REQUIRE(kinematics.speeds[0] == Approx(vehicleData.ego.speed).margin(0.02));
+  REQUIRE(kinematics.speeds.back() < vehicleData.others[0].vx - 0.1);
 }

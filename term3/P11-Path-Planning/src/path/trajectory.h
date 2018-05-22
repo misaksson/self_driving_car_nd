@@ -93,7 +93,7 @@ namespace Path {
 
   class TrajectoryCalculator {
   public:
-    TrajectoryCalculator(const Helpers &helpers);
+    TrajectoryCalculator();
     virtual ~TrajectoryCalculator();
 
     /** Apply optimal acceleration to reach delta_speed.
@@ -105,9 +105,6 @@ namespace Path {
     /** Smoothly transition from position A to B with constant acceleration.
      * The yaw angle will be the same as the road at the end of the trajectory. */
     Trajectory AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) const;
-
-   private:
-     const Helpers &helpers;
   }; /* class TrajectoryCalculator */
 }; /* namespace Path */
 

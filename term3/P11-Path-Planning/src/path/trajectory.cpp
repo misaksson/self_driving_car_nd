@@ -59,7 +59,7 @@ Path::Trajectory::Kinematics Path::Trajectory::getKinematics() const {
   return kinematics;
 }
 
-Path::TrajectoryCalculator::TrajectoryCalculator(const Helpers &helpers) : helpers(helpers) {}
+Path::TrajectoryCalculator::TrajectoryCalculator() {};
 
 Path::TrajectoryCalculator::~TrajectoryCalculator() {};
 

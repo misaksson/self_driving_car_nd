@@ -50,4 +50,7 @@ public:
   std::vector<double> map_waypoints_dy;
 };
 
+/* Must be defined e.g. in main.h */
+extern const Helpers helpers;
+
 #endif /* HELPERS_H */
