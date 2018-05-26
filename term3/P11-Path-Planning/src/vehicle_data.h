@@ -33,29 +33,23 @@ public:
   };
 
   /** Localization data of other vehicles. */
-  struct OtherVehicleData {
+  struct OtherVehicleData : public EgoVehicleData {
     OtherVehicleData() {};
     OtherVehicleData(std::vector<double> data) : id(static_cast<uint64_t>(data[0])),
-                                                 x(data[1]), y(data[2]),
                                                  vx(data[3]), vy(data[4]),
-                                                 s(data[5]), d(data[6]) {};
+                                                 EgoVehicleData(data[1], data[2], data[5], data[6],
+                                                                atan2(data[4], data[3]),
+                                                                sqrt(pow(data[3], 2.0) + pow(data[4], 2.0))) {};
 
     uint64_t id;
-    double x;
-    double y;
     double vx;
     double vy;
-    double s;
-    double d;
-  public:
+
     friend std::ostream& operator<<(std::ostream &os, const OtherVehicleData &m) {
       return os << "id=" << m.id <<
-                 ", x=" << m.x <<
-                 ", y=" << m.y <<
-                 ", vx=" << m.vx <<
-                 ", vy=" << m.vy <<
-                 ", s=" << m.s <<
-                 ", d=" << m.d;
+                    " " << static_cast <const EgoVehicleData &>(m) <<
+                    ", vx=" << m.vx <<
+                    ", vy=" << m.vy;
     }
   };
 

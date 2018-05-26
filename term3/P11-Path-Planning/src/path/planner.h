@@ -3,6 +3,7 @@
 
 #include "../helpers.h"
 #include "../vehicle_data.h"
+#include "logic.h"
 #include "trajectory.h"
 #include <string>
 #include <tuple>
@@ -11,7 +12,7 @@
 namespace Path {
   class Planner {
   public:
-    Planner(int pathLength);
+    Planner(int minTrajectoryLength);
     virtual ~Planner();
 
     /** Calculate the path to follow.
@@ -25,8 +26,8 @@ namespace Path {
      Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory);
 
   private:
-    const int pathLength; /**< Number of coordinates to send to simulator. */
-    double Logic(const VehicleData &vehicleData);
+    const Logic logic;
+    const int minTrajectoryLength; /**< Minimum number of coordinates to send to simulator. */
 
   }; /* class Planner */
 }; /* namespace Path */

@@ -76,7 +76,6 @@ TEST_CASE("Trajectory should smoothly get from A to B", "[path]") {
   tie(s, d) = helpers.getFrenet(x, y, yaw);
   const double speed = 22.352;
   const double delta_s = 100.0, delta_d = constants.laneWidth;
-
   vector<vector<double>> sensorFusion;
   const VehicleData vehicleData(x, y, s, d, yaw, speed, sensorFusion);
   Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(vehicleData.ego, delta_s, delta_d, 0.0);

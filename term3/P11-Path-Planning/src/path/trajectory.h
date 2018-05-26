@@ -40,13 +40,19 @@ namespace Path {
     }
 
     /** Provides the number of coordinates in the trajectory. */
-    int size() const;
+    size_t size() const;
 
+    /** Erase a range of coordinates from the trajectory.
+     * @param startIdx Start coordinate in range to erase.
+     * @param endIdx End coordinate in range to erase (inclusive).
+     */
+    void erase(size_t startIdx, size_t endIdx);
     /** Get an approximation of vehicle state at the end of the trajectory.
      * This is useful when concatenating trajectories. The result seems to
      * be smooth enough for the simulator.
      */
-    VehicleData::EgoVehicleData getEndState() const;
+    VehicleData::EgoVehicleData getEndState(const VehicleData::EgoVehicleData &startState) const;
+    VehicleData::EgoVehicleData getState(const VehicleData::EgoVehicleData &startState, int idx) const;
 
     /** Trajectory kinematics estimations. */
     class Kinematics {

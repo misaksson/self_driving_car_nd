@@ -4,6 +4,7 @@
 #include <tuple>
 #include <vector>
 #include "Eigen-3.3/Eigen/Dense"
+#include "constants.h"
 #include "helpers.h"
 
 using namespace std;
@@ -41,6 +42,21 @@ double Helpers::milesPerHour2MetersPerSecond(double x) { return x * 0.44704; }
 double Helpers::distance(double x1, double y1, double x2, double y2)
 {
   return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+}
+
+double Helpers::CalcYaw(double x1, double y1, double x2, double y2)
+{
+  return atan2(y2 - y1, x2 - x1);
+}
+
+int Helpers::GetLane(double d) {
+  return static_cast<int>(floor((d / constants.laneWidth)));
+}
+
+int Helpers::GetLane(double x, double y, double theta) {
+  double s, d;
+  tie(s, d) = helpers.getFrenet(x, y, theta);
+  return GetLane(d);
 }
 
 int Helpers::ClosestWaypoint(double x, double y) const {

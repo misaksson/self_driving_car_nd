@@ -25,11 +25,16 @@ Path::Trajectory::Trajectory(int nCoords) {
 };
 Path::Trajectory::Trajectory(std::vector<double> x, std::vector<double> y) : x(x), y(y) {};
 
-int Path::Trajectory::size() const {
+size_t Path::Trajectory::size() const {
   return x.size();
 }
 
-VehicleData::EgoVehicleData Path::Trajectory::getEndState() const {
+void Path::Trajectory::erase(size_t startIdx, size_t endIdx) {
+  x.erase(x.begin() + startIdx, x.begin() + endIdx + 1u);
+  y.erase(y.begin() + startIdx, y.begin() + endIdx + 1u);
+}
+
+VehicleData::EgoVehicleData Path::Trajectory::getEndState(const VehicleData::EgoVehicleData &startState) const {
   VehicleData::EgoVehicleData result;
   if (size() > 1) {
     result.x = x[size() - 1];
@@ -39,7 +44,27 @@ VehicleData::EgoVehicleData Path::Trajectory::getEndState() const {
     tie(result.s, result.d) = helpers.getFrenet(result.x, result.y, result.yaw);
     result.speed = sqrt(pow(y[size() - 1] - y[size() - 2], 2.0) +
                         pow(x[size() - 1] - x[size() - 2], 2.0)) / constants.deltaTime;
+  } else {
+    result = startState;
   }
+
+  return result;
+}
+
+VehicleData::EgoVehicleData Path::Trajectory::getState(const VehicleData::EgoVehicleData &startState, int idx) const {
+  VehicleData::EgoVehicleData result;
+  if (size() > 1) {
+    result.x = x[idx];
+    result.y = y[idx];
+    result.yaw = atan2(y[idx] - y[idx - 1],
+                       x[idx] - x[idx - 1]);
+    tie(result.s, result.d) = helpers.getFrenet(result.x, result.y, result.yaw);
+    result.speed = sqrt(pow(y[idx] - y[idx - 1], 2.0) +
+                        pow(x[idx] - x[idx - 1], 2.0)) / constants.deltaTime;
+  } else {
+    result = startState;
+  }
+
   return result;
 }
 
@@ -268,7 +293,7 @@ Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(const VehicleData::EgoV
                                                                start.x, start.y, start.yaw);
       globalFine.x.push_back(global_x);
       globalFine.y.push_back(global_y);
-  } while (local_x < distance_x);
+  } while ((local_x < distance_x) && (globalFine.size() < 300u));
 
   return globalFine;
 }

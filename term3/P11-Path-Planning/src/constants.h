@@ -14,7 +14,8 @@ public:
                 jerkLimit(10.0 - EXTRA_MARGIN),
                 deltaTime(0.02),
                 trackLength(6945.554),
-                laneWidth(4.0) {};
+                laneWidth(4.0),
+                numLanes(3) {};
   virtual ~Constants() {};
 
   /** Speed limit in the simulator given in meter per second. */
@@ -29,6 +30,8 @@ public:
   const double trackLength;
   /** Lane width in meters. */
   const double laneWidth;
+  /** Number of lanes available. */
+  const int numLanes;
 
 };
 

@@ -21,6 +21,14 @@ public:
   /** Calculates the euclidean distance. */
   static double distance(double x1, double y1, double x2, double y2);
 
+  /** Calculates the yaw angle in radians */
+  static double CalcYaw(double x1, double y1, double x2, double y2);
+
+  /** Calculate lane number from Frenet d coordinate. */
+  static int GetLane(double d);
+  /** Calculate lane number from Cartesian coordinates. */
+  static int GetLane(double x, double y, double theta);
+
   /** Get closest waypoint. */
   int ClosestWaypoint(double x, double y) const;
 
