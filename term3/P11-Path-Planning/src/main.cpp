@@ -39,7 +39,7 @@ const Helpers helpers("../data/highway_map.csv");
 
 int main() {
   uWS::Hub h;
-  Path::Planner pathPlanner(75);
+  Path::Planner pathPlanner(75, 90);
 
   h.onMessage([&pathPlanner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.

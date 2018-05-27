@@ -11,7 +11,7 @@
 using namespace std;
 
 TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path]") {
-  Path::Planner planner(100);
+  Path::Planner planner(100, 400);
   const double x = 0.0, y = -6.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -34,7 +34,7 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path]") {
 }
 
 TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path]") {
-  Path::Planner planner(100);
+  Path::Planner planner(100, 400);
   const double x = 0.0, y = -6.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -57,7 +57,7 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path]") {
 }
 
 TEST_CASE("Path planner should switch lane left", "[path]") {
-  Path::Planner planner(100);
+  Path::Planner planner(100, 400);
   const double x = 0.0, y = -6.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);

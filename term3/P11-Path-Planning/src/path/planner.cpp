@@ -23,8 +23,9 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
 static double costCalculator(const VehicleData &vehicleData, const vector<Path::Trajectory> &predictions,
                              const Path::Trajectory &trajectory, bool verbose);
 
-Path::Planner::Planner(int minTrajectoryLength) :
-    logic(Path::Logic()), predict(Path::Predict()), minTrajectoryLength(minTrajectoryLength) {
+Path::Planner::Planner(int minTrajectoryLength, int maxTrajectoryLength) :
+    logic(Path::Logic()), predict(Path::Predict()),
+    minTrajectoryLength(minTrajectoryLength), maxTrajectoryLength(maxTrajectoryLength) {
 }
 
 Path::Planner::~Planner() {
@@ -47,7 +48,12 @@ Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const P
     }
     cout << "lowest cost = " << costCalculator(vehicleData, predictions, bestTrajectory, true) << endl;
   }
-  return previousTrajectory + bestTrajectory;
+
+  Path::Trajectory output = previousTrajectory + bestTrajectory;
+  if (output.size() > maxTrajectoryLength) {
+    output.erase(maxTrajectoryLength, output.size() - 1u);
+  }
+  return output;
 }
 
 
@@ -73,7 +79,7 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
       case Path::Logic::PrepareLaneChangeRight:
         continue; // Not implemented.
     }
-    for (double delta_s = 100.0; delta_s < 150.1; delta_s += 10.0) {
+    for (double delta_s = 40.0; delta_s < 70.1; delta_s += 10.0) {
       for (double delta_speed = -ego.speed; (ego.speed + delta_speed) <= constants.speedLimit; delta_speed += 1.0) {
         trajectories.push_back(Path::TrajectoryCalculator::AdjustSpeed(ego, delta_s, delta_d, delta_speed));
       }

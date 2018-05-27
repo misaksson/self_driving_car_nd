@@ -13,7 +13,7 @@
 namespace Path {
   class Planner {
   public:
-    Planner(int minTrajectoryLength);
+    Planner(int minTrajectoryLength, int maxTrajectoryLength);
     virtual ~Planner();
 
     /** Calculate the path to follow.
@@ -30,6 +30,7 @@ namespace Path {
     const Logic logic;
     const Predict predict;
     const int minTrajectoryLength; /**< Minimum number of coordinates to send to simulator. */
+    const int maxTrajectoryLength; /**< Maximum number of coordinates to send to simulator. */
 
   }; /* class Planner */
 }; /* namespace Path */
