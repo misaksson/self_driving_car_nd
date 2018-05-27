@@ -238,6 +238,52 @@ Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::Eg
   return globalFine;
 }
 
+Path::Trajectory Path::TrajectoryCalculator::Others(const VehicleData::OtherVehicleData &start, int numCoords) {
+  Trajectory globalCourse;
+
+  globalCourse.x.push_back(start.x - start.vx * 1.0);
+  globalCourse.y.push_back(start.y - start.vy * 1.0);
+  globalCourse.x.push_back(start.x);
+  globalCourse.y.push_back(start.y);
+  globalCourse.x.push_back(start.x + start.vx * 10.0);
+  globalCourse.y.push_back(start.y + start.vy * 10.0);
+  globalCourse.x.push_back(start.x + start.vx * 20.0);
+  globalCourse.y.push_back(start.y + start.vy * 20.0);
+  globalCourse.x.push_back(start.x + start.vx * 30.0);
+  globalCourse.y.push_back(start.y + start.vy * 30.0);
+
+  // Transform the course vector of coordinates to a local coordinate system located at the start position.
+  Trajectory localCourse(globalCourse.x.size());
+  for (int i = 0; i < globalCourse.x.size(); ++i) {
+    tie(localCourse.x[i], localCourse.y[i]) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
+                                                                             start.x, start.y, start.yaw);
+  }
+
+  // Fit a spline to the local course coordinates.
+  tk::spline localSpline;
+  localSpline.set_points(localCourse.x, localCourse.y);
+
+  /* The spline is used to calculate a fine vector along the trajectory of local coordinates. A linear approximation
+   * for the spline is used to calculate the distance between each local x-coordinate, such that each step
+   * approximately will equal the expected step length at current speed.
+   */
+  Trajectory globalFine;
+  const double distance = sqrt(pow(globalCourse.x.back() - start.x, 2.0) + pow(globalCourse.y.back() - start.y, 2.0));
+  const double distanceFactor_x = distance / sqrt(pow(localSpline(distance), 2.0) + pow(distance, 2.0));
+  const double deltaDistance = start.speed * constants.deltaTime;
+
+  for(int i = 0; i < numCoords; ++i) {
+    const double local_x = (i + 1) * deltaDistance * distanceFactor_x;
+    const double local_y = localSpline(local_x);
+    double global_x, global_y;
+    tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
+                                                             start.x, start.y, start.yaw);
+    globalFine.x.push_back(global_x);
+    globalFine.y.push_back(global_y);
+  }
+  return globalFine;
+}
+
 Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) {
   Trajectory globalCourse;
 

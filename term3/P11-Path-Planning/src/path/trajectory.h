@@ -104,6 +104,7 @@ namespace Path {
     /** Extend vector by a number of coordinates.
      * The speed and d coordinate is kept constant. */
     Trajectory ConstantSpeed(const VehicleData::EgoVehicleData &start, int numCoords);
+    Trajectory Others(const VehicleData::OtherVehicleData &start, int numCoords);
     /** Smoothly transition from position A to B with constant acceleration.
      * The yaw angle will be the same as the road at the end of the trajectory. */
     Trajectory AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed);

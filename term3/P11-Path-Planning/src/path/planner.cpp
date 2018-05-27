@@ -28,8 +28,6 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
 /** Calculates the cost of a trajectory. */
 static double costCalculator(const VehicleData &vehicleData, const vector<Path::Trajectory> &predictions,
                              const Path::Trajectory &trajectory, bool verbose);
-/** Calculates the longitudinal difference s1 - s2 while considering track wrap-around. */
-static double calcLongitudinalDiff(double s1, double s2);
 
 Path::Planner::Planner(int minTrajectoryLength) :
     logic(Path::Logic()), minTrajectoryLength(minTrajectoryLength) {
@@ -59,16 +57,66 @@ Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const P
 }
 
 static vector<Path::Trajectory> predictOtherVehicles(const vector<VehicleData::OtherVehicleData>  &otherVehicles, size_t numPrevious) {
+  const size_t minPredictionLength = 400u;
   vector<Path::Trajectory> predictions;
+
   for (auto otherVehicle = otherVehicles.begin(); otherVehicle != otherVehicles.end(); ++otherVehicle) {
-    if (otherVehicle->speed > 0.0) {
-      /* Assume (for now) that the vehicle have constant speed and constant d. */
-      Path::Trajectory trajectory = Path::TrajectoryCalculator::ConstantSpeed(*otherVehicle, 400);
+    if (otherVehicle->isFrenetValid && (otherVehicle->vs > 5.0)) {
+      // Try to predict lane changes.
+
+      /* Calculate the lane separated into an integral number and a fraction, where the later is used to understand
+       * position within lane regardless of lane number. */
+      const double lane = otherVehicle->d / constants.laneWidth;
+      double laneIntegralPart;
+      const double laneFraction = modf(lane, &laneIntegralPart);
+      const int currentLane = static_cast<int>(laneIntegralPart);
+      int nextLane;
+      if (otherVehicle->vd > 0.25) {
+        // Lane change right.
+        // Look at lane fraction value to decide target lane.
+        nextLane = (laneFraction > 0.5) ? currentLane + 1 : currentLane;
+      } else if (otherVehicle->vd < -0.25) {
+        // Lane change left.
+        // Look at lane fraction value to decide target lane.
+        nextLane = (laneFraction < 0.5) ? currentLane - 1 : currentLane;
+      } else {
+        // No lane change ongoing.
+        nextLane = currentLane;
+      }
+
+      /* Calculate remaining change in d direction. */
+      const double target_d = nextLane * constants.laneWidth + (constants.laneWidth / 2.0);
+      const double delta_d = target_d - otherVehicle->d;
+
+      /* Calculated the distance at which the lane change is completed by assuming constant velocity both in s and d
+       * direction, although with some restriction on how long time the lane change may take. */
+      const double maxLaneChangeTime = 3.0;
+      const double minLaneAdjustmentTime = 0.5;
+      const double delta_t = max(minLaneAdjustmentTime, min(maxLaneChangeTime, delta_d / otherVehicle->vd));
+      const double delta_s = otherVehicle->vs * delta_t;
+      const double delta_speed = 0.0;
+      Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(*otherVehicle, delta_s, delta_d, delta_speed);
+
+      if (trajectory.size() < minPredictionLength) {
+        /* Extend prediction but now assume it continues in same lane. */
+        trajectory += Path::TrajectoryCalculator::ConstantSpeed(trajectory.getEndState(*otherVehicle), minPredictionLength - trajectory.size());
+      }
+
+      /* Erase prediction matching trajectory already presented to the simulator. */
+      trajectory.erase(0u, numPrevious - 1u);
+      predictions.push_back(trajectory);
+    } else if (otherVehicle->speed > 0.0) {
+      /* The Frenet coordinates has been considered to be broken.
+       * Lets fall back on predicting using the vx, vy values. */
+      Path::Trajectory trajectory = Path::TrajectoryCalculator::Others(*otherVehicle, minPredictionLength);
+
+      /* Erase prediction matching trajectory already presented to the simulator. */
       trajectory.erase(0u, numPrevious - 1u);
       predictions.push_back(trajectory);
     } else {
+      /* The other vehicle is not moving. Let's predict that it continues standing still. */
       Path::Trajectory trajectory;
-      for (size_t i = 0u; i < 400; ++i) {
+      for (size_t i = 0u; i < minPredictionLength - numPrevious; ++i) {
         trajectory.x.push_back(otherVehicle->x);
         trajectory.y.push_back(otherVehicle->y);
       }
@@ -164,7 +212,7 @@ static double costCalculator(const VehicleData &vehicleData, const vector<Path::
   double slowestSpeedAhead = constants.speedLimit;
   for (int i = 0; i < vehicleData.others.size(); ++i) {
     if (Helpers::GetLane(othersEndState[i].d) == endLane &&
-        calcLongitudinalDiff(othersEndState[i].s, egoEndState.s) > 0.0) {
+        Helpers::calcLongitudinalDiff(othersEndState[i].s, egoEndState.s) > 0.0) {
       slowestSpeedAhead = min(slowestSpeedAhead, othersEndState[i].speed);
     }
   }
@@ -175,7 +223,7 @@ static double costCalculator(const VehicleData &vehicleData, const vector<Path::
   double shortestDistanceAhead = HUGE_VAL;
   for (int i = 0; i < vehicleData.others.size(); ++i) {
     if (Helpers::GetLane(othersEndState[i].d) == endLane) {
-      double distanceAhead = calcLongitudinalDiff(othersEndState[i].s, egoEndState.s);
+      double distanceAhead = Helpers::calcLongitudinalDiff(othersEndState[i].s, egoEndState.s);
       if (distanceAhead >= 0.0) {
         shortestDistanceAhead = min(shortestDistanceAhead, distanceAhead);
       }
@@ -202,19 +250,4 @@ static double costCalculator(const VehicleData &vehicleData, const vector<Path::
     if (verbose) cout << "Not violated critical distance" << endl;
   }
   return cost;
-}
-
-static double calcLongitudinalDiff(double s1, double s2) {
-  double longitudinalDiff;
-  if ((s1 < constants.trackLength * 0.25) && (s2 > constants.trackLength * 0.75)) {
-    // s1 has wrapped around the track.
-    longitudinalDiff = (s1 + constants.trackLength) - s2;
-  } else if ((s1 > constants.trackLength * 0.75) && (s2 < constants.trackLength * 0.25)) {
-    // s2 has wrapped around the track.
-    longitudinalDiff = s1 - (s2 + constants.trackLength);
-  } else {
-    // No wrap-around to consider.
-    longitudinalDiff = s1 - s2;
-  }
-  return longitudinalDiff;
 }

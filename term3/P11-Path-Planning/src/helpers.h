@@ -29,6 +29,9 @@ public:
   /** Calculate lane number from Cartesian coordinates. */
   static int GetLane(double x, double y, double theta);
 
+  /** Calculates the longitudinal difference s1 - s2 while considering track wrap-around. */
+  static double calcLongitudinalDiff(double s1, double s2);
+
   /** Get closest waypoint. */
   int ClosestWaypoint(double x, double y) const;
 

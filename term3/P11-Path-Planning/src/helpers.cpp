@@ -79,6 +79,22 @@ int Helpers::ClosestWaypoint(double x, double y) const {
   return closestWaypoint;
 }
 
+double Helpers::calcLongitudinalDiff(double s1, double s2) {
+  double longitudinalDiff;
+  if ((s1 < constants.trackLength * 0.25) && (s2 > constants.trackLength * 0.75)) {
+    // s1 has wrapped around the track.
+    longitudinalDiff = (s1 + constants.trackLength) - s2;
+  } else if ((s1 > constants.trackLength * 0.75) && (s2 < constants.trackLength * 0.25)) {
+    // s2 has wrapped around the track.
+    longitudinalDiff = s1 - (s2 + constants.trackLength);
+  } else {
+    // No wrap-around to consider.
+    longitudinalDiff = s1 - s2;
+  }
+  return longitudinalDiff;
+}
+
+
 int Helpers::NextWaypoint(double x, double y, double theta) const {
 
   int closestWaypoint = ClosestWaypoint(x,y);
