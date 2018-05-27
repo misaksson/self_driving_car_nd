@@ -63,9 +63,15 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
   vector<Path::Trajectory> trajectories;
   for (auto intention = intentionsToEvaluate.begin(); intention != intentionsToEvaluate.end(); ++intention) {
     double delta_d;
+    Path::Trajectory trajectory;
     switch (*intention) {
       case Path::Logic::KeepLane:
-        trajectories.push_back(Path::TrajectoryCalculator::Accelerate(ego, constants.speedLimit - ego.speed));
+        trajectory = Path::TrajectoryCalculator::Accelerate(ego, constants.speedLimit - ego.speed);
+        trajectory += Path::TrajectoryCalculator::AdjustSpeed(trajectory.getEndState(ego), 120.0 - (trajectory.getEndState(ego).s - ego.s), 0.0, 0.0);
+        if (trajectory.size() > 300) {
+          trajectory.erase(300, trajectory.size() - 1);
+        }
+        trajectories.push_back(trajectory);
         delta_d = (egoLane * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
         break;
       case Path::Logic::LaneChangeLeft:
@@ -81,7 +87,12 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
     }
     for (double delta_s = 40.0; delta_s < 70.1; delta_s += 10.0) {
       for (double delta_speed = -ego.speed; (ego.speed + delta_speed) <= constants.speedLimit; delta_speed += 1.0) {
-        trajectories.push_back(Path::TrajectoryCalculator::AdjustSpeed(ego, delta_s, delta_d, delta_speed));
+        trajectory = Path::TrajectoryCalculator::AdjustSpeed(ego, delta_s, delta_d, delta_speed);
+        trajectory += Path::TrajectoryCalculator::AdjustSpeed(trajectory.getEndState(ego), 120.0 - delta_s, 0.0, 0.0);
+        if (trajectory.size() > 300) {
+          trajectory.erase(300, trajectory.size() - 1);
+        }
+        trajectories.push_back(trajectory);
       }
     }
   }
@@ -110,7 +121,7 @@ static double costCalculator(const VehicleData &vehicleData, const vector<Path::
   }
 
   /* Add cost for not keeping speed limit */
-  const double slowSpeedCostFactor = 1000.0;
+  const double slowSpeedCostFactor = 10000.0;
   cost += slowSpeedCostFactor * fabs(constants.speedLimit - egoKinematics.speeds.back());
 
   /* Add cost when exceeding speed limit */
@@ -121,7 +132,7 @@ static double costCalculator(const VehicleData &vehicleData, const vector<Path::
                                               Helpers::GetLane(trajectory.x.end()[-1], trajectory.y.end()[-1], Helpers::CalcYaw(trajectory.x.end()[-2], trajectory.y.end()[-2], trajectory.x.end()[-1], trajectory.y.end()[-1]));
 
   /* Add cost for lane change. */
-  const double laneChangeCostFactor = 100.0;
+  const double laneChangeCostFactor = 10000.0;
   cost += laneChangeCostFactor * static_cast<double>(abs(endLane - startLane));
 
   /* Add cost for driving near other vehicles. */

@@ -40,7 +40,7 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path]") {
   tie(s, d) = helpers.getFrenet(x, y, yaw);
   const vector<vector<double>> otherVehicles = {
     // Vehicle in same lane keeping highest speed.
-    {0, x + speed * 1.2, y, speed * 0.6, 0.0, s + speed * 2.5, d},
+    {0, x + speed * 1.2, y, speed * 0.6, 0.0, s + speed * 1.2, d},
 
     /* Block the other lanes with even slower vehicles. */
     {1, x + speed * 1.2, y - constants.laneWidth, speed * 0.59, 0.0, s + speed * 1.2, d + constants.laneWidth},
