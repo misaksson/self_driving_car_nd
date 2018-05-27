@@ -17,12 +17,6 @@
 
 using namespace std;
 
-/** Predicts a trajectory for each of the other vehicles.
- * The predicted trajectories are calculated to match what's appended to previous trajectory.
- * @param otherVehicles The vehicle data to base prediction on.
- * @param numPrevious Number of time steps to skip ahead to make the prediction match appended trajectory.
- */
-static vector<Path::Trajectory> predictOtherVehicles(const vector<VehicleData::OtherVehicleData>  &otherVehicles, size_t numPrevious);
 /** Generate trajectories to evaluate for given state. */
 static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehicleData &ego, vector<Path::Logic::Intention> intentionsToEvaluate);
 /** Calculates the cost of a trajectory. */
@@ -30,7 +24,7 @@ static double costCalculator(const VehicleData &vehicleData, const vector<Path::
                              const Path::Trajectory &trajectory, bool verbose);
 
 Path::Planner::Planner(int minTrajectoryLength) :
-    logic(Path::Logic()), minTrajectoryLength(minTrajectoryLength) {
+    logic(Path::Logic()), predict(Path::Predict()), minTrajectoryLength(minTrajectoryLength) {
 }
 
 Path::Planner::~Planner() {
@@ -38,7 +32,7 @@ Path::Planner::~Planner() {
 
 Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory) {
   Path::Trajectory bestTrajectory;
-  const vector<Path::Trajectory> predictions = predictOtherVehicles(vehicleData.others, previousTrajectory.size());
+  const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
   if (previousTrajectory.size() < minTrajectoryLength) {
     VehicleData::EgoVehicleData endState = previousTrajectory.getEndState(vehicleData.ego);
     vector<Logic::Intention> intentionsToEvaluate = logic.GetIntentionsToEvaluate(endState.d);
@@ -56,76 +50,7 @@ Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const P
   return previousTrajectory + bestTrajectory;
 }
 
-static vector<Path::Trajectory> predictOtherVehicles(const vector<VehicleData::OtherVehicleData>  &otherVehicles, size_t numPrevious) {
-  const size_t minPredictionLength = 400u;
-  vector<Path::Trajectory> predictions;
 
-  for (auto otherVehicle = otherVehicles.begin(); otherVehicle != otherVehicles.end(); ++otherVehicle) {
-    if (otherVehicle->isFrenetValid && (otherVehicle->vs > 5.0)) {
-      // Try to predict lane changes.
-
-      /* Calculate the lane separated into an integral number and a fraction, where the later is used to understand
-       * position within lane regardless of lane number. */
-      const double lane = otherVehicle->d / constants.laneWidth;
-      double laneIntegralPart;
-      const double laneFraction = modf(lane, &laneIntegralPart);
-      const int currentLane = static_cast<int>(laneIntegralPart);
-      int nextLane;
-      if (otherVehicle->vd > 0.25) {
-        // Lane change right.
-        // Look at lane fraction value to decide target lane.
-        nextLane = (laneFraction > 0.5) ? currentLane + 1 : currentLane;
-      } else if (otherVehicle->vd < -0.25) {
-        // Lane change left.
-        // Look at lane fraction value to decide target lane.
-        nextLane = (laneFraction < 0.5) ? currentLane - 1 : currentLane;
-      } else {
-        // No lane change ongoing.
-        nextLane = currentLane;
-      }
-
-      /* Calculate remaining change in d direction. */
-      const double target_d = nextLane * constants.laneWidth + (constants.laneWidth / 2.0);
-      const double delta_d = target_d - otherVehicle->d;
-
-      /* Calculated the distance at which the lane change is completed by assuming constant velocity both in s and d
-       * direction, although with some restriction on how long time the lane change may take. */
-      const double maxLaneChangeTime = 3.0;
-      const double minLaneAdjustmentTime = 0.5;
-      const double delta_t = max(minLaneAdjustmentTime, min(maxLaneChangeTime, delta_d / otherVehicle->vd));
-      const double delta_s = otherVehicle->vs * delta_t;
-      const double delta_speed = 0.0;
-      Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(*otherVehicle, delta_s, delta_d, delta_speed);
-
-      if (trajectory.size() < minPredictionLength) {
-        /* Extend prediction but now assume it continues in same lane. */
-        trajectory += Path::TrajectoryCalculator::ConstantSpeed(trajectory.getEndState(*otherVehicle), minPredictionLength - trajectory.size());
-      }
-
-      /* Erase prediction matching trajectory already presented to the simulator. */
-      trajectory.erase(0u, numPrevious - 1u);
-      predictions.push_back(trajectory);
-    } else if (otherVehicle->speed > 0.0) {
-      /* The Frenet coordinates has been considered to be broken.
-       * Lets fall back on predicting using the vx, vy values. */
-      Path::Trajectory trajectory = Path::TrajectoryCalculator::Others(*otherVehicle, minPredictionLength);
-
-      /* Erase prediction matching trajectory already presented to the simulator. */
-      trajectory.erase(0u, numPrevious - 1u);
-      predictions.push_back(trajectory);
-    } else {
-      /* The other vehicle is not moving. Let's predict that it continues standing still. */
-      Path::Trajectory trajectory;
-      for (size_t i = 0u; i < minPredictionLength - numPrevious; ++i) {
-        trajectory.x.push_back(otherVehicle->x);
-        trajectory.y.push_back(otherVehicle->y);
-      }
-      predictions.push_back(trajectory);
-    }
-
-  }
-  return predictions;
-}
 
 static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehicleData &ego, vector<Path::Logic::Intention> intentionsToEvaluate) {
   const double egoLane = static_cast<int>(Helpers::GetLane(ego.d));

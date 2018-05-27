@@ -4,6 +4,7 @@
 #include "../helpers.h"
 #include "../vehicle_data.h"
 #include "logic.h"
+#include "predict.h"
 #include "trajectory.h"
 #include <string>
 #include <tuple>
@@ -27,6 +28,7 @@ namespace Path {
 
   private:
     const Logic logic;
+    const Predict predict;
     const int minTrajectoryLength; /**< Minimum number of coordinates to send to simulator. */
 
   }; /* class Planner */
