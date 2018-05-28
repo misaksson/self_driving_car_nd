@@ -101,7 +101,7 @@ public:
                     ", vd=" << m.vd;
     }
   };
-
+  VehicleData() {};
   VehicleData(double ego_x, double ego_y, double ego_s, double ego_d, double ego_yaw, double ego_speed,
               std::vector<std::vector<double>> sensorFusion) {
     ego = EgoVehicleData(ego_x, ego_y, ego_s, ego_d, ego_yaw, ego_speed);

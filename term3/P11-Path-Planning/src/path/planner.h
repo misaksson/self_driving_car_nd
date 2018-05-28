@@ -42,9 +42,13 @@ namespace Path {
      * That is, it removes already processed parts of previous trajectory. */
     void AdjustPreviousTrajectory(const Path::Trajectory &simulatorTrajectory);
 
-    /** Calculates the cost of a trajectory. */
-    double CostCalculator(const VehicleData &vehicleData, const std::vector<Path::Trajectory> &predictions,
-                          const Path::Trajectory &trajectory, bool verbose);
+    /** Generate trajectories to evaluate for the intentions to be evaluated. */
+    std::vector<Path::Trajectory> GenerateTrajectories(const VehicleData::EgoVehicleData &ego,
+                                                       std::vector<Path::Logic::Intention> intentionsToEvaluate);
+
+    /** Evaluate trajectories using cost functions. */
+    Path::Trajectory EvaluateTrajectories(const VehicleData &vehicleData,
+                                          const std::vector<Path::Trajectory> &trajectories);
 
   }; /* class Planner */
 }; /* namespace Path */
