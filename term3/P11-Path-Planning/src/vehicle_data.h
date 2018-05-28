@@ -8,6 +8,9 @@
 #include <tuple>
 #include "constants.h"
 #include "helpers.h"
+#include "path/logic.h"
+
+#define TARGET_LANE_UNKNOWN (-100)
 
 class VehicleData {
 public:
@@ -15,13 +18,17 @@ public:
   struct EgoVehicleData {
     EgoVehicleData() {};
     EgoVehicleData(double x, double y, double s, double d, double yaw, double speed) :
-                   x(x), y(y), s(s), d(d), yaw(yaw), speed(speed) {};
+                   x(x), y(y), s(s), d(d), yaw(yaw), speed(speed), intention(Path::Logic::Unknown), targetLane(TARGET_LANE_UNKNOWN) {};
+    EgoVehicleData(double x, double y, double s, double d, double yaw, double speed, Path::Logic::Intention intention, int targetLane) :
+                   x(x), y(y), s(s), d(d), yaw(yaw), speed(speed), intention(intention), targetLane(targetLane) {};
     double x;
     double y;
     double s;
     double d;
     double yaw;
     double speed;
+    Path::Logic::Intention intention;
+    int targetLane;
 
     friend std::ostream& operator<<(std::ostream &os, const EgoVehicleData &m) {
       return os << "x=" << m.x <<
@@ -29,7 +36,9 @@ public:
                  ", s=" << m.s <<
                  ", d=" << m.d <<
                  ", yaw=" << m.yaw <<
-                 ", speed=" << m.speed;
+                 ", speed=" << m.speed <<
+                 ", intention=" << m.intention <<
+                 ", targetLane=" << m.targetLane;
     }
   };
 

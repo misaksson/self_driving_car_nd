@@ -55,7 +55,7 @@ Path::Trajectory Path::Predict::inFrenetSpace(const VehicleData::OtherVehicleDat
   const double delta_t = max(minLaneAdjustmentTime, min(maxLaneChangeTime, delta_d / otherVehicle.vd));
   const double delta_s = otherVehicle.vs * delta_t;
   const double delta_speed = 0.0;
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(otherVehicle, delta_s, delta_d, delta_speed);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Logic::Unknown, otherVehicle, delta_s, delta_d, delta_speed);
 
   if (trajectory.size() < minPredictionLength) {
     /* Extend prediction but now assume it continues in same lane. */
@@ -72,8 +72,7 @@ Path::Trajectory Path::Predict::inCartesianSpace(const VehicleData::OtherVehicle
 Path::Trajectory Path::Predict::standStill(const VehicleData::OtherVehicleData &otherVehicle) const {
   Path::Trajectory trajectory;
   for (size_t i = 0u; i < minPredictionLength; ++i) {
-    trajectory.x.push_back(otherVehicle.x);
-    trajectory.y.push_back(otherVehicle.y);
+    trajectory.push_back(otherVehicle.x, otherVehicle.y, Logic::Unknown, TARGET_LANE_UNKNOWN);
   }
   return trajectory;
 }

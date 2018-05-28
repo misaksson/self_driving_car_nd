@@ -22,8 +22,34 @@ Path::Trajectory::Trajectory() {};
 Path::Trajectory::Trajectory(int nCoords) {
   x.resize(nCoords);
   y.resize(nCoords);
+  intention.resize(nCoords);
+  targetLane.resize(nCoords);
+
 };
-Path::Trajectory::Trajectory(std::vector<double> x, std::vector<double> y) : x(x), y(y) {};
+Path::Trajectory::Trajectory(std::vector<double> x, std::vector<double> y) :
+    x(x), y(y), intention(x.size(), Logic::Unknown), targetLane(x.size(), -100) {};
+
+void Path::Trajectory::set(size_t idx, double x_, double y_) {
+  set(idx, x_, y_, Logic::Unknown, TARGET_LANE_UNKNOWN);
+}
+
+void Path::Trajectory::set(size_t idx, double x_, double y_, Logic::Intention intention_, int targetLane_) {
+  x[idx] = x_;
+  y[idx] = y_;
+  intention[idx] = intention_;
+  targetLane[idx] = targetLane_;
+}
+
+void Path::Trajectory::push_back(double x_, double y_) {
+  push_back(x_, y_, Logic::Unknown, TARGET_LANE_UNKNOWN);
+}
+
+void Path::Trajectory::push_back(double x_, double y_, Logic::Intention intention_, int targetLane_) {
+  x.push_back(x_);
+  y.push_back(y_);
+  intention.push_back(intention_);
+  targetLane.push_back(targetLane_);
+}
 
 size_t Path::Trajectory::size() const {
   return x.size();
@@ -32,35 +58,23 @@ size_t Path::Trajectory::size() const {
 void Path::Trajectory::erase(size_t startIdx, size_t endIdx) {
   x.erase(x.begin() + startIdx, x.begin() + endIdx + 1u);
   y.erase(y.begin() + startIdx, y.begin() + endIdx + 1u);
+  intention.erase(intention.begin() + startIdx, intention.begin() + endIdx + 1u);
+  targetLane.erase(targetLane.begin() + startIdx, targetLane.begin() + endIdx + 1u);
 }
 
 VehicleData::EgoVehicleData Path::Trajectory::getEndState(const VehicleData::EgoVehicleData &startState) const {
-  VehicleData::EgoVehicleData result;
-  if (size() > 1) {
-    result.x = x[size() - 1];
-    result.y = y[size() - 1];
-    result.yaw = atan2(y[size() - 1] - y[size() - 2],
-                       x[size() - 1] - x[size() - 2]);
-    tie(result.s, result.d) = helpers.getFrenet(result.x, result.y, result.yaw);
-    result.speed = sqrt(pow(y[size() - 1] - y[size() - 2], 2.0) +
-                        pow(x[size() - 1] - x[size() - 2], 2.0)) / constants.deltaTime;
-  } else {
-    result = startState;
-  }
-
-  return result;
+  return getState(startState, size() - 1);
 }
 
 VehicleData::EgoVehicleData Path::Trajectory::getState(const VehicleData::EgoVehicleData &startState, int idx) const {
   VehicleData::EgoVehicleData result;
   if (size() > 1) {
-    result.x = x[idx];
-    result.y = y[idx];
-    result.yaw = atan2(y[idx] - y[idx - 1],
-                       x[idx] - x[idx - 1]);
-    tie(result.s, result.d) = helpers.getFrenet(result.x, result.y, result.yaw);
-    result.speed = sqrt(pow(y[idx] - y[idx - 1], 2.0) +
-                        pow(x[idx] - x[idx - 1], 2.0)) / constants.deltaTime;
+    const double yaw = atan2(y[idx] - y[idx - 1], x[idx] - x[idx - 1]);
+    const double speed = sqrt(pow(y[idx] - y[idx - 1], 2.0) +
+                              pow(x[idx] - x[idx - 1], 2.0)) / constants.deltaTime;
+    double s, d;
+    tie(s, d) = helpers.getFrenet(x[idx], y[idx], yaw);
+    result = VehicleData::EgoVehicleData(x[idx], y[idx], s, d, yaw, speed, intention[idx], targetLane[idx]);
   } else {
     result = startState;
   }
@@ -85,12 +99,11 @@ Path::Trajectory::Kinematics Path::Trajectory::getKinematics() const {
 }
 
 Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVehicleData &start, double delta_speed) {
+  const int targetLane = Helpers::GetLane(start.d);
   Trajectory globalCourse;
 
-  globalCourse.x.push_back(start.x - cos(start.yaw));
-  globalCourse.y.push_back(start.y - sin(start.yaw));
-  globalCourse.x.push_back(start.x);
-  globalCourse.y.push_back(start.y);
+  globalCourse.push_back(start.x - cos(start.yaw), start.y - sin(start.yaw));
+  globalCourse.push_back(start.x, start.y);
 
   // The course path vector is further extended using Frenet coordinates.
   const double global_d = start.d;
@@ -101,8 +114,7 @@ Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVe
   for (auto global_s = global_ss.begin(); global_s != global_ss.end(); ++global_s) {
     double global_x, global_y;
     tie(global_x, global_y) = helpers.getXY(*global_s, global_d);
-    globalCourse.x.push_back(global_x);
-    globalCourse.y.push_back(global_y);
+    globalCourse.push_back(global_x, global_y);
   }
   // Transform the course vector of coordinates to a local coordinate system located at the start position.
   Trajectory localCourse(globalCourse.x.size());
@@ -132,8 +144,7 @@ Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVe
       double global_x, global_y;
       tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
                                                                start.x, start.y, start.yaw);
-      globalFine.x.push_back(global_x);
-      globalFine.y.push_back(global_y);
+      globalFine.push_back(global_x, global_y, Logic::Intention::KeepLane, targetLane);
     }
   }
   return globalFine;
@@ -188,10 +199,8 @@ static tuple<vector<double>, double> CalcDeltaDistances(double speed, double acc
 Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::EgoVehicleData &start, int numCoords) {
   Trajectory globalCourse;
 
-  globalCourse.x.push_back(start.x - cos(start.yaw));
-  globalCourse.y.push_back(start.y - sin(start.yaw));
-  globalCourse.x.push_back(start.x);
-  globalCourse.y.push_back(start.y);
+  globalCourse.push_back(start.x - cos(start.yaw), start.y - sin(start.yaw));
+  globalCourse.push_back(start.x, start.y);
 
   // The course path vector is further extended using Frenet coordinates.
   const double global_d = start.d;
@@ -202,8 +211,7 @@ Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::Eg
   for (auto global_s = global_ss.begin(); global_s != global_ss.end(); ++global_s) {
     double global_x, global_y;
     tie(global_x, global_y) = helpers.getXY(*global_s, global_d);
-    globalCourse.x.push_back(global_x);
-    globalCourse.y.push_back(global_y);
+    globalCourse.push_back(global_x, global_y);
   }
 
   // Transform the course vector of coordinates to a local coordinate system located at the start position.
@@ -232,8 +240,7 @@ Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::Eg
     double global_x, global_y;
     tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
                                                              start.x, start.y, start.yaw);
-    globalFine.x.push_back(global_x);
-    globalFine.y.push_back(global_y);
+    globalFine.push_back(global_x, global_y);
   }
   return globalFine;
 }
@@ -241,16 +248,11 @@ Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::Eg
 Path::Trajectory Path::TrajectoryCalculator::Others(const VehicleData::OtherVehicleData &start, int numCoords) {
   Trajectory globalCourse;
 
-  globalCourse.x.push_back(start.x - start.vx * 1.0);
-  globalCourse.y.push_back(start.y - start.vy * 1.0);
-  globalCourse.x.push_back(start.x);
-  globalCourse.y.push_back(start.y);
-  globalCourse.x.push_back(start.x + start.vx * 10.0);
-  globalCourse.y.push_back(start.y + start.vy * 10.0);
-  globalCourse.x.push_back(start.x + start.vx * 20.0);
-  globalCourse.y.push_back(start.y + start.vy * 20.0);
-  globalCourse.x.push_back(start.x + start.vx * 30.0);
-  globalCourse.y.push_back(start.y + start.vy * 30.0);
+  globalCourse.push_back(start.x - start.vx * 1.0, start.y - start.vy * 1.0);
+  globalCourse.push_back(start.x, start.y);
+  globalCourse.push_back(start.x + start.vx * 10.0, start.y + start.vy * 10.0);
+  globalCourse.push_back(start.x + start.vx * 20.0, start.y + start.vy * 20.0);
+  globalCourse.push_back(start.x + start.vx * 30.0, start.y + start.vy * 30.0);
 
   // Transform the course vector of coordinates to a local coordinate system located at the start position.
   Trajectory localCourse(globalCourse.x.size());
@@ -278,40 +280,37 @@ Path::Trajectory Path::TrajectoryCalculator::Others(const VehicleData::OtherVehi
     double global_x, global_y;
     tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
                                                              start.x, start.y, start.yaw);
-    globalFine.x.push_back(global_x);
-    globalFine.y.push_back(global_y);
+    globalFine.push_back(global_x, global_y);
   }
   return globalFine;
 }
 
-Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) {
+Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(Logic::Intention intention, const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) {
+  const int targetLane = Helpers::GetLane(start.d + delta_d);
   Trajectory globalCourse;
 
-  globalCourse.x.push_back(start.x - cos(start.yaw));
-  globalCourse.y.push_back(start.y - sin(start.yaw));
-  globalCourse.x.push_back(start.x);
-  globalCourse.y.push_back(start.y);
+  globalCourse.push_back(start.x - cos(start.yaw), start.y - sin(start.yaw));
+  globalCourse.push_back(start.x, start.y);
 
   double middle_x, middle_y;
   tie(middle_x, middle_y) = helpers.getXY(start.s + (delta_s / 2.0), start.d + (delta_d / 2.0));
-  globalCourse.x.push_back(middle_x);
-  globalCourse.y.push_back(middle_y);
+  globalCourse.push_back(middle_x, middle_y);
 
   double end_x, end_y;
   tie(end_x, end_y) = helpers.getXY(start.s + delta_s, start.d + delta_d);
-  globalCourse.x.push_back(end_x);
-  globalCourse.y.push_back(end_y);
+  globalCourse.push_back(end_x, end_y);
 
   double extrapolated_x, extrapolated_y;
   tie(extrapolated_x, extrapolated_y) = helpers.getXY(start.s + delta_s + 10.0, start.d + delta_d);
-  globalCourse.x.push_back(extrapolated_x);
-  globalCourse.y.push_back(extrapolated_y);
+  globalCourse.push_back(extrapolated_x, extrapolated_y);
 
   // Transform the course vector of coordinates to a local coordinate system located at the start position.
-  Trajectory localCourse(globalCourse.x.size());
+  Trajectory localCourse;
   for (int i = 0; i < globalCourse.x.size(); ++i) {
-    tie(localCourse.x[i], localCourse.y[i]) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
-                                                                             start.x, start.y, start.yaw);
+    double localCourse_x, localCourse_y;
+    tie(localCourse_x, localCourse_y) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
+                                                                       start.x, start.y, start.yaw);
+    localCourse.push_back(localCourse_x, localCourse_y);
   }
 
   // Fit a spline to the local course coordinates.
@@ -337,8 +336,7 @@ Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(const VehicleData::EgoV
       double global_x, global_y;
       tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
                                                                start.x, start.y, start.yaw);
-      globalFine.x.push_back(global_x);
-      globalFine.y.push_back(global_y);
+      globalFine.push_back(global_x, global_y, intention, targetLane);
   } while ((local_x < distance_x) && (globalFine.size() < 300u));
 
   return globalFine;

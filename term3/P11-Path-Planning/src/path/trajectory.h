@@ -5,6 +5,7 @@
 #include <vector>
 #include "../helpers.h"
 #include "../vehicle_data.h"
+#include "logic.h"
 
 namespace Path {
   class Trajectory {
@@ -14,12 +15,22 @@ namespace Path {
     Trajectory(std::vector<double> x, std::vector<double> y);
     std::vector<double> x;
     std::vector<double> y;
+    std::vector<Logic::Intention> intention;
+    std::vector<int> targetLane;
+
+    void set(size_t idx, double x_, double y_);
+    void set(size_t idx, double x_, double y_, Logic::Intention intention_, int targetLane_);
+
+    void push_back(double x_, double y_);
+    void push_back(double x_, double y_, Logic::Intention intention_, int targetLane_);
 
     /** Concatenate two trajectories. */
     Trajectory operator+(const Trajectory &other) const {
       Trajectory result = *this;
       result.x.insert(result.x.end(), other.x.begin(), other.x.end());
       result.y.insert(result.y.end(), other.y.begin(), other.y.end());
+      result.intention.insert(result.intention.end(), other.intention.begin(), other.intention.end());
+      result.targetLane.insert(result.targetLane.end(), other.targetLane.begin(), other.targetLane.end());
       return result;
     }
 
@@ -27,6 +38,8 @@ namespace Path {
     void operator+=(const Trajectory &other) {
       x.insert(x.end(), other.x.begin(), other.x.end());
       y.insert(y.end(), other.y.begin(), other.y.end());
+      intention.insert(intention.end(), other.intention.begin(), other.intention.end());
+      targetLane.insert(targetLane.end(), other.targetLane.begin(), other.targetLane.end());
     }
 
     /** Output stream operator providing all coordinates. */
@@ -34,7 +47,7 @@ namespace Path {
       os.precision(10);
       os << std::fixed;
       for (int i = 0; i < m.size(); ++i) {
-        os << "(" << m.x[i] << ", " << m.y[i] << "), ";
+        os << "(" << m.intention[i] << "to lane " << m.targetLane[i] << ": " << m.x[i] << ", " << m.y[i] << "), ";
       }
       return os;
     }
@@ -107,7 +120,7 @@ namespace Path {
     Trajectory Others(const VehicleData::OtherVehicleData &start, int numCoords);
     /** Smoothly transition from position A to B with constant acceleration.
      * The yaw angle will be the same as the road at the end of the trajectory. */
-    Trajectory AdjustSpeed(const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed);
+    Trajectory AdjustSpeed(Logic::Intention intention, const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed);
   }; /* namespace TrajectoryCalculator */
 }; /* namespace Path */
 

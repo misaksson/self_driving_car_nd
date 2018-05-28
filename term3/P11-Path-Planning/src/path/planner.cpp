@@ -19,9 +19,6 @@ using namespace std;
 
 /** Generate trajectories to evaluate for given state. */
 static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehicleData &ego, vector<Path::Logic::Intention> intentionsToEvaluate);
-/** Calculates the cost of a trajectory. */
-static double costCalculator(const VehicleData &vehicleData, const vector<Path::Trajectory> &predictions,
-                             const Path::Trajectory &trajectory, bool verbose);
 
 Path::Planner::Planner(int minTrajectoryLength, int maxTrajectoryLength) :
     logic(Path::Logic()), predict(Path::Predict()),
@@ -31,32 +28,43 @@ Path::Planner::Planner(int minTrajectoryLength, int maxTrajectoryLength) :
 Path::Planner::~Planner() {
 }
 
-Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &previousTrajectory) {
+Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory) {
+  /* Adjust internally stored previous trajectory to match non processed parts of the trajectory that was presented to
+   * the simulator. */
+  AdjustPreviousTrajectory(simulatorTrajectory);
+
   Path::Trajectory bestTrajectory;
-  const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
   if (previousTrajectory.size() < minTrajectoryLength) {
+    const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
     VehicleData::EgoVehicleData endState = previousTrajectory.getEndState(vehicleData.ego);
     vector<Logic::Intention> intentionsToEvaluate = logic.GetIntentionsToEvaluate(endState.d);
     vector<Path::Trajectory> trajectories = generateTrajectories(endState, intentionsToEvaluate);
     double lowestCost = HUGE_VAL;
     for (auto trajectory = trajectories.begin(); trajectory != trajectories.end(); ++trajectory) {
-      const double cost = costCalculator(vehicleData, predictions, *trajectory, false);
+      const double cost = CostCalculator(vehicleData, predictions, *trajectory, false);
       if (cost < lowestCost) {
         lowestCost = cost;
         bestTrajectory = *trajectory;
       }
     }
-    cout << "lowest cost = " << costCalculator(vehicleData, predictions, bestTrajectory, true) << endl;
+    cout << "lowest cost = " << CostCalculator(vehicleData, predictions, bestTrajectory, true) << endl;
   }
 
   Path::Trajectory output = previousTrajectory + bestTrajectory;
   if (output.size() > maxTrajectoryLength) {
     output.erase(maxTrajectoryLength, output.size() - 1u);
   }
+  previousTrajectory = output;
   return output;
 }
 
-
+void Path::Planner::AdjustPreviousTrajectory(const Path::Trajectory &simulatorTrajectory) {
+  const int numProcessed = previousTrajectory.size() - simulatorTrajectory.size();
+  if (numProcessed > 0) {
+    previousTrajectory.erase(0u, numProcessed - 1);
+    assert(previousTrajectory.size() == simulatorTrajectory.size());
+  }
+}
 
 static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehicleData &ego, vector<Path::Logic::Intention> intentionsToEvaluate) {
   const double egoLane = static_cast<int>(Helpers::GetLane(ego.d));
@@ -67,7 +75,7 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
     switch (*intention) {
       case Path::Logic::KeepLane:
         trajectory = Path::TrajectoryCalculator::Accelerate(ego, constants.speedLimit - ego.speed);
-        trajectory += Path::TrajectoryCalculator::AdjustSpeed(trajectory.getEndState(ego), 120.0 - (trajectory.getEndState(ego).s - ego.s), 0.0, 0.0);
+        trajectory += Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, trajectory.getEndState(ego), 120.0 - (trajectory.getEndState(ego).s - ego.s), 0.0, 0.0);
         if (trajectory.size() > 300) {
           trajectory.erase(300, trajectory.size() - 1);
         }
@@ -84,11 +92,17 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
         continue; // Not implemented.
       case Path::Logic::PrepareLaneChangeRight:
         continue; // Not implemented.
+      case Path::Logic::None:
+      case Path::Logic::Unknown:
+        assert(false);
     }
     for (double delta_s = 40.0; delta_s < 70.1; delta_s += 10.0) {
       for (double delta_speed = -ego.speed; (ego.speed + delta_speed) <= constants.speedLimit; delta_speed += 1.0) {
-        trajectory = Path::TrajectoryCalculator::AdjustSpeed(ego, delta_s, delta_d, delta_speed);
-        trajectory += Path::TrajectoryCalculator::AdjustSpeed(trajectory.getEndState(ego), 120.0 - delta_s, 0.0, 0.0);
+        /* Intended trajectory */
+        trajectory = Path::TrajectoryCalculator::AdjustSpeed(*intention, ego, delta_s, delta_d, delta_speed);
+
+        /* Extend trajectory in same lane to make it possible to see how it evolves. */
+        trajectory += Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, trajectory.getEndState(ego), 120.0 - delta_s, 0.0, 0.0);
         if (trajectory.size() > 300) {
           trajectory.erase(300, trajectory.size() - 1);
         }
@@ -99,15 +113,17 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
   return trajectories;
 }
 
-static double costCalculator(const VehicleData &vehicleData, const vector<Path::Trajectory> &predictions,
-                             const Path::Trajectory &trajectory, bool verbose) {
+double Path::Planner::CostCalculator(const VehicleData &vehicleData, const vector<Path::Trajectory> &predictions,
+                                     const Path::Trajectory &trajectory, bool verbose) {
 
   if (trajectory.size() < 10u) {
     return HUGE_VAL;
   }
   double cost = 0.0;
 
-  const VehicleData::EgoVehicleData egoEndState = trajectory.getEndState(vehicleData.ego);
+  const VehicleData::EgoVehicleData previousEgoEndState = previousTrajectory.getEndState(vehicleData.ego);
+  const VehicleData::EgoVehicleData egoEndState = trajectory.getEndState(previousEgoEndState);
+
   if (verbose) cout << "ego: " << egoEndState << endl;
   const Path::Trajectory::Kinematics egoKinematics = trajectory.getKinematics();
 
@@ -119,6 +135,20 @@ static double costCalculator(const VehicleData &vehicleData, const vector<Path::
     if (verbose) cout << i << ": " << othersEndState.back() << endl;
     othersKinematics.push_back(predictions[i].getKinematics());
   }
+
+  /* Add cost for not keeping to previously not intended decision. */
+  const double changedIntentionCost = 100000.0;
+  if ((previousEgoEndState.targetLane != trajectory.targetLane[0]) &&
+      (previousEgoEndState.intention != Logic::Intention::None)) {
+    if (verbose) cout << "Changing intention from " << previousEgoEndState.intention <<
+                         " to " << trajectory.intention[0] << endl;
+    cost += changedIntentionCost;
+  } else {
+    if (verbose) cout << "Sticking to intention " << trajectory.intention[0] <<
+                         " with targetLane " << trajectory.targetLane[0] << endl;
+
+  }
+
 
   /* Add cost for not keeping speed limit */
   const double slowSpeedCostFactor = 10000.0;
