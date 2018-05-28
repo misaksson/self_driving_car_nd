@@ -10,7 +10,7 @@ private:
 
 public:
   Constants() : speedLimit(Helpers::milesPerHour2MetersPerSecond(50.0) - EXTRA_MARGIN),
-                accelerationLimit(10.0 - EXTRA_MARGIN),
+                accelerationLimit(10.0 - EXTRA_MARGIN - EXTRA_MARGIN),
                 jerkLimit(10.0 - EXTRA_MARGIN),
                 deltaTime(0.02),
                 trackLength(6945.554),
