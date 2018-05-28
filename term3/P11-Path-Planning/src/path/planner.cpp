@@ -28,17 +28,32 @@ Path::Planner::Planner(int minTrajectoryLength, int maxTrajectoryLength) :
 Path::Planner::~Planner() {
 }
 
-Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory) {
+Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory,
+                                         double previousEnd_s, double previousEnd_d) {
   /* Adjust internally stored previous trajectory to match non processed parts of the trajectory that was presented to
    * the simulator. */
   AdjustPreviousTrajectory(simulatorTrajectory);
 
   Path::Trajectory bestTrajectory;
   if (previousTrajectory.size() < minTrajectoryLength) {
+    /* Predict trajectories for all other vehicles. */
     const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
+
+    /* Get ego vehicle state at end of previous trajectory. Since there is a more accurate Frenet transformation
+     * available from the simulator that one is used instead. */
     VehicleData::EgoVehicleData endState = previousTrajectory.getEndState(vehicleData.ego);
+    if (previousTrajectory.size() > 0) {
+      endState.s = previousEnd_s;
+      endState.d = previousEnd_d;
+    }
+
+    /* Get intentions that might be reasonable given current position on the road. */
     vector<Logic::Intention> intentionsToEvaluate = logic.GetIntentionsToEvaluate(endState.d);
+
+    /* Generate a number of trajectories for each intention. */
     vector<Path::Trajectory> trajectories = generateTrajectories(endState, intentionsToEvaluate);
+
+    /* Evaluate generated trajectories using cost functions. */
     double lowestCost = HUGE_VAL;
     for (auto trajectory = trajectories.begin(); trajectory != trajectories.end(); ++trajectory) {
       const double cost = CostCalculator(vehicleData, predictions, *trajectory, false);
@@ -51,6 +66,10 @@ Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const P
   }
 
   Path::Trajectory output = previousTrajectory + bestTrajectory;
+
+  /* To avoid unexpected behavior, it's recommended to not alternate trajectory coordinates that already have been
+   * presented to the simulator. To still have the flexibility to react on unexpected changes in the traffic, the
+   * number of coordinates presented to the simulator is reduced to maxTrajectoryLength. */
   if (output.size() > maxTrajectoryLength) {
     output.erase(maxTrajectoryLength, output.size() - 1u);
   }

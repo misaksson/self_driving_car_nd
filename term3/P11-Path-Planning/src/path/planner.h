@@ -18,13 +18,14 @@ namespace Path {
 
     /** Calculate the path to follow.
      * The simulator will update the position of ego vehicle to the next in the list every 0.02 second.
-     * @param input Input data, see PP_Input.
-     * @param egoVehicle Ego vehicle localization data.
-     * @param otherVehicles Other vehicles localization data.
+     * @param vehicleData Localization data of ego and other vehicles.
      * @param simulatorTrajectory Previously calculated trajectory coordinates not yet visited by the simulator.
+     * @param previousEnd_s Fernet end coordinate in previous trajectory as transformed by the simulator.
+     * @param previousEnd_d Fernet end coordinate in previous trajectory as transformed by the simulator.
      * @return Next path coordinates for the simulator.
      */
-     Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory);
+     Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory,
+                               double previousEnd_s, double previousEnd_d);
 
   private:
     const Logic logic;
