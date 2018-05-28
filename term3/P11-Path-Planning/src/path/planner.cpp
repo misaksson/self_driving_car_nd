@@ -117,8 +117,9 @@ static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehic
       case Path::Logic::Unknown:
         assert(false);
     }
-    for (double delta_s = 40.0; delta_s < 70.1; delta_s += 10.0) {
-      for (double delta_speed = -ego.speed; (ego.speed + delta_speed) <= constants.speedLimit; delta_speed += 1.0) {
+
+    for (double delta_s = 30.0; delta_s < 70.1; delta_s += 10.0) {
+      for (double delta_speed = max(-5.0, -ego.speed); delta_speed < min(5.0, constants.speedLimit - ego.speed); delta_speed += 1.0) {
         /* Intended trajectory */
         trajectory = Path::TrajectoryCalculator::AdjustSpeed(*intention, ego, delta_s, delta_d, delta_speed);
 
@@ -158,7 +159,7 @@ double Path::Planner::CostCalculator(const VehicleData &vehicleData, const vecto
   }
 
   /* Add cost for not keeping to previously not intended decision. */
-  const double changedIntentionCost = 100000.0;
+  const double changedIntentionCost = 1000000.0;
   if ((previousEgoEndState.targetLane != trajectory.targetLane[0]) &&
       (previousEgoEndState.intention != Logic::Intention::None)) {
     if (verbose) cout << "Changing intention from " << previousEgoEndState.intention <<
