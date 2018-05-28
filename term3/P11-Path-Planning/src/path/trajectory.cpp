@@ -292,9 +292,6 @@ Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(Logic::Intention intent
   globalCourse.push_back(start.x - cos(start.yaw), start.y - sin(start.yaw));
   globalCourse.push_back(start.x, start.y);
 
-  double middle_x, middle_y;
-  tie(middle_x, middle_y) = helpers.getXY(start.s + (delta_s / 2.0), start.d + (delta_d / 2.0));
-  globalCourse.push_back(middle_x, middle_y);
 
   double end_x, end_y;
   tie(end_x, end_y) = helpers.getXY(start.s + delta_s, start.d + delta_d);
