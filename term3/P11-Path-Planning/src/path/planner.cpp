@@ -17,6 +17,8 @@
 
 using namespace std;
 
+/** Custom compare for abs max in vector. */
+static bool fabsCompare(double a, double b);
 /** Generate trajectories to evaluate for given state. */
 static vector<Path::Trajectory> generateTrajectories(const VehicleData::EgoVehicleData &ego, vector<Path::Logic::Intention> intentionsToEvaluate);
 
@@ -144,7 +146,7 @@ double Path::Planner::CostCalculator(const VehicleData &vehicleData, const vecto
   const VehicleData::EgoVehicleData egoEndState = trajectory.getEndState(previousEgoEndState);
 
   if (verbose) cout << "ego: " << egoEndState << endl;
-  const Path::Trajectory::Kinematics egoKinematics = trajectory.getKinematics();
+  const Path::Trajectory::Kinematics egoKinematics = (previousTrajectory + trajectory).getKinematics();
 
   vector<VehicleData::EgoVehicleData> othersEndState;
   vector<Path::Trajectory::Kinematics> othersKinematics;
@@ -170,7 +172,7 @@ double Path::Planner::CostCalculator(const VehicleData &vehicleData, const vecto
 
 
   /* Add cost for not keeping speed limit */
-  const double slowSpeedCostFactor = 10000.0;
+  const double slowSpeedCostFactor = 100000.0;
   cost += slowSpeedCostFactor * fabs(constants.speedLimit - egoKinematics.speeds.back());
 
   /* Add cost when exceeding speed limit */
@@ -222,7 +224,7 @@ double Path::Planner::CostCalculator(const VehicleData &vehicleData, const vecto
   }
   const double longitudinalTimeDiff = shortestDistanceAhead / egoEndState.speed;
 
-  /** In Sweden this is the recommended distance to a vehicle ahead, measured in seconds. */
+  /* In Sweden this is the recommended distance to a vehicle ahead, measured in seconds. */
   const double recommendedLongitudinalTimeDiff = 3.0;
   const double violateRecommendedLongitudinalTimeDiffCost = 1.5e5;
   if (longitudinalTimeDiff < recommendedLongitudinalTimeDiff) {
@@ -240,5 +242,29 @@ double Path::Planner::CostCalculator(const VehicleData &vehicleData, const vecto
   } else {
     if (verbose) cout << "Not violated critical distance" << endl;
   }
+
+  const double accelerationCostFactor = 10000.0;
+  auto maxAcceleration = max_element(egoKinematics.accelerations.begin(), egoKinematics.accelerations.end(), fabsCompare);
+  cost += fabs(*maxAcceleration) * accelerationCostFactor;
+
+  const double exceedAccelerationLimitCost = 100000.0;
+  cost += fabs(*maxAcceleration) > constants.accelerationLimit ? exceedAccelerationLimitCost : 0.0;
+
+  const double jerkCostFactor = 10.0;
+  auto maxJerk = max_element(egoKinematics.jerks.begin(), egoKinematics.jerks.end(), fabsCompare);
+  cost += fabs(*maxJerk) * jerkCostFactor;
+
+  const double yawRateCostFactor = 100000.0;
+  auto maxYawRate = max_element(egoKinematics.yawRates.begin(), egoKinematics.yawRates.end(), fabsCompare);
+  cost += fabs(*maxYawRate) * jerkCostFactor;
+
+  if (verbose) cout << "acc=" << fabs(*maxAcceleration) << ", jerk=" << fabs(*maxJerk) << ", yawRate=" << fabs(*maxYawRate) << endl;
+
+
+
   return cost;
+}
+
+static bool fabsCompare(double a, double b) {
+    return (fabs(a) < fabs(b));
 }
