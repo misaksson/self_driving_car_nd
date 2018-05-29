@@ -119,7 +119,7 @@ namespace Path {
     const double violateCriticalLongitudinalTimeDiffCost;
     ViolateCriticalDistanceAhead(double violateCriticalLongitudinalTimeDiffCost) :
         violateCriticalLongitudinalTimeDiffCost(violateCriticalLongitudinalTimeDiffCost),
-        criticalLongitudinalTimeDiff(2.0) {};
+        criticalLongitudinalTimeDiff(1.5) {};
     virtual ~ViolateCriticalDistanceAhead() {};
     double calc(const Path::Trajectory &trajectory) const;
   };

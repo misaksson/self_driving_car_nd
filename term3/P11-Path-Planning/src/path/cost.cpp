@@ -115,9 +115,12 @@ double Path::ChangeIntention::calc(const Path::Trajectory &trajectory) const {
   double cost;
   // Calculate cost for not keeping to previously intended decision.
   if ((previousEgoEndState.targetLane != trajectory.targetLane[0]) &&
-      (previousEgoEndState.intention != Logic::Intention::None)) {
+      (previousEgoEndState.intention != Logic::Intention::None) &&
+      (previousEgoEndState.intention != Path::Logic::Unknown)) {
     if (verbose) cout << "Changing intention from " << previousEgoEndState.intention <<
-                         " to " << trajectory.intention[0] << endl;
+                         " with targetLane " << previousEgoEndState.targetLane <<
+                         " to " << trajectory.intention[0] <<
+                         " with targetLane " << trajectory.targetLane[0] << endl;
     cost = changeIntentionCost;
   } else {
     if (verbose) cout << "Sticking to intention " << trajectory.intention[0] <<
@@ -128,7 +131,6 @@ double Path::ChangeIntention::calc(const Path::Trajectory &trajectory) const {
 }
 
 double Path::LaneChange::calc(const Path::Trajectory &trajectory) const {
-
   // Calculate cost for lane changes.
   const double cost = laneChangeCostFactor * static_cast<double>(abs(endLane - startLane));
   return cost;
@@ -160,12 +162,10 @@ double Path::NearOtherVehicles::calc(const Path::Trajectory &trajectory) const {
 
 double Path::Collision::calc(const Path::Trajectory &trajectory) const {
   // Calculate cost for colliding.
-  double cost;
+  double cost = 0.0;
   if (shortestDistanceToOthers < collisionDistance) {
-    cost = collisionCost;
     if (verbose) cout << "Collision detected" << endl;
-  } else {
-    cost = 0.0;
+    cost = collisionCost;
   }
   return cost;
 }
@@ -175,9 +175,8 @@ double Path::SlowLane::calc(const Path::Trajectory &trajectory) const {
   double slowestSpeedAhead = constants.speedLimit;
   for (int i = 0; i < vehicleData.others.size(); ++i) {
     const double longitudinalDiff = Helpers::calcLongitudinalDiff(othersEndState[i].s, egoEndState.s);
-    if ((Helpers::GetLane(othersEndState[i].d) == endLane) &&
-        (longitudinalDiff > 0.0) && (longitudinalDiff < 120.0)) {
-      slowestSpeedAhead = min(slowestSpeedAhead, othersEndState[i].speed);
+    if ((Helpers::GetLane(othersEndState[i].d) == endLane) && (longitudinalDiff > 0.0)) {
+      slowestSpeedAhead = min(slowestSpeedAhead, othersEndState[i].speed * (1.0 + longitudinalDiff / 50.0));
     }
   }
   const double cost = (constants.speedLimit - slowestSpeedAhead) * slowLaneCostFactor;

@@ -104,7 +104,7 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
     }
 
     for (double delta_s = 30.0; delta_s < 70.1; delta_s += 10.0) {
-      for (double delta_speed = max(-5.0, -ego.speed); delta_speed < min(5.0, constants.speedLimit - ego.speed); delta_speed += 1.0) {
+      for (double delta_speed = max(-20.0, -ego.speed); delta_speed < min(20.0, constants.speedLimit - ego.speed); delta_speed += 1.0) {
         /* Intended trajectory */
         trajectory = Path::TrajectoryCalculator::AdjustSpeed(*intention, ego, delta_s, delta_d, delta_speed);
 
@@ -125,16 +125,16 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
 
   /* Evaluate generated trajectories using cost functions. */
-  const double slowSpeedCostFactor = 1.0e6;
+  const double slowSpeedCostFactor = 1.0e7;
   const double exceedSpeedLimitCost = 1.0e5;
-  const double changeIntentionCost = 1.0e6;
+  const double changeIntentionCost = 2.0e8;
   const double laneChangeCostFactor = 1.0e4;
-  const double laneChangeInFrontOfOtherCost = 1.0e8;
-  const double inverseDistanceCostFactor = 1.0e5;
-  const double collisionCost = 1.0e20;
+  const double laneChangeInFrontOfOtherCost = 1.0e9;
+  const double inverseDistanceCostFactor = 1.0e4;
+  const double collisionCost = 1.0e10;
   const double slowLaneCostFactor = 1.0e4;
   const double violateRecommendedLongitudinalTimeDiffCost = 0.0; // Might be too restrictive, skip it for now.
-  const double violateCriticalLongitudinalTimeDiffCost = 1.0e8;
+  const double violateCriticalLongitudinalTimeDiffCost = 1.0e9;
   const double accelerationCostFactor = 1.0e4;
   const double jerkCostFactor = 1.0e1;
   const double yawRateCostFactor = 1.0e5;
