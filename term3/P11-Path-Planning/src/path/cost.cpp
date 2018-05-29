@@ -76,6 +76,7 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
       }
     }
   }
+  if (verbose) cout << "shortestDistanceToOthersAhead = " << shortestDistanceToOthersAhead << endl;
 }
 
 double Path::SlowSpeed::calc(const Path::Trajectory &trajectory) const {
@@ -121,7 +122,13 @@ double Path::NearOtherVehicles::calc(const Path::Trajectory &trajectory) const {
 
 double Path::Collision::calc(const Path::Trajectory &trajectory) const {
   // Calculate cost for colliding.
-  const double cost = (shortestDistanceToOthers < collisionDistance) ? collisionCost : 0.0;
+  double cost;
+  if (shortestDistanceToOthers < collisionDistance) {
+    cost = collisionCost;
+    if (verbose) cout << "Collision detected" << endl;
+  } else {
+    cost = 0.0;
+  }
   return cost;
 }
 

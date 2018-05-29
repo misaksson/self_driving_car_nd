@@ -130,10 +130,10 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   const double changeIntentionCost = 1.0e6;
   const double laneChangeCostFactor = 1.0e4;
   const double inverseDistanceCostFactor = 1.0e1;
-  const double collisionCost = 1.0e10;
+  const double collisionCost = 1.0e20;
   const double slowLaneCostFactor = 1.0e4;
-  const double violateRecommendedLongitudinalTimeDiffCost = 1.5e5;
-  const double violateCriticalLongitudinalTimeDiffCost = 1.5e6;
+  const double violateRecommendedLongitudinalTimeDiffCost = 1.0e6;
+  const double violateCriticalLongitudinalTimeDiffCost = 1.0e7;
   const double accelerationCostFactor = 1.0e4;
   const double jerkCostFactor = 1.0e1;
   const double yawRateCostFactor = 1.0e5;
@@ -174,6 +174,7 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
     }
   }
   Path::Cost::verbose = true;
+  Path::Cost::preprocessCurrentTrajectory(bestTrajectory);
   double cost = 0.0;
   for (auto const& costFunction: costFunctions) {
     cost += costFunction->calc(bestTrajectory);

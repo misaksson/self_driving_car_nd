@@ -116,8 +116,8 @@ TEST_CASE("Trajectory should smoothly accelerate from A to B", "[path]") {
   REQUIRE(kinematics.speeds.back() == Approx(speed + delta_speed).margin(0.05));
   REQUIRE(*min_element(kinematics.accelerations.begin(), kinematics.accelerations.end()) == Approx(0.0).margin(10));
   REQUIRE(*max_element(kinematics.accelerations.begin(), kinematics.accelerations.end()) == Approx(0.0).margin(10));
-  REQUIRE(*min_element(kinematics.jerks.begin(), kinematics.jerks.end()) == Approx(0.0).margin(0.15));
-  REQUIRE(*max_element(kinematics.jerks.begin(), kinematics.jerks.end()) == Approx(0.0).margin(0.15));
+  REQUIRE(*min_element(kinematics.jerks.begin(), kinematics.jerks.end()) == Approx(0.0).margin(0.16));
+  REQUIRE(*max_element(kinematics.jerks.begin(), kinematics.jerks.end()) == Approx(0.0).margin(0.16));
   REQUIRE(*min_element(kinematics.yawRates.begin(), kinematics.yawRates.end()) == Approx(0.0).margin(0.06));
   REQUIRE(*max_element(kinematics.yawRates.begin(), kinematics.yawRates.end()) == Approx(0.0).margin(0.06));
 }
