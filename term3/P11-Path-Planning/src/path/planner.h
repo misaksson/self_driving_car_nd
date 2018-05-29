@@ -13,25 +13,23 @@
 namespace Path {
   class Planner {
   public:
-    Planner(int minTrajectoryLength, int maxTrajectoryLength);
+    Planner(int minTrajectoryLength, int minUpdatePeriod);
     virtual ~Planner();
 
     /** Calculate the path to follow.
      * The simulator will update the position of ego vehicle to the next in the list every 0.02 second.
      * @param vehicleData Localization data of ego and other vehicles.
      * @param simulatorTrajectory Previously calculated trajectory coordinates not yet visited by the simulator.
-     * @param previousEnd_s Fernet end coordinate in previous trajectory as transformed by the simulator.
-     * @param previousEnd_d Fernet end coordinate in previous trajectory as transformed by the simulator.
      * @return Next path coordinates for the simulator.
      */
-     Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory,
-                               double previousEnd_s, double previousEnd_d);
+     Path::Trajectory CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory);
 
   private:
     const Logic logic;
     const Predict predict;
-    const int minTrajectoryLength; /**< Minimum number of coordinates to send to simulator. */
-    const int maxTrajectoryLength; /**< Maximum number of coordinates to send to simulator. */
+    const int minTrajectoryLength; /**< Minimum number of coordinates needed by simulator. */
+    const int minUpdatePeriod;      /**< Min number of time steps between trajectory updates. */
+    int numProcessedSinceLastUpdate;
 
     /** Internally stored copy of previous output trajectory.
      * This contains the same x,y coordinates that also are feedback from the simulator, but it also enable storage of

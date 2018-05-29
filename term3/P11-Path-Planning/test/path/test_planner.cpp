@@ -11,7 +11,7 @@
 using namespace std;
 
 TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path]") {
-  Path::Planner planner(100, 400);
+  Path::Planner planner(25, 15);
   const double x = 100.0, y = -6.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -25,7 +25,7 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path]") {
   };
   const VehicleData vehicleData(x, y, s, d, yaw, speed, otherVehicles);
   Path::Trajectory previousPath;
-  Path::Trajectory trajectory = planner.CalcNext(vehicleData, previousPath, s, d);
+  Path::Trajectory trajectory = planner.CalcNext(vehicleData, previousPath);
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   VehicleData::EgoVehicleData endState = trajectory.getEndState(vehicleData.ego);
   REQUIRE(endState.d == Approx(d).margin(0.1));
@@ -34,7 +34,7 @@ TEST_CASE("Path planner should adjust speed to vehicle ahead", "[path]") {
 }
 
 TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path]") {
-  Path::Planner planner(100, 400);
+  Path::Planner planner(25, 15);
   const double x = 100.0, y = -6.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -48,7 +48,7 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path]") {
   };
   const VehicleData vehicleData(x, y, s, d, yaw, speed, otherVehicles);
   const Path::Trajectory previousPath;
-  Path::Trajectory trajectory = planner.CalcNext(vehicleData, previousPath, s, d);
+  Path::Trajectory trajectory = planner.CalcNext(vehicleData, previousPath);
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   VehicleData::EgoVehicleData endState = trajectory.getEndState(vehicleData.ego);
   REQUIRE(endState.d == Approx(d).margin(0.1));
@@ -57,7 +57,7 @@ TEST_CASE("Path planner should adjust speed below vehicle ahead", "[path]") {
 }
 
 TEST_CASE("Path planner should switch lane left", "[path]") {
-  Path::Planner planner(100, 400);
+  Path::Planner planner(25, 15);
   const double x = 100.0, y = -6.0, yaw = 0.0, speed = constants.speedLimit;
   double s, d;
   tie(s, d) = helpers.getFrenet(x, y, yaw);
@@ -69,7 +69,7 @@ TEST_CASE("Path planner should switch lane left", "[path]") {
   };
   const VehicleData vehicleData(x, y, s, d, yaw, speed, otherVehicles);
   const Path::Trajectory previousPath;
-  Path::Trajectory trajectory = planner.CalcNext(vehicleData, previousPath, s, d);
+  Path::Trajectory trajectory = planner.CalcNext(vehicleData, previousPath);
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   VehicleData::EgoVehicleData endState = trajectory.getEndState(vehicleData.ego);
   REQUIRE(endState.d == Approx(2).margin(0.1));

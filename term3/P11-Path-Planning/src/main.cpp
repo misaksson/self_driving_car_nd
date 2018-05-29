@@ -39,7 +39,7 @@ const Helpers helpers("../data/highway_map.csv");
 
 int main() {
   uWS::Hub h;
-  Path::Planner pathPlanner(75, 90);
+  Path::Planner pathPlanner(25, 15);
 
   h.onMessage([&pathPlanner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -65,12 +65,8 @@ int main() {
          	// Get previous path data not already visited by the simulator.
           Path::Trajectory previous(j[1]["previous_path_x"], j[1]["previous_path_y"]);
 
-          // Previous path's end s and d values
-          const double previousEnd_s = j[1]["end_path_s"];
-          const double previousEnd_d = j[1]["end_path_d"];
-
           // Update the path.
-          Path::Trajectory nextPath = pathPlanner.CalcNext(vehicleData, previous, previousEnd_s, previousEnd_d);
+          Path::Trajectory nextPath = pathPlanner.CalcNext(vehicleData, previous);
 
         	json msgJson;
         	msgJson["next_x"] = nextPath.x;

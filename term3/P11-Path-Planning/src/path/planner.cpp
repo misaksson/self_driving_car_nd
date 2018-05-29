@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits.h>
 #include <math.h>
 #include <sstream>
 #include <string>
@@ -18,57 +19,47 @@
 
 using namespace std;
 
-Path::Planner::Planner(int minTrajectoryLength, int maxTrajectoryLength) :
-    logic(Path::Logic()), predict(Path::Predict()),
-    minTrajectoryLength(minTrajectoryLength), maxTrajectoryLength(maxTrajectoryLength) {
+Path::Planner::Planner(int minTrajectoryLength, int minUpdatePeriod) :
+    logic(Path::Logic()), predict(Path::Predict()), numProcessedSinceLastUpdate(INT_MAX),
+    minTrajectoryLength(minTrajectoryLength), minUpdatePeriod(minUpdatePeriod) {
 }
 
 Path::Planner::~Planner() {
 }
 
-Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory,
-                                         double previousEnd_s, double previousEnd_d) {
+Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const Path::Trajectory &simulatorTrajectory) {
   /* Adjust internally stored previous trajectory to match non processed parts of the trajectory that was presented to
    * the simulator. */
   AdjustPreviousTrajectory(simulatorTrajectory);
 
   Path::Trajectory output;
-  if (previousTrajectory.size() < minTrajectoryLength) {
+  if (numProcessedSinceLastUpdate > minUpdatePeriod) {
+    /* Update trajectory. */
+    numProcessedSinceLastUpdate = 0;
+
+    /* Reduced previous trajectory to minimum needed by simulator. */
+    if (previousTrajectory.size() > minTrajectoryLength) {
+      previousTrajectory.erase(minTrajectoryLength, previousTrajectory.size() - 1);
+    }
     /* Get ego vehicle state at end of previous trajectory. Since there is a more accurate Frenet transformation
      * available from the simulator that one is used instead. */
     VehicleData::EgoVehicleData endState = previousTrajectory.getEndState(vehicleData.ego);
-    if (previousTrajectory.size() > 0) {
-      endState.s = previousEnd_s;
-      endState.d = previousEnd_d;
-    }
 
     /* Get intentions that might be reasonable given current position on the road. */
     vector<Logic::Intention> intentionsToEvaluate = logic.GetIntentionsToEvaluate(endState.d);
 
     /* Generate a number of trajectories for each intention. */
     vector<Path::Trajectory> trajectories = GenerateTrajectories(endState, intentionsToEvaluate);
-    Path::Trajectory bestTrajectory = EvaluateTrajectories(vehicleData, trajectories);
-    output = previousTrajectory + bestTrajectory;
-
-    /* To avoid unexpected behavior, it's recommended to not alternate trajectory coordinates that already have been
-     * presented to the simulator. To still have the flexibility to react on unexpected changes in the traffic, the
-     * number of coordinates presented to the simulator is reduced to maxTrajectoryLength. */
-    if (output.size() > maxTrajectoryLength) {
-      output.erase(maxTrajectoryLength, output.size() - 1u);
-    }
-  } else {
-    output = previousTrajectory;
+    previousTrajectory += EvaluateTrajectories(vehicleData, trajectories);
   }
-
-  previousTrajectory = output;
-  return output;
+  return previousTrajectory;
 }
 
 void Path::Planner::AdjustPreviousTrajectory(const Path::Trajectory &simulatorTrajectory) {
   const int numProcessed = previousTrajectory.size() - simulatorTrajectory.size();
+  numProcessedSinceLastUpdate += numProcessed;
   if (numProcessed > 0) {
     previousTrajectory.erase(0u, numProcessed - 1);
-    assert(previousTrajectory.size() == simulatorTrajectory.size());
   }
 }
 
