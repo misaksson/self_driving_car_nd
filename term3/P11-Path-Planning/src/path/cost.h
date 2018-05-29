@@ -20,11 +20,13 @@ namespace Path {
     static std::vector<Path::Trajectory> predictions;
     static VehicleData::EgoVehicleData previousEgoEndState;
     static std::vector<VehicleData::EgoVehicleData> othersEndState;
+    static std::vector<std::vector<VehicleData::EgoVehicleData>> othersStateSamples;
     static std::vector<Path::Trajectory::Kinematics> othersKinematics;
 
     /* Current trajectory data. */
     static VehicleData::EgoVehicleData egoEndState;
     static Path::Trajectory::Kinematics egoKinematics;
+    static std::vector<VehicleData::EgoVehicleData> egoStateSamples;
     static int startLane;
     static int endLane;
     static double shortestDistanceToOthers;

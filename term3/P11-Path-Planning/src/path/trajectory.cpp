@@ -69,6 +69,8 @@ VehicleData::EgoVehicleData Path::Trajectory::getEndState(const VehicleData::Ego
 VehicleData::EgoVehicleData Path::Trajectory::getState(const VehicleData::EgoVehicleData &startState, int idx) const {
   VehicleData::EgoVehicleData result;
   if (size() > 1) {
+    assert(idx > 0);
+    assert(idx < size());
     const double yaw = atan2(y[idx] - y[idx - 1], x[idx] - x[idx - 1]);
     const double speed = sqrt(pow(y[idx] - y[idx - 1], 2.0) +
                               pow(x[idx] - x[idx - 1], 2.0)) / constants.deltaTime;

@@ -16,8 +16,10 @@ Path::Trajectory Path::Cost::previousTrajectory;
 std::vector<Path::Trajectory> Path::Cost::predictions;
 VehicleData::EgoVehicleData Path::Cost::previousEgoEndState;
 std::vector<VehicleData::EgoVehicleData> Path::Cost::othersEndState;
+std::vector<std::vector<VehicleData::EgoVehicleData>> Path::Cost::othersStateSamples;
 std::vector<Path::Trajectory::Kinematics> Path::Cost::othersKinematics;
 VehicleData::EgoVehicleData Path::Cost::egoEndState;
+std::vector<VehicleData::EgoVehicleData> Path::Cost::egoStateSamples;
 Path::Trajectory::Kinematics Path::Cost::egoKinematics;
 int Path::Cost::startLane;
 int Path::Cost::endLane;
@@ -35,8 +37,17 @@ void Path::Cost::preprocessCommonData(const Path::Trajectory previousTrajectory_
 
   Path::Cost::previousEgoEndState = previousTrajectory.getEndState(vehicleData.ego);
   Path::Cost::othersKinematics.clear();
-  for (size_t i = 0u; i < vehicleData.others.size(); ++i) {
-    Path::Cost::othersKinematics.push_back(predictions[i].getKinematics());
+  Path::Cost::othersStateSamples.clear();
+  for (size_t vehicleIdx = 0u; vehicleIdx < vehicleData.others.size(); ++vehicleIdx) {
+    /* Calculate kinematics data for predicted trajectory of other vehicle. */
+    Path::Cost::othersKinematics.push_back(predictions[vehicleIdx].getKinematics());
+
+    /* Sample other vehicles state every 10th time-step along the predicted trajectory. */
+    std::vector<VehicleData::EgoVehicleData> stateSamples;
+    for (size_t trajectoryIdx = 1u; trajectoryIdx < predictions[vehicleIdx].size(); trajectoryIdx += 10u) {
+      stateSamples.push_back(predictions[vehicleIdx].getState(vehicleData.others[vehicleIdx], trajectoryIdx));
+    }
+    Path::Cost::othersStateSamples.push_back(stateSamples);
   }
 }
 
@@ -48,6 +59,12 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
     assert(predictions[i].size() >= trajectory.size());
     Path::Cost::othersEndState.push_back(predictions[i].getState(vehicleData.others[i], trajectory.size() - 1));
     if (verbose) cout << i << ": " << Path::Cost::othersEndState.back() << endl;
+  }
+
+  /* Sample ego vehicle state every 10th time-step along the trajectory. */
+  egoStateSamples.clear();
+  for (size_t trajectoryIdx = 1u; trajectoryIdx < trajectory.size(); trajectoryIdx += 10u) {
+    egoStateSamples.push_back(trajectory.getState(previousEgoEndState, trajectoryIdx));
   }
 
   startLane = Helpers::GetLane(vehicleData.ego.d);
@@ -68,11 +85,14 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
   if (verbose) cout << "shortestDistanceToOthers = " << shortestDistanceToOthers << endl;
 
   shortestDistanceToOthersAhead = HUGE_VAL;
-  for (int i = 0; i < vehicleData.others.size(); ++i) {
-    if (Helpers::GetLane(othersEndState[i].d) == endLane) {
-      double distanceAhead = Helpers::calcLongitudinalDiff(othersEndState[i].s, egoEndState.s);
-      if (distanceAhead >= 0.0) {
-        shortestDistanceToOthersAhead = min(shortestDistanceToOthersAhead, distanceAhead);
+  for (size_t sampleIdx = 0u; sampleIdx < egoStateSamples.size(); ++sampleIdx) {
+    int egoLane = Helpers::GetLane(egoStateSamples[sampleIdx].d);
+    for (size_t vehicleIdx = 0u; vehicleIdx < vehicleData.others.size(); ++vehicleIdx) {
+      if (Helpers::GetLane(othersStateSamples[vehicleIdx][sampleIdx].d) == egoLane) {
+        double distanceAhead = Helpers::calcLongitudinalDiff(othersStateSamples[vehicleIdx][sampleIdx].s, egoStateSamples[sampleIdx].s);
+        if (distanceAhead >= 0.0) {
+          shortestDistanceToOthersAhead = min(shortestDistanceToOthersAhead, distanceAhead);
+        }
       }
     }
   }
