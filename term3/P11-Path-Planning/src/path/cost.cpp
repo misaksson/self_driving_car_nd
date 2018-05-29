@@ -134,6 +134,24 @@ double Path::LaneChange::calc(const Path::Trajectory &trajectory) const {
   return cost;
 }
 
+double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) const {
+  double cost = 0.0;
+  if (startLane != endLane) {
+    for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
+      if (Helpers::GetLane(other->d) == endLane) {
+        const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
+        const double longitudinalTimeDiff = (longitudinalDiff > 0.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
+        if (longitudinalTimeDiff < 2.0) {
+          if (verbose) cout << "Lane change in front of other" << endl;
+          cost = laneChangeInFrontOfOtherCost;
+          break;
+        }
+      }
+    }
+  }
+  return cost;
+}
+
 double Path::NearOtherVehicles::calc(const Path::Trajectory &trajectory) const {
   // Calculate cost for driving near other vehicles.
   const double cost = inverseDistanceCostFactor / shortestDistanceToOthers;
@@ -168,27 +186,21 @@ double Path::SlowLane::calc(const Path::Trajectory &trajectory) const {
 
 double Path::ViolateRecommendedDistanceAhead::calc(const Path::Trajectory &trajectory) const {
   // In Sweden this is the recommended distance to a vehicle ahead.
-  double cost;
+  double cost = 0.0;
   const double longitudinalTimeDiff = shortestDistanceToOthersAhead / egoEndState.speed;
   if (longitudinalTimeDiff < recommendedLongitudinalTimeDiff) {
     if (verbose) cout << "Violated recommended distance to vehicle ahead" << endl;;
     cost = violateRecommendedLongitudinalTimeDiffCost;
-  } else {
-    if (verbose) cout << "Not violated recommended distance to vehicle ahead" << endl;
-    cost = 0.0;
   }
   return cost;
 }
 
 double Path::ViolateCriticalDistanceAhead::calc(const Path::Trajectory &trajectory) const {
-  double cost;
+  double cost = 0.0;
   const double longitudinalTimeDiff = shortestDistanceToOthersAhead / egoEndState.speed;
   if (longitudinalTimeDiff < criticalLongitudinalTimeDiff) {
     if (verbose) cout <<"Violated critical distance to vehicle ahead" << endl;
     cost = violateCriticalLongitudinalTimeDiffCost;
-  } else {
-    if (verbose) cout << "Not violated critical distance to vehicle ahead" << endl;
-    cost = 0.0;
   }
   return cost;
 }

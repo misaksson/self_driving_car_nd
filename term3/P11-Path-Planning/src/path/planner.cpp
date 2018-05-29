@@ -125,15 +125,16 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
 
   /* Evaluate generated trajectories using cost functions. */
-  const double slowSpeedCostFactor = 1.0e5;
+  const double slowSpeedCostFactor = 1.0e6;
   const double exceedSpeedLimitCost = 1.0e5;
   const double changeIntentionCost = 1.0e6;
   const double laneChangeCostFactor = 1.0e4;
-  const double inverseDistanceCostFactor = 1.0e1;
+  const double laneChangeInFrontOfOtherCost = 1.0e8;
+  const double inverseDistanceCostFactor = 1.0e5;
   const double collisionCost = 1.0e20;
   const double slowLaneCostFactor = 1.0e4;
-  const double violateRecommendedLongitudinalTimeDiffCost = 1.0e6;
-  const double violateCriticalLongitudinalTimeDiffCost = 1.0e7;
+  const double violateRecommendedLongitudinalTimeDiffCost = 0.0; // Might be too restrictive, skip it for now.
+  const double violateCriticalLongitudinalTimeDiffCost = 1.0e8;
   const double accelerationCostFactor = 1.0e4;
   const double jerkCostFactor = 1.0e1;
   const double yawRateCostFactor = 1.0e5;
@@ -144,6 +145,7 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   costFunctions.emplace_back(unique_ptr<Cost>(new ExceedSpeedLimit(exceedSpeedLimitCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new ChangeIntention(changeIntentionCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new LaneChange(laneChangeCostFactor)));
+  costFunctions.emplace_back(unique_ptr<Cost>(new LaneChangeInFrontOfOther(laneChangeInFrontOfOtherCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new NearOtherVehicles(inverseDistanceCostFactor)));
   costFunctions.emplace_back(unique_ptr<Cost>(new Collision(collisionCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new SlowLane(slowLaneCostFactor)));
