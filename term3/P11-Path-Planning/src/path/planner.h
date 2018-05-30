@@ -30,6 +30,7 @@ namespace Path {
     const int minTrajectoryLength; /**< Minimum number of coordinates needed by simulator. */
     const int minUpdatePeriod;      /**< Min number of time steps between trajectory updates. */
     int numProcessedSinceLastUpdate;
+    double simulatorTime;
 
     /** Internally stored copy of previous output trajectory.
      * This contains the same x,y coordinates that also are feedback from the simulator, but it also enable storage of

@@ -20,7 +20,7 @@
 using namespace std;
 
 Path::Planner::Planner(int minTrajectoryLength, int minUpdatePeriod) :
-    logic(Path::Logic()), predict(Path::Predict()), numProcessedSinceLastUpdate(INT_MAX),
+    logic(Path::Logic()), predict(Path::Predict()), numProcessedSinceLastUpdate(INT_MAX), simulatorTime(0.0),
     minTrajectoryLength(minTrajectoryLength), minUpdatePeriod(minUpdatePeriod) {
 }
 
@@ -52,11 +52,13 @@ Path::Trajectory Path::Planner::CalcNext(const VehicleData &vehicleData, const P
     vector<Path::Trajectory> trajectories = GenerateTrajectories(endState, intentionsToEvaluate);
     previousTrajectory += EvaluateTrajectories(vehicleData, trajectories);
   }
+  cout << "Simulator time = " << simulatorTime << endl;
   return previousTrajectory;
 }
 
 void Path::Planner::AdjustPreviousTrajectory(const Path::Trajectory &simulatorTrajectory) {
   const int numProcessed = previousTrajectory.size() - simulatorTrajectory.size();
+  simulatorTime += constants.deltaTime * numProcessed;
   numProcessedSinceLastUpdate += numProcessed;
   if (numProcessed > 0) {
     previousTrajectory.erase(0u, numProcessed - 1);
