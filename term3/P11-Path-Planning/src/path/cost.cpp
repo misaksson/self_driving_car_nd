@@ -101,7 +101,9 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
   for (size_t sampleIdx = 0u; sampleIdx < egoStateSamples.size(); ++sampleIdx) {
     int egoLane = Helpers::GetLane(egoStateSamples[sampleIdx].d);
     for (size_t vehicleIdx = 0u; vehicleIdx < vehicleData.others.size(); ++vehicleIdx) {
-      if (Helpers::GetLane(othersStateSamples[vehicleIdx][sampleIdx].d) == egoLane) {
+      /* Only consider vehicles in same lane that are ahead of ego vehicle at start. */
+      if (Helpers::GetLane(othersStateSamples[vehicleIdx][sampleIdx].d) == egoLane &&
+          Helpers::calcLongitudinalDiff(vehicleData.ego.s, vehicleData.others[vehicleIdx].s) < 0.0) {
         double distanceAhead = Helpers::calcLongitudinalDiff(othersStateSamples[vehicleIdx][sampleIdx].s, egoStateSamples[sampleIdx].s);
         if (distanceAhead >= 0.0) {
           shortestDistanceToOthersAhead = min(shortestDistanceToOthersAhead, distanceAhead);
