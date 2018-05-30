@@ -114,18 +114,20 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
 }
 
 Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleData, const vector<Path::Trajectory> &trajectories) {
+  cout << "\nnum trajectories = " << trajectories.size() << endl;
+
   /* Predict trajectories for all other vehicles. */
   const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
 
   /* Evaluate generated trajectories using cost functions. */
-  const double slowSpeedCostFactor = 5.0e7;
+  const double slowSpeedCostFactor = 1.0e7;
   const double exceedSpeedLimitCost = 1.0e5;
-  const double changeIntentionCost = 2.0e8;
+  const double changeIntentionCost = 1.0e8;
   const double laneChangeCostFactor = 1.0e4;
-  const double laneChangeInFrontOfOtherCost = 1.0e9;
-  const double inverseDistanceCostFactor = 5.0e2;
+  const double laneChangeInFrontOfOtherCost = 2.0e9;
+  const double inverseDistanceCostFactor = 1.0e5;
   const double collisionCost = 1.0e10;
-  const double slowLaneCostFactor = 1.0e4;
+  const double slowLaneCostFactor = 1.0e7;
   const double violateRecommendedLongitudinalTimeDiffCost = 0.0; // Might be too restrictive, skip it for now.
   const double violateCriticalLongitudinalTimeDiffCost = 1.0e9;
   const double accelerationCostFactor = 1.0e4;

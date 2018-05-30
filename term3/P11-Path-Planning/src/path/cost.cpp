@@ -157,9 +157,8 @@ double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) 
     for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
       if (Helpers::GetLane(other->d) == endLane) {
         const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
-        const double longitudinalTimeDiff = (longitudinalDiff > 0.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
-        if (longitudinalTimeDiff < 2.0) {
-          if (verbose) cout << "Lane change in front of other" << endl;
+        const double longitudinalTimeDiff = (longitudinalDiff > -5.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
+        if (longitudinalTimeDiff < 1.0) {
           cost = laneChangeInFrontOfOtherCost;
           break;
         }
@@ -189,7 +188,7 @@ double Path::SlowLane::calc(const Path::Trajectory &trajectory) const {
   for (int i = 0; i < vehicleData.others.size(); ++i) {
     const double longitudinalDiff = Helpers::calcLongitudinalDiff(othersEndState[i].s, egoEndState.s);
     if ((Helpers::GetLane(othersEndState[i].d) == endLane) && (longitudinalDiff > 0.0)) {
-      slowestSpeedAhead = min(slowestSpeedAhead, othersEndState[i].speed * (1.0 + longitudinalDiff / 50.0));
+      slowestSpeedAhead = min(slowestSpeedAhead, othersEndState[i].speed * (0.8 + longitudinalDiff / 200.0));
     }
   }
   const double cost = (constants.speedLimit - slowestSpeedAhead) * slowLaneCostFactor;
