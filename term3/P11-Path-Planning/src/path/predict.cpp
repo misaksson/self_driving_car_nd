@@ -30,17 +30,18 @@ Path::Trajectory Path::Predict::inFrenetSpace(const VehicleData::OtherVehicleDat
   double laneIntegralPart;
   const double laneFraction = modf(lane, &laneIntegralPart);
   const int currentLane = static_cast<int>(laneIntegralPart);
+  Logic::Intention intention;
   int nextLane;
-  if (otherVehicle.vd > 0.25) {
-    // Lane change right.
+  if (otherVehicle.vd > 1.0) {
+    intention = Logic::Intention::LaneChangeRight;
     // Look at lane fraction value to decide target lane.
     nextLane = (laneFraction > 0.5) ? currentLane + 1 : currentLane;
-  } else if (otherVehicle.vd < -0.25) {
-    // Lane change left.
+  } else if (otherVehicle.vd < -1.0) {
+    intention = Logic::Intention::LaneChangeLeft;
     // Look at lane fraction value to decide target lane.
     nextLane = (laneFraction < 0.5) ? currentLane - 1 : currentLane;
   } else {
-    // No lane change ongoing.
+    intention = Logic::Intention::KeepLane;
     nextLane = currentLane;
   }
 
@@ -55,11 +56,11 @@ Path::Trajectory Path::Predict::inFrenetSpace(const VehicleData::OtherVehicleDat
   const double delta_t = max(minLaneAdjustmentTime, min(maxLaneChangeTime, delta_d / otherVehicle.vd));
   const double delta_s = otherVehicle.vs * delta_t;
   const double delta_speed = 0.0;
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Logic::Unknown, otherVehicle, delta_s, delta_d, delta_speed);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(intention, otherVehicle, delta_s, delta_d, delta_speed);
 
   if (trajectory.size() < minPredictionLength) {
     /* Extend prediction but now assume it continues in same lane. */
-    trajectory += Path::TrajectoryCalculator::ConstantSpeed(trajectory.getEndState(otherVehicle), minPredictionLength - trajectory.size());
+    trajectory += Path::TrajectoryCalculator::ConstantSpeed(intention, trajectory.getEndState(otherVehicle), minPredictionLength - trajectory.size());
   }
   return trajectory;
 }

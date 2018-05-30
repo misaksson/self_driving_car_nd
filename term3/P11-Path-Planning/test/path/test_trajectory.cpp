@@ -157,7 +157,7 @@ TEST_CASE("Trajectory should smoothly continue in lane", "[path]") {
 
   vector<vector<double>> sensorFusion;
   const VehicleData vehicleData(x, y, s, d, yaw, speed, sensorFusion);
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::ConstantSpeed(vehicleData.ego, numCoords);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::ConstantSpeed(Path::Logic::Intention::KeepLane, vehicleData.ego, numCoords);
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   REQUIRE(trajectory.x.front() == Approx(x).margin(0.5));
   REQUIRE(trajectory.x.back() == Approx(x + speed * constants.deltaTime * numCoords).margin(0.5));

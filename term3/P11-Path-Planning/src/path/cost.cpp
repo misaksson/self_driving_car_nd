@@ -136,7 +136,7 @@ double Path::ChangeIntention::calc(const Path::Trajectory &trajectory) const {
                          " with targetLane " << trajectory.targetLane[0] << endl;
     cost = changeIntentionCost;
   } else {
-    if (verbose) cout << "Sticking to intention " << trajectory.intention[0] <<
+    if (verbose) cout << "Sticking to intention " << previousEgoEndState.intention << " (" << trajectory.intention[0] << "?)" <<
                          " with targetLane " << trajectory.targetLane[0] << endl;
     cost = 0.0;
   }

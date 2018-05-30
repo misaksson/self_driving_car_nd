@@ -198,9 +198,10 @@ static tuple<vector<double>, double> CalcDeltaDistances(double speed, double acc
   return make_tuple(deltaDistances, totalDistance);
 }
 
-Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::EgoVehicleData &start, int numCoords) {
-  Trajectory globalCourse;
+Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(Logic::Intention intention, const VehicleData::EgoVehicleData &start, int numCoords) {
+  const int targetLane = Helpers::GetLane(start.d);
 
+  Trajectory globalCourse;
   globalCourse.push_back(start.x - cos(start.yaw), start.y - sin(start.yaw));
   globalCourse.push_back(start.x, start.y);
 
@@ -242,14 +243,13 @@ Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(const VehicleData::Eg
     double global_x, global_y;
     tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
                                                              start.x, start.y, start.yaw);
-    globalFine.push_back(global_x, global_y);
+    globalFine.push_back(global_x, global_y, intention, targetLane);
   }
   return globalFine;
 }
 
 Path::Trajectory Path::TrajectoryCalculator::Others(const VehicleData::OtherVehicleData &start, int numCoords) {
   Trajectory globalCourse;
-
   globalCourse.push_back(start.x - start.vx * 1.0, start.y - start.vy * 1.0);
   globalCourse.push_back(start.x, start.y);
   globalCourse.push_back(start.x + start.vx * 10.0, start.y + start.vy * 10.0);

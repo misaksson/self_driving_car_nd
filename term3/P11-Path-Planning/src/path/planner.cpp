@@ -74,7 +74,7 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
     switch (*intention) {
       case Path::Logic::KeepLane:
         trajectory = Path::TrajectoryCalculator::Accelerate(ego, constants.speedLimit - ego.speed);
-        trajectory += Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, trajectory.getEndState(ego), 120.0 - (trajectory.getEndState(ego).s - ego.s), 0.0, 0.0);
+        trajectory += Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::KeepLane, trajectory.getEndState(ego), 120.0 - (trajectory.getEndState(ego).s - ego.s), 0.0, 0.0);
         if (trajectory.size() > 300) {
           trajectory.erase(300, trajectory.size() - 1);
         }
@@ -102,7 +102,7 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
         trajectory = Path::TrajectoryCalculator::AdjustSpeed(*intention, ego, delta_s, delta_d, delta_speed);
 
         /* Extend trajectory in same lane to make it possible to see how it evolves. */
-        trajectory += Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, trajectory.getEndState(ego), 120.0 - delta_s, 0.0, 0.0);
+        trajectory += Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::KeepLane, trajectory.getEndState(ego), 120.0 - delta_s, 0.0, 0.0);
         if (trajectory.size() > 300) {
           trajectory.erase(300, trajectory.size() - 1);
         }
