@@ -79,10 +79,20 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
                                                                       trajectory.x.end()[-1],
                                                                       trajectory.y.end()[-1]));
   shortestDistanceToOthers = HUGE_VAL;
-  for (auto prediction = predictions.begin(); prediction != predictions.end(); ++prediction) {
-    assert(prediction->size() >= trajectory.size());
+  for (size_t vehicleIdx = 0u; vehicleIdx < vehicleData.others.size(); ++vehicleIdx) {
+    const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, vehicleData.others[vehicleIdx].s);
+    if (longitudinalDiff < -8.0) {
+      /* Skip vehicles behind ego vehicle. The constant speed predictions often suggest that vehicles approaching from
+       * behind will collide with ego vehicle, effectively forcing the algorithm to change lane. In reality, the
+       * vehicles coming from behind will slow down or change lane as they approach a slower vehicle. There are other
+       * cost functions not utilizing this distance value to deal with scenarios where ego vehicle change lane in front
+       * of other vehicles.
+       */
+      continue;
+    }
+    assert(predictions[vehicleIdx].size() >= trajectory.size());
     for (int i = 0; i < trajectory.size(); ++i) {
-      shortestDistanceToOthers = min(shortestDistanceToOthers, Helpers::distance(trajectory.x[i], trajectory.y[i], prediction->x[i], prediction->y[i]));
+      shortestDistanceToOthers = min(shortestDistanceToOthers, Helpers::distance(trajectory.x[i], trajectory.y[i], predictions[vehicleIdx].x[i], predictions[vehicleIdx].y[i]));
     }
   }
   if (verbose) cout << "shortestDistanceToOthers = " << shortestDistanceToOthers << endl;
