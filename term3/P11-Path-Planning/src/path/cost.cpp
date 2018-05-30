@@ -53,12 +53,15 @@ void Path::Cost::preprocessCommonData(const Path::Trajectory previousTrajectory_
 
 void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory) {
   Path::Cost::egoEndState = trajectory.getEndState(previousEgoEndState);
+  if (verbose) cout << "ego: " << vehicleData.ego << endl;
+  if (verbose) cout << "end: " << egoEndState << endl;
   Path::Cost::egoKinematics = (previousTrajectory + trajectory).getKinematics();
   Path::Cost::othersEndState.clear();
   for (size_t i = 0u; i < vehicleData.others.size(); ++i) {
     assert(predictions[i].size() >= trajectory.size());
     Path::Cost::othersEndState.push_back(predictions[i].getState(vehicleData.others[i], trajectory.size() - 1));
-    if (verbose) cout << i << ": " << Path::Cost::othersEndState.back() << endl;
+    if (verbose) cout << vehicleData.others[i] << endl;
+    if (verbose) cout << "end: " << Path::Cost::othersEndState.back() << endl;
   }
 
   /* Sample ego vehicle state every 10th time-step along the trajectory. */
@@ -161,10 +164,8 @@ double Path::NearOtherVehicles::calc(const Path::Trajectory &trajectory) const {
 }
 
 double Path::Collision::calc(const Path::Trajectory &trajectory) const {
-  // Calculate cost for colliding.
   double cost = 0.0;
   if (shortestDistanceToOthers < collisionDistance) {
-    if (verbose) cout << "Collision detected" << endl;
     cost = collisionCost;
   }
   return cost;

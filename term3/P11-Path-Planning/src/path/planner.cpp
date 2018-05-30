@@ -158,7 +158,7 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
 
       double cost = 0.0;
       for (auto const& costFunction: costFunctions) {
-        cost += costFunction->calc(*trajectory);
+        cost += costFunction->getCost(*trajectory);
       }
       if (cost < lowestCost) {
         lowestCost = cost;
@@ -170,7 +170,7 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   Path::Cost::preprocessCurrentTrajectory(bestTrajectory);
   double cost = 0.0;
   for (auto const& costFunction: costFunctions) {
-    cost += costFunction->calc(bestTrajectory);
+    cost += costFunction->getCost(bestTrajectory);
   }
   cout << "lowest cost = " << cost << endl;
   return bestTrajectory;
