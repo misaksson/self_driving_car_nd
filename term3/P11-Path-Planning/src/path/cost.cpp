@@ -105,7 +105,7 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
       if (Helpers::GetLane(othersStateSamples[vehicleIdx][sampleIdx].d) == egoLane &&
           Helpers::calcLongitudinalDiff(vehicleData.ego.s, vehicleData.others[vehicleIdx].s) < 0.0) {
         double distanceAhead = Helpers::calcLongitudinalDiff(othersStateSamples[vehicleIdx][sampleIdx].s, egoStateSamples[sampleIdx].s);
-        if (distanceAhead >= -5.0) {
+        if (distanceAhead >= -7.5) {
           shortestDistanceToOthersAhead = min(shortestDistanceToOthersAhead, distanceAhead);
         }
       }
