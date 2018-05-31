@@ -135,11 +135,12 @@ namespace Path {
 
   class ViolateCriticalDistanceAhead : public Cost {
   public:
+    const double acceptedLongitudinalTimeDiff;
     const double criticalLongitudinalTimeDiff;
     const double violateCriticalLongitudinalTimeDiffCost;
     ViolateCriticalDistanceAhead(double violateCriticalLongitudinalTimeDiffCost) :
         violateCriticalLongitudinalTimeDiffCost(violateCriticalLongitudinalTimeDiffCost),
-        criticalLongitudinalTimeDiff(1.0) {};
+        acceptedLongitudinalTimeDiff(0.7), criticalLongitudinalTimeDiff(0.3) {};
     virtual ~ViolateCriticalDistanceAhead() {};
   private:
     double calc(const Path::Trajectory &trajectory) const;

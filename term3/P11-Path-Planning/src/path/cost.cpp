@@ -159,9 +159,11 @@ double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) 
       if (Helpers::GetLane(other->d) == (lane + deltaLane)) {
         const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
         const double longitudinalTimeDiff = (longitudinalDiff > -15.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
-        if (longitudinalTimeDiff < 0.25) {
+        if (longitudinalTimeDiff < 0.3) {
           cost = laneChangeInFrontOfOtherCost;
           break;
+        } else if (longitudinalTimeDiff < 1.0) {
+          cost = max(cost, longitudinalTimeDiff * (laneChangeInFrontOfOtherCost / (1.0 - 0.3)));
         }
       }
     }
@@ -218,8 +220,9 @@ double Path::ViolateCriticalDistanceAhead::calc(const Path::Trajectory &trajecto
   double cost = 0.0;
   const double longitudinalTimeDiff = shortestDistanceToOthersAhead / egoEndState.speed;
   if (longitudinalTimeDiff < criticalLongitudinalTimeDiff) {
-    if (verbose) cout <<"Violated critical distance to vehicle ahead" << endl;
     cost = violateCriticalLongitudinalTimeDiffCost;
+  } else if (longitudinalTimeDiff < acceptedLongitudinalTimeDiff) {
+    cost = longitudinalTimeDiff * (violateCriticalLongitudinalTimeDiffCost / (acceptedLongitudinalTimeDiff - criticalLongitudinalTimeDiff));
   }
   return cost;
 }
