@@ -69,7 +69,12 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
   const double egoLane = static_cast<int>(Helpers::GetLane(ego.d));
   vector<Path::Trajectory> trajectories;
   for (auto intention = intentionsToEvaluate.begin(); intention != intentionsToEvaluate.end(); ++intention) {
+    // Each intention specifies a target delta d value, e.g. the change needed to go to target lane.
     double delta_d;
+
+    // Each intention specifies a range of longitudinal distances that is reasonable to adjust for delta_d.
+    double minAdjustmentDistance;
+    double maxAdjustmentDistance;
     Path::Trajectory trajectory;
     switch (*intention) {
       case Path::Logic::KeepLane:
@@ -80,12 +85,18 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
         }
         trajectories.push_back(trajectory);
         delta_d = (egoLane * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
+        minAdjustmentDistance = 30.0;
+        maxAdjustmentDistance = 40.1;
         break;
       case Path::Logic::LaneChangeLeft:
         delta_d = ((egoLane - 1) * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
+        minAdjustmentDistance = 30.0;
+        maxAdjustmentDistance = 60.1;
         break;
       case Path::Logic::LaneChangeRight:
         delta_d = ((egoLane + 1) * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
+        minAdjustmentDistance = 30.0;
+        maxAdjustmentDistance = 60.1;
         break;
       case Path::Logic::PrepareLaneChangeLeft:
         continue; // Not implemented.
@@ -96,7 +107,7 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
         assert(false);
     }
 
-    for (double delta_s = 30.0; delta_s < 70.1; delta_s += 10.0) {
+    for (double delta_s = minAdjustmentDistance; delta_s < maxAdjustmentDistance; delta_s += 10.0) {
       for (double delta_speed = max(-20.0, -ego.speed); delta_speed < min(20.0, constants.speedLimit - ego.speed); delta_speed += 1.0) {
         /* Intended trajectory */
         trajectory = Path::TrajectoryCalculator::AdjustSpeed(*intention, ego, delta_s, delta_d, delta_speed);
