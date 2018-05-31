@@ -81,7 +81,7 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
   shortestDistanceToOthers = HUGE_VAL;
   for (size_t vehicleIdx = 0u; vehicleIdx < vehicleData.others.size(); ++vehicleIdx) {
     const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, vehicleData.others[vehicleIdx].s);
-    if (longitudinalDiff < -8.0) {
+    if (longitudinalDiff > -8.0) {
       /* Skip vehicles behind ego vehicle. The constant speed predictions often suggest that vehicles approaching from
        * behind will collide with ego vehicle, effectively forcing the algorithm to change lane. In reality, the
        * vehicles coming from behind will slow down or change lane as they approach a slower vehicle. There are other
