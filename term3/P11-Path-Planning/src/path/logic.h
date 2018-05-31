@@ -16,6 +16,8 @@ namespace Path {
       KeepLane = 0,
       LaneChangeLeft,
       LaneChangeRight,
+      TwoLaneChangesLeft,
+      TwoLaneChangesRight,
       PrepareLaneChangeLeft,
       PrepareLaneChangeRight,
     };
@@ -36,6 +38,12 @@ namespace Path {
           break;
         case LaneChangeRight:
           os << "LaneChangeRight";
+          break;
+        case TwoLaneChangesLeft:
+          os << "TwoLaneChangesLeft";
+          break;
+        case TwoLaneChangesRight:
+          os << "TwoLaneChangesRight";
           break;
         case PrepareLaneChangeLeft:
           os << "PrepareLaneChangeLeft";

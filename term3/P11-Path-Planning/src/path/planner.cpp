@@ -77,7 +77,7 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
     double maxAdjustmentDistance;
     Path::Trajectory trajectory;
     switch (*intention) {
-      case Path::Logic::KeepLane:
+      case Logic::Intention::KeepLane:
         trajectory = Path::TrajectoryCalculator::Accelerate(ego, constants.speedLimit - ego.speed);
         trajectory += Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::KeepLane, trajectory.getEndState(ego), 120.0 - (trajectory.getEndState(ego).s - ego.s), 0.0, 0.0);
         if (trajectory.size() > 300) {
@@ -88,22 +88,32 @@ vector<Path::Trajectory> Path::Planner::GenerateTrajectories(const VehicleData::
         minAdjustmentDistance = 30.0;
         maxAdjustmentDistance = 40.1;
         break;
-      case Path::Logic::LaneChangeLeft:
+      case Logic::Intention::LaneChangeLeft:
         delta_d = ((egoLane - 1) * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
         minAdjustmentDistance = 30.0;
         maxAdjustmentDistance = 60.1;
         break;
-      case Path::Logic::LaneChangeRight:
+      case Logic::Intention::LaneChangeRight:
         delta_d = ((egoLane + 1) * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
         minAdjustmentDistance = 30.0;
         maxAdjustmentDistance = 60.1;
         break;
-      case Path::Logic::PrepareLaneChangeLeft:
+      case Logic::Intention::TwoLaneChangesLeft:
+        delta_d = ((egoLane - 2) * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
+        minAdjustmentDistance = 50.0;
+        maxAdjustmentDistance = 100.1;
+        break;
+      case Logic::Intention::TwoLaneChangesRight:
+        delta_d = ((egoLane + 2) * constants.laneWidth + constants.laneWidth / 2.0) - ego.d;
+        minAdjustmentDistance = 50.0;
+        maxAdjustmentDistance = 100.1;
+        break;
+      case Logic::Intention::PrepareLaneChangeLeft:
         continue; // Not implemented.
-      case Path::Logic::PrepareLaneChangeRight:
+      case Logic::Intention::PrepareLaneChangeRight:
         continue; // Not implemented.
-      case Path::Logic::None:
-      case Path::Logic::Unknown:
+      case Logic::Intention::None:
+      case Logic::Intention::Unknown:
         assert(false);
     }
 

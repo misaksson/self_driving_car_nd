@@ -153,9 +153,10 @@ double Path::LaneChange::calc(const Path::Trajectory &trajectory) const {
 
 double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) const {
   double cost = 0.0;
-  if (startLane != endLane) {
+  int deltaLane = endLane - startLane > 0 ? 1 : -1;
+  for (int lane = startLane; lane != endLane; lane += deltaLane) {
     for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
-      if (Helpers::GetLane(other->d) == endLane) {
+      if (Helpers::GetLane(other->d) == (lane + deltaLane)) {
         const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
         const double longitudinalTimeDiff = (longitudinalDiff > -15.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
         if (longitudinalTimeDiff < 0.25) {
@@ -170,9 +171,10 @@ double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) 
 
 double Path::LaneChangeInFrontOfOtherFaster::calc(const Path::Trajectory &trajectory) const {
   double cost = 0.0;
-  if (startLane != endLane) {
+  int deltaLane = endLane - startLane > 0 ? 1 : -1;
+  for (int lane = startLane; lane != endLane; lane += deltaLane) {
     for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
-      if (Helpers::GetLane(other->d) == endLane) {
+      if (Helpers::GetLane(other->d) == (lane + deltaLane)) {
         const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
         const double interceptTime = (longitudinalDiff > 0.0 && (other->speed - vehicleData.ego.speed) > 0.0) ? longitudinalDiff / (other->speed - vehicleData.ego.speed) : HUGE_VAL;
         if (interceptTime < 5.0) {
