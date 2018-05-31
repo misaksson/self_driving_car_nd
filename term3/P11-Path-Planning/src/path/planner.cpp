@@ -131,7 +131,7 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   const vector<Path::Trajectory> predictions = predict.calc(vehicleData.others, previousTrajectory.size());
 
   /* Evaluate generated trajectories using cost functions. */
-  const double slowSpeedCostFactor = 1.0e7;
+  const double slowSpeedCostFactor = 2.0e7;
   const double exceedSpeedLimitCost = 1.0e5;
   const double changeIntentionCost = 1.0e8;
   const double laneChangeCostFactor = 1.0e4;
@@ -139,7 +139,7 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   const double laneChangeInFrontOfOtherFasterCost = 1.0e9;
   const double inverseDistanceCostFactor = 1.0e5;
   const double collisionCost = 1.0e10;
-  const double slowLaneCostFactor = 1.0e7;
+  const double slowLaneCostFactor = 1.5e7;
   const double violateCriticalLongitudinalTimeDiffCost = 1.0e9;
   const double accelerationCostFactor = 1.0e4;
   const double jerkCostFactor = 1.0e1;
