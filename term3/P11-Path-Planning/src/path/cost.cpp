@@ -175,7 +175,7 @@ double Path::LaneChangeInFrontOfOtherFaster::calc(const Path::Trajectory &trajec
       if (Helpers::GetLane(other->d) == endLane) {
         const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
         const double interceptTime = (longitudinalDiff > 0.0 && (other->speed - vehicleData.ego.speed) > 0.0) ? longitudinalDiff / (other->speed - vehicleData.ego.speed) : HUGE_VAL;
-        if (interceptTime < 3.0) {
+        if (interceptTime < 5.0) {
           cost = laneChangeInFrontOfOtherFasterCost;
           break;
         }
