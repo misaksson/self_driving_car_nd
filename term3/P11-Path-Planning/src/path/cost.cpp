@@ -105,7 +105,7 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
       if (Helpers::GetLane(othersStateSamples[vehicleIdx][sampleIdx].d) == egoLane &&
           Helpers::calcLongitudinalDiff(vehicleData.ego.s, vehicleData.others[vehicleIdx].s) < 0.0) {
         double distanceAhead = Helpers::calcLongitudinalDiff(othersStateSamples[vehicleIdx][sampleIdx].s, egoStateSamples[sampleIdx].s);
-        if (distanceAhead >= 0.0) {
+        if (distanceAhead >= -5.0) {
           shortestDistanceToOthersAhead = min(shortestDistanceToOthersAhead, distanceAhead);
         }
       }
@@ -185,7 +185,6 @@ double Path::LaneChangeInFrontOfOtherFaster::calc(const Path::Trajectory &trajec
   return cost;
 }
 
-
 double Path::NearOtherVehicles::calc(const Path::Trajectory &trajectory) const {
   // Calculate cost for driving near other vehicles.
   const double cost = inverseDistanceCostFactor / shortestDistanceToOthers;
@@ -210,17 +209,6 @@ double Path::SlowLane::calc(const Path::Trajectory &trajectory) const {
     }
   }
   const double cost = (constants.speedLimit - slowestSpeedAhead) * slowLaneCostFactor;
-  return cost;
-}
-
-double Path::ViolateRecommendedDistanceAhead::calc(const Path::Trajectory &trajectory) const {
-  // In Sweden this is the recommended distance to a vehicle ahead.
-  double cost = 0.0;
-  const double longitudinalTimeDiff = shortestDistanceToOthersAhead / egoEndState.speed;
-  if (longitudinalTimeDiff < recommendedLongitudinalTimeDiff) {
-    if (verbose) cout << "Violated recommended distance to vehicle ahead" << endl;;
-    cost = violateRecommendedLongitudinalTimeDiffCost;
-  }
   return cost;
 }
 

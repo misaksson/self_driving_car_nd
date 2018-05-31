@@ -133,25 +133,13 @@ namespace Path {
     double calc(const Path::Trajectory &trajectory) const;
   };
 
-  class ViolateRecommendedDistanceAhead : public Cost {
-  public:
-    const double recommendedLongitudinalTimeDiff;
-    const double violateRecommendedLongitudinalTimeDiffCost;
-    ViolateRecommendedDistanceAhead(double violateRecommendedLongitudinalTimeDiffCost) :
-        violateRecommendedLongitudinalTimeDiffCost(violateRecommendedLongitudinalTimeDiffCost),
-        recommendedLongitudinalTimeDiff(3.0) {};
-    virtual ~ViolateRecommendedDistanceAhead() {};
-  private:
-    double calc(const Path::Trajectory &trajectory) const;
-  };
-
   class ViolateCriticalDistanceAhead : public Cost {
   public:
     const double criticalLongitudinalTimeDiff;
     const double violateCriticalLongitudinalTimeDiffCost;
     ViolateCriticalDistanceAhead(double violateCriticalLongitudinalTimeDiffCost) :
         violateCriticalLongitudinalTimeDiffCost(violateCriticalLongitudinalTimeDiffCost),
-        criticalLongitudinalTimeDiff(1.5) {};
+        criticalLongitudinalTimeDiff(1.0) {};
     virtual ~ViolateCriticalDistanceAhead() {};
   private:
     double calc(const Path::Trajectory &trajectory) const;

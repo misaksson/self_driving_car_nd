@@ -140,7 +140,6 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   const double inverseDistanceCostFactor = 1.0e5;
   const double collisionCost = 1.0e10;
   const double slowLaneCostFactor = 1.0e7;
-  const double violateRecommendedLongitudinalTimeDiffCost = 0.0; // Might be too restrictive, skip it for now.
   const double violateCriticalLongitudinalTimeDiffCost = 1.0e9;
   const double accelerationCostFactor = 1.0e4;
   const double jerkCostFactor = 1.0e1;
@@ -157,7 +156,6 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   costFunctions.emplace_back(unique_ptr<Cost>(new NearOtherVehicles(inverseDistanceCostFactor)));
   costFunctions.emplace_back(unique_ptr<Cost>(new Collision(collisionCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new SlowLane(slowLaneCostFactor)));
-  costFunctions.emplace_back(unique_ptr<Cost>(new ViolateRecommendedDistanceAhead(violateRecommendedLongitudinalTimeDiffCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new ViolateCriticalDistanceAhead(violateCriticalLongitudinalTimeDiffCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new Acceleration(accelerationCostFactor)));
   costFunctions.emplace_back(unique_ptr<Cost>(new Jerk(jerkCostFactor)));
