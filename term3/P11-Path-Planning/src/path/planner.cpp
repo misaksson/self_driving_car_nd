@@ -124,7 +124,8 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   const double exceedSpeedLimitCost = 1.0e5;
   const double changeIntentionCost = 1.0e8;
   const double laneChangeCostFactor = 1.0e4;
-  const double laneChangeInFrontOfOtherCost = 2.0e9;
+  const double laneChangeInFrontOfOtherCost = 1.0e9;
+  const double laneChangeInFrontOfOtherFasterCost = 1.0e9;
   const double inverseDistanceCostFactor = 1.0e5;
   const double collisionCost = 1.0e10;
   const double slowLaneCostFactor = 1.0e7;
@@ -141,6 +142,7 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   costFunctions.emplace_back(unique_ptr<Cost>(new ChangeIntention(changeIntentionCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new LaneChange(laneChangeCostFactor)));
   costFunctions.emplace_back(unique_ptr<Cost>(new LaneChangeInFrontOfOther(laneChangeInFrontOfOtherCost)));
+  costFunctions.emplace_back(unique_ptr<Cost>(new LaneChangeInFrontOfOtherFaster(laneChangeInFrontOfOtherFasterCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new NearOtherVehicles(inverseDistanceCostFactor)));
   costFunctions.emplace_back(unique_ptr<Cost>(new Collision(collisionCost)));
   costFunctions.emplace_back(unique_ptr<Cost>(new SlowLane(slowLaneCostFactor)));

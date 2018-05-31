@@ -96,6 +96,15 @@ namespace Path {
     double calc(const Path::Trajectory &trajectory) const;
   };
 
+  class LaneChangeInFrontOfOtherFaster : public Cost {
+  public:
+    const double laneChangeInFrontOfOtherFasterCost;
+    LaneChangeInFrontOfOtherFaster(double laneChangeInFrontOfOtherFasterCost) : laneChangeInFrontOfOtherFasterCost(laneChangeInFrontOfOtherFasterCost) {};
+    virtual ~LaneChangeInFrontOfOtherFaster() {};
+  private:
+    double calc(const Path::Trajectory &trajectory) const;
+  };
+
   class NearOtherVehicles : public Cost {
   public:
     const double inverseDistanceCostFactor;

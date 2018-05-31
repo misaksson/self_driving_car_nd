@@ -157,8 +157,8 @@ double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) 
     for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
       if (Helpers::GetLane(other->d) == endLane) {
         const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
-        const double longitudinalTimeDiff = (longitudinalDiff > -5.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
-        if (longitudinalTimeDiff < 1.0) {
+        const double longitudinalTimeDiff = (longitudinalDiff > -12.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
+        if (longitudinalTimeDiff < 0.25) {
           cost = laneChangeInFrontOfOtherCost;
           break;
         }
@@ -167,6 +167,24 @@ double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) 
   }
   return cost;
 }
+
+double Path::LaneChangeInFrontOfOtherFaster::calc(const Path::Trajectory &trajectory) const {
+  double cost = 0.0;
+  if (startLane != endLane) {
+    for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
+      if (Helpers::GetLane(other->d) == endLane) {
+        const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
+        const double interceptTime = (longitudinalDiff > 0.0 && (other->speed - vehicleData.ego.speed) > 0.0) ? longitudinalDiff / (other->speed - vehicleData.ego.speed) : HUGE_VAL;
+        if (interceptTime < 3.0) {
+          cost = laneChangeInFrontOfOtherFasterCost;
+          break;
+        }
+      }
+    }
+  }
+  return cost;
+}
+
 
 double Path::NearOtherVehicles::calc(const Path::Trajectory &trajectory) const {
   // Calculate cost for driving near other vehicles.
