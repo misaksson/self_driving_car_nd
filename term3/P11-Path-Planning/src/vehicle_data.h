@@ -73,7 +73,7 @@ public:
 
       /* Sanity check. */
       const double frenetSpeed = sqrt(pow(vs, 2.0) + pow(vd, 2.0));
-      if ((fabs(vd) > 5.0) || (frenetSpeed < (speed - 1.0)) || (frenetSpeed > (speed + 1.0)) ||
+      if ((fabs(vd) > 5.0) || (frenetSpeed < (speed - 5.0)) || (frenetSpeed > (speed + 5.0)) ||
           (d < -1.0) || (d > constants.numLanes * constants.laneWidth + 1.0)) {
         // Seems like the frenet coordinates is broken.
         isFrenetValid = false;
