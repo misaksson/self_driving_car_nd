@@ -157,7 +157,7 @@ double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) 
     for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
       if (Helpers::GetLane(other->d) == endLane) {
         const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
-        const double longitudinalTimeDiff = (longitudinalDiff > -12.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
+        const double longitudinalTimeDiff = (longitudinalDiff > -15.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
         if (longitudinalTimeDiff < 0.25) {
           cost = laneChangeInFrontOfOtherCost;
           break;
