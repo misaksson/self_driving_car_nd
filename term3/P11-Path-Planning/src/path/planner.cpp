@@ -172,13 +172,13 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
   costFunctions.emplace_back(unique_ptr<Cost>(new YawRate(yawRateCostFactor)));
   costFunctions.emplace_back(unique_ptr<Cost>(new ExceedAccelerationLimit(exceedAccelerationLimitCost)));
 
-  Path::Cost::verbose = true;
+  Path::Cost::verbose = false;
   Path::Cost::preprocessCommonData(previousTrajectory, vehicleData, predictions);
 
   double lowestCost = HUGE_VAL;
   int bestIdx = 0;
   for (int i = 0; i < trajectories.size(); ++i) {
-    cout << "IDX " << i << endl;
+    if (Path::Cost::verbose) cout << "IDX " << i << endl;
     if (trajectories[i].size() > 10) {
       Path::Cost::preprocessCurrentTrajectory(trajectories[i]);
 
@@ -186,14 +186,14 @@ Path::Trajectory Path::Planner::EvaluateTrajectories(const VehicleData &vehicleD
       for (auto const& costFunction: costFunctions) {
         cost += costFunction->getCost(trajectories[i]);
       }
-      cout << "Total cost of trajectory = " << cost << endl;
+      if (Path::Cost::verbose) cout << "Total cost of trajectory = " << cost << endl;
       if (cost < lowestCost) {
         lowestCost = cost;
         bestIdx = i;
       }
     }
   }
-  cout << "BEST TRAJECTORY" << endl;
+  if (Path::Cost::verbose) cout << "BEST TRAJECTORY" << endl;
   Path::Cost::verbose = true;
   Path::Cost::preprocessCurrentTrajectory(trajectories[bestIdx]);
   double cost = 0.0;
