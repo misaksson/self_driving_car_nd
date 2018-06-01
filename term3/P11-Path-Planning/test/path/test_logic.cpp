@@ -20,19 +20,21 @@ TEST_CASE("Path logic should provide all intentions that remains on road.", "[pa
 
   vector<TestCase> testVector = {
     /* Lane 0 */
-    {.d = dValueOfLane[0], .expectedIntentions = {Path::Logic::KeepLane,
-                                                  Path::Logic::LaneChangeRight,
-                                                  Path::Logic::PrepareLaneChangeRight}},
+    {.d = dValueOfLane[0], .expectedIntentions = {Path::Logic::Intention::KeepLane,
+                                                  Path::Logic::Intention::LaneChangeRight,
+                                                  Path::Logic::Intention::PrepareLaneChangeRight,
+                                                  Path::Logic::Intention::TwoLaneChangesRight,}},
     /* Lane 1 */
-    {.d = dValueOfLane[1], .expectedIntentions = {Path::Logic::KeepLane,
-                                                  Path::Logic::LaneChangeLeft,
-                                                  Path::Logic::LaneChangeRight,
-                                                  Path::Logic::PrepareLaneChangeLeft,
-                                                  Path::Logic::PrepareLaneChangeRight}},
+    {.d = dValueOfLane[1], .expectedIntentions = {Path::Logic::Intention::KeepLane,
+                                                  Path::Logic::Intention::LaneChangeLeft,
+                                                  Path::Logic::Intention::LaneChangeRight,
+                                                  Path::Logic::Intention::PrepareLaneChangeLeft,
+                                                  Path::Logic::Intention::PrepareLaneChangeRight}},
     /* Lane 2 */
-    {.d = dValueOfLane[2], .expectedIntentions = {Path::Logic::KeepLane,
-                                                  Path::Logic::LaneChangeLeft,
-                                                  Path::Logic::PrepareLaneChangeLeft}},
+    {.d = dValueOfLane[2], .expectedIntentions = {Path::Logic::Intention::KeepLane,
+                                                  Path::Logic::Intention::LaneChangeLeft,
+                                                  Path::Logic::Intention::PrepareLaneChangeLeft,
+                                                  Path::Logic::Intention::TwoLaneChangesLeft}},
   };
 
   Path::Logic logic;
