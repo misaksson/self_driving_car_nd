@@ -17,7 +17,7 @@ TEST_CASE("Trajectory should find optimal acceleration", "[path]") {
 
   vector<vector<double>> sensorFusion;
   const VehicleData vehicleData(x, y, s, d, yaw, 0.0, sensorFusion);
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::Accelerate(vehicleData.ego, constants.speedLimit);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::Accelerate(Path::Logic::Intention::KeepLane, TARGET_LANE_UNKNOWN, vehicleData.ego, constants.speedLimit);
 
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   REQUIRE(*min_element(kinematics.speeds.begin(), kinematics.speeds.end()) == Approx(0.01).margin(0.01));
@@ -78,7 +78,7 @@ TEST_CASE("Trajectory should smoothly get from A to B", "[path]") {
   const double delta_s = 100.0, delta_d = constants.laneWidth;
   vector<vector<double>> sensorFusion;
   const VehicleData vehicleData(x, y, s, d, yaw, speed, sensorFusion);
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, vehicleData.ego, delta_s, delta_d, 0.0);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, 0, vehicleData.ego, delta_s, delta_d, 0.0);
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   REQUIRE(trajectory.x.front() == Approx(x).margin(0.5));
   REQUIRE(trajectory.x.back() == Approx(x + delta_s).margin(0.1)); // delta_s = delta_x in this test map
@@ -104,7 +104,7 @@ TEST_CASE("Trajectory should smoothly accelerate from A to B", "[path]") {
   const double delta_s = 100.0, delta_d = constants.laneWidth;
   vector<vector<double>> sensorFusion;
   const VehicleData vehicleData(x, y, s, d, yaw, speed, sensorFusion);
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, vehicleData.ego, delta_s, delta_d, delta_speed);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, 0, vehicleData.ego, delta_s, delta_d, delta_speed);
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   REQUIRE(trajectory.x.front() == Approx(x).margin(0.5));
   REQUIRE(trajectory.x.back() == Approx(x + delta_s).margin(0.5)); // delta_s = delta_x in this test map
@@ -130,7 +130,7 @@ TEST_CASE("Trajectory should smoothly decelerate from A to B", "[path]") {
   const double delta_s = 100.0, delta_d = constants.laneWidth;
   vector<vector<double>> sensorFusion;
   const VehicleData vehicleData(x, y, s, d, yaw, speed, sensorFusion);
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, vehicleData.ego, delta_s, delta_d, delta_speed);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(Path::Logic::None, 0, vehicleData.ego, delta_s, delta_d, delta_speed);
   Path::Trajectory::Kinematics kinematics = trajectory.getKinematics();
   REQUIRE(trajectory.x.front() == Approx(x).margin(0.5));
   REQUIRE(trajectory.x.back() == Approx(x + delta_s).margin(0.5)); // delta_s = delta_x in this test map

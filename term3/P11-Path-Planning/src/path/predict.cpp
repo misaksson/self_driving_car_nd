@@ -56,7 +56,7 @@ Path::Trajectory Path::Predict::inFrenetSpace(const VehicleData::OtherVehicleDat
   const double delta_t = max(minLaneAdjustmentTime, min(maxLaneChangeTime, delta_d / otherVehicle.vd));
   const double delta_s = otherVehicle.vs * delta_t;
   const double delta_speed = 0.0;
-  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(intention, otherVehicle, delta_s, delta_d, delta_speed);
+  Path::Trajectory trajectory = Path::TrajectoryCalculator::AdjustSpeed(intention, nextLane, otherVehicle, delta_s, delta_d, delta_speed);
 
   if (trajectory.size() < minPredictionLength) {
     /* Extend prediction but now assume it continues in same lane. */

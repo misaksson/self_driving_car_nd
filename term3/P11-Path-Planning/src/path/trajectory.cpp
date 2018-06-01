@@ -3,6 +3,7 @@
 #include "../helpers.h"
 #include "../spline.h"
 #include "../vehicle_data.h"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <math.h>
@@ -18,22 +19,15 @@ using namespace std;
  */
 static tuple<vector<double>, double> CalcDeltaDistances(double speed, double acceleration, const double targetSpeed);
 
-Path::Trajectory::Trajectory() {};
-Path::Trajectory::Trajectory(int nCoords) {
-  x.resize(nCoords);
-  y.resize(nCoords);
-  intention.resize(nCoords);
-  targetLane.resize(nCoords);
-
-};
+Path::Trajectory::Trajectory() : laneChangeStartIdx(NO_LANE_CHANGE_START_IDX) {};
 Path::Trajectory::Trajectory(std::vector<double> x, std::vector<double> y) :
-    x(x), y(y), intention(x.size(), Logic::Unknown), targetLane(x.size(), -100) {};
+    x(x), y(y), intention(x.size(), Logic::Unknown), targetLane(x.size(), TARGET_LANE_UNKNOWN), laneChangeStartIdx(NO_LANE_CHANGE_START_IDX) {};
 
-void Path::Trajectory::set(size_t idx, double x_, double y_) {
+void Path::Trajectory::set(int idx, double x_, double y_) {
   set(idx, x_, y_, Logic::Unknown, TARGET_LANE_UNKNOWN);
 }
 
-void Path::Trajectory::set(size_t idx, double x_, double y_, Logic::Intention intention_, int targetLane_) {
+void Path::Trajectory::set(int idx, double x_, double y_, Logic::Intention intention_, int targetLane_) {
   x[idx] = x_;
   y[idx] = y_;
   intention[idx] = intention_;
@@ -51,15 +45,18 @@ void Path::Trajectory::push_back(double x_, double y_, Logic::Intention intentio
   targetLane.push_back(targetLane_);
 }
 
-size_t Path::Trajectory::size() const {
+int Path::Trajectory::size() const {
   return x.size();
 }
 
-void Path::Trajectory::erase(size_t startIdx, size_t endIdx) {
+void Path::Trajectory::erase(int startIdx, int endIdx) {
   x.erase(x.begin() + startIdx, x.begin() + endIdx + 1u);
   y.erase(y.begin() + startIdx, y.begin() + endIdx + 1u);
   intention.erase(intention.begin() + startIdx, intention.begin() + endIdx + 1u);
   targetLane.erase(targetLane.begin() + startIdx, targetLane.begin() + endIdx + 1u);
+  if (laneChangeStartIdx != NO_LANE_CHANGE_START_IDX) {
+    laneChangeStartIdx -= max(0, min(endIdx - startIdx + 1, laneChangeStartIdx - startIdx + 1));
+  }
 }
 
 VehicleData::EgoVehicleData Path::Trajectory::getEndState(const VehicleData::EgoVehicleData &startState) const {
@@ -100,8 +97,7 @@ Path::Trajectory::Kinematics Path::Trajectory::getKinematics() const {
   return kinematics;
 }
 
-Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVehicleData &start, double delta_speed) {
-  const int targetLane = Helpers::GetLane(start.d);
+Path::Trajectory Path::TrajectoryCalculator::Accelerate(Logic::Intention intention, int targetLane, const VehicleData::EgoVehicleData &start, double delta_speed) {
   Trajectory globalCourse;
 
   globalCourse.push_back(start.x - cos(start.yaw), start.y - sin(start.yaw));
@@ -119,10 +115,12 @@ Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVe
     globalCourse.push_back(global_x, global_y);
   }
   // Transform the course vector of coordinates to a local coordinate system located at the start position.
-  Trajectory localCourse(globalCourse.x.size());
+  Trajectory localCourse;
   for (int i = 0; i < globalCourse.x.size(); ++i) {
-    tie(localCourse.x[i], localCourse.y[i]) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
-                                                                             start.x, start.y, start.yaw);
+    double localCourse_x, localCourse_y;
+    tie(localCourse_x, localCourse_y) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
+                                                                       start.x, start.y, start.yaw);
+    localCourse.push_back(localCourse_x, localCourse_y);
   }
 
   // Fit a spline to the local course coordinates.
@@ -146,7 +144,7 @@ Path::Trajectory Path::TrajectoryCalculator::Accelerate(const VehicleData::EgoVe
       double global_x, global_y;
       tie(global_x, global_y) = Helpers::local2GlobalTransform(local_x, local_y,
                                                                start.x, start.y, start.yaw);
-      globalFine.push_back(global_x, global_y, Logic::Intention::KeepLane, targetLane);
+      globalFine.push_back(global_x, global_y, intention, targetLane);
     }
   }
   return globalFine;
@@ -218,10 +216,12 @@ Path::Trajectory Path::TrajectoryCalculator::ConstantSpeed(Logic::Intention inte
   }
 
   // Transform the course vector of coordinates to a local coordinate system located at the start position.
-  Trajectory localCourse(globalCourse.x.size());
+  Trajectory localCourse;
   for (int i = 0; i < globalCourse.x.size(); ++i) {
-    tie(localCourse.x[i], localCourse.y[i]) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
-                                                                             start.x, start.y, start.yaw);
+    double localCourse_x, localCourse_y;
+    tie(localCourse_x, localCourse_y) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
+                                                                       start.x, start.y, start.yaw);
+    localCourse.push_back(localCourse_x, localCourse_y);
   }
 
   // Fit a spline to the local course coordinates.
@@ -257,10 +257,12 @@ Path::Trajectory Path::TrajectoryCalculator::Others(const VehicleData::OtherVehi
   globalCourse.push_back(start.x + start.vx * 30.0, start.y + start.vy * 30.0);
 
   // Transform the course vector of coordinates to a local coordinate system located at the start position.
-  Trajectory localCourse(globalCourse.x.size());
+  Trajectory localCourse;
   for (int i = 0; i < globalCourse.x.size(); ++i) {
-    tie(localCourse.x[i], localCourse.y[i]) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
-                                                                             start.x, start.y, start.yaw);
+    double localCourse_x, localCourse_y;
+    tie(localCourse_x, localCourse_y) = Helpers::global2LocalTransform(globalCourse.x[i], globalCourse.y[i],
+                                                                       start.x, start.y, start.yaw);
+    localCourse.push_back(localCourse_x, localCourse_y);
   }
 
   // Fit a spline to the local course coordinates.
@@ -287,8 +289,7 @@ Path::Trajectory Path::TrajectoryCalculator::Others(const VehicleData::OtherVehi
   return globalFine;
 }
 
-Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(Logic::Intention intention, const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) {
-  const int targetLane = Helpers::GetLane(start.d + delta_d);
+Path::Trajectory Path::TrajectoryCalculator::AdjustSpeed(Logic::Intention intention,  int targetLane, const VehicleData::EgoVehicleData &start, double delta_s, double delta_d, double delta_speed) {
   Trajectory globalCourse;
 
   globalCourse.push_back(start.x - cos(start.yaw), start.y - sin(start.yaw));

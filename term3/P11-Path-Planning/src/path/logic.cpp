@@ -17,6 +17,7 @@ vector<Path::Logic::Intention> Path::Logic::GetIntentionsToEvaluate(double d) co
     intensions.push_back(PrepareLaneChangeLeft);
     if (currentLane > 1) {
       intensions.push_back(TwoLaneChangesLeft);
+      intensions.push_back(PrepareTwoLaneChangesLeft);
     }
   }
   if (currentLane < (constants.numLanes - 1)) {
@@ -24,6 +25,7 @@ vector<Path::Logic::Intention> Path::Logic::GetIntentionsToEvaluate(double d) co
     intensions.push_back(PrepareLaneChangeRight);
     if (currentLane < (constants.numLanes - 2)) {
       intensions.push_back(TwoLaneChangesRight);
+      intensions.push_back(PrepareTwoLaneChangesRight);
     }
   }
   return intensions;

@@ -21,6 +21,7 @@ namespace Path {
     static Path::Trajectory previousTrajectory;
     static std::vector<Path::Trajectory> predictions;
     static VehicleData::EgoVehicleData previousEgoEndState;
+    static std::vector<VehicleData::EgoVehicleData> previousOthersEndState;
     static std::vector<VehicleData::EgoVehicleData> othersEndState;
     static std::vector<std::vector<VehicleData::EgoVehicleData>> othersStateSamples;
     static std::vector<Path::Trajectory::Kinematics> othersKinematics;

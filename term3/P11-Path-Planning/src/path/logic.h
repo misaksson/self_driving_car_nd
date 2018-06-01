@@ -20,6 +20,8 @@ namespace Path {
       TwoLaneChangesRight,
       PrepareLaneChangeLeft,
       PrepareLaneChangeRight,
+      PrepareTwoLaneChangesLeft,
+      PrepareTwoLaneChangesRight,
     };
 
     friend std::ostream& operator<<(std::ostream& os, const Intention value) {
@@ -50,6 +52,12 @@ namespace Path {
           break;
         case PrepareLaneChangeRight:
           os << "PrepareLaneChangeRight";
+          break;
+        case PrepareTwoLaneChangesLeft:
+          os << "PrepareTwoLaneChangesLeft";
+          break;
+        case PrepareTwoLaneChangesRight:
+          os << "PrepareTwoLaneChangesRight";
           break;
       }
       return os;

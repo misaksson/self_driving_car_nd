@@ -15,6 +15,7 @@ VehicleData Path::Cost::vehicleData;
 Path::Trajectory Path::Cost::previousTrajectory;
 std::vector<Path::Trajectory> Path::Cost::predictions;
 VehicleData::EgoVehicleData Path::Cost::previousEgoEndState;
+std::vector<VehicleData::EgoVehicleData> Path::Cost::previousOthersEndState;
 std::vector<VehicleData::EgoVehicleData> Path::Cost::othersEndState;
 std::vector<std::vector<VehicleData::EgoVehicleData>> Path::Cost::othersStateSamples;
 std::vector<Path::Trajectory::Kinematics> Path::Cost::othersKinematics;
@@ -31,23 +32,26 @@ static bool fabsCompare(double a, double b);
 
 void Path::Cost::preprocessCommonData(const Path::Trajectory previousTrajectory_, const VehicleData vehicleData_, const std::vector<Path::Trajectory> predictions_) {
   /* Copy some data for convenience. */
-  Path::Cost::previousTrajectory = previousTrajectory_;
-  Path::Cost::vehicleData = vehicleData_;
-  Path::Cost::predictions = predictions_;
+  previousTrajectory = previousTrajectory_;
+  vehicleData = vehicleData_;
+  predictions = predictions_;
 
-  Path::Cost::previousEgoEndState = previousTrajectory.getEndState(vehicleData.ego);
-  Path::Cost::othersKinematics.clear();
-  Path::Cost::othersStateSamples.clear();
+  previousEgoEndState = previousTrajectory.getEndState(vehicleData.ego);
+  previousOthersEndState.clear();
+  othersKinematics.clear();
+  othersStateSamples.clear();
   for (size_t vehicleIdx = 0u; vehicleIdx < vehicleData.others.size(); ++vehicleIdx) {
+    previousOthersEndState.push_back(predictions_[vehicleIdx].getState(vehicleData.others[vehicleIdx], 1));
+
     /* Calculate kinematics data for predicted trajectory of other vehicle. */
-    Path::Cost::othersKinematics.push_back(predictions[vehicleIdx].getKinematics());
+    othersKinematics.push_back(predictions[vehicleIdx].getKinematics());
 
     /* Sample other vehicles state every 10th time-step along the predicted trajectory. */
     std::vector<VehicleData::EgoVehicleData> stateSamples;
     for (size_t trajectoryIdx = 1u; trajectoryIdx < predictions[vehicleIdx].size(); trajectoryIdx += 10u) {
       stateSamples.push_back(predictions[vehicleIdx].getState(vehicleData.others[vehicleIdx], trajectoryIdx));
     }
-    Path::Cost::othersStateSamples.push_back(stateSamples);
+    othersStateSamples.push_back(stateSamples);
   }
 }
 
@@ -55,13 +59,13 @@ void Path::Cost::preprocessCurrentTrajectory(const Path::Trajectory &trajectory)
   Path::Cost::egoEndState = trajectory.getEndState(previousEgoEndState);
   if (verbose) cout << "ego: " << vehicleData.ego << endl;
   if (verbose) cout << "end: " << egoEndState << endl;
-  Path::Cost::egoKinematics = (previousTrajectory + trajectory).getKinematics();
-  Path::Cost::othersEndState.clear();
+  egoKinematics = (previousTrajectory + trajectory).getKinematics();
+  othersEndState.clear();
   for (size_t i = 0u; i < vehicleData.others.size(); ++i) {
     assert(predictions[i].size() >= trajectory.size());
-    Path::Cost::othersEndState.push_back(predictions[i].getState(vehicleData.others[i], trajectory.size() - 1));
+    othersEndState.push_back(predictions[i].getState(vehicleData.others[i], trajectory.size() - 1));
     if (verbose) cout << vehicleData.others[i] << endl;
-    if (verbose) cout << "end: " << Path::Cost::othersEndState.back() << endl;
+    if (verbose) cout << "end: " << othersEndState.back() << endl;
   }
 
   /* Sample ego vehicle state every 10th time-step along the trajectory. */
@@ -128,10 +132,26 @@ double Path::ExceedSpeedLimit::calc(const Path::Trajectory &trajectory) const {
 
 double Path::ChangeIntention::calc(const Path::Trajectory &trajectory) const {
   double cost;
+
+  bool violatingIntendedLaneChangePosition = false;
+  if ((previousTrajectory.laneChangeStartIdx != NO_LANE_CHANGE_START_IDX) &&
+      (trajectory.laneChangeStartIdx != NO_LANE_CHANGE_START_IDX)) {
+    const double currentLaneChangeStartTime = (trajectory.laneChangeStartIdx + previousTrajectory.size()) * constants.deltaTime;
+    const double previousLaneChangeStartTime = previousTrajectory.laneChangeStartIdx * constants.deltaTime;
+    const double laneChangeStartTimeDiff = currentLaneChangeStartTime - previousLaneChangeStartTime;
+    const double maxAllowedLaneChangeTimeDiff = 0.4; // Allow this number of seconds after previous lane change time.
+    const double minAllowedLaneChangeTimeDiff = -0.4; // Allow this number of seconds before previous lane change time.
+    if (laneChangeStartTimeDiff > maxAllowedLaneChangeTimeDiff || laneChangeStartTimeDiff < minAllowedLaneChangeTimeDiff) {
+        violatingIntendedLaneChangePosition = true;
+        if (verbose) cout << "Violating previous lane change position by " << laneChangeStartTimeDiff << " seconds" << endl;
+    }
+  }
+
   // Calculate cost for not keeping to previously intended decision.
-  if ((previousEgoEndState.targetLane != trajectory.targetLane[0]) &&
-      (previousEgoEndState.intention != Logic::Intention::None) &&
-      (previousEgoEndState.intention != Path::Logic::Unknown)) {
+  if (violatingIntendedLaneChangePosition ||
+      ((previousEgoEndState.targetLane != trajectory.targetLane[0]) &&
+       (previousEgoEndState.intention != Logic::Intention::None) &&
+       (previousEgoEndState.intention != Path::Logic::Unknown))) {
     if (verbose) cout << "Changing intention from " << previousEgoEndState.intention <<
                          " with targetLane " << previousEgoEndState.targetLane <<
                          " to " << trajectory.intention[0] <<
@@ -142,6 +162,7 @@ double Path::ChangeIntention::calc(const Path::Trajectory &trajectory) const {
                          " with targetLane " << trajectory.targetLane[0] << endl;
     cost = 0.0;
   }
+
   return cost;
 }
 
@@ -154,16 +175,19 @@ double Path::LaneChange::calc(const Path::Trajectory &trajectory) const {
 double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) const {
   double cost = 0.0;
   int deltaLane = endLane - startLane > 0 ? 1 : -1;
+  VehicleData::EgoVehicleData egoStateAtLaneChange = trajectory.getState(previousEgoEndState, max(1, trajectory.laneChangeStartIdx));
   for (int lane = startLane; lane != endLane; lane += deltaLane) {
-    for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
-      if (Helpers::GetLane(other->d) == (lane + deltaLane)) {
-        const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
-        const double longitudinalTimeDiff = (longitudinalDiff > -15.0 && other->speed > 0.0) ? longitudinalDiff / other->speed : HUGE_VAL;
-        if (longitudinalTimeDiff < 0.3) {
+    for (int vehicleIdx = 0; vehicleIdx < predictions.size(); ++vehicleIdx) {
+      VehicleData::EgoVehicleData otherStateAtLaneChange = predictions[vehicleIdx].getState(previousOthersEndState[vehicleIdx], max(1, trajectory.laneChangeStartIdx));
+
+      if (Helpers::GetLane(otherStateAtLaneChange.d) == (lane + deltaLane)) {
+        const double longitudinalDiff = Helpers::calcLongitudinalDiff(egoStateAtLaneChange.s, otherStateAtLaneChange.s);
+        const double longitudinalTimeDiff = (longitudinalDiff > -15.0 && otherStateAtLaneChange.speed > 0.0) ? longitudinalDiff / otherStateAtLaneChange.speed : HUGE_VAL;
+        if (longitudinalTimeDiff < 0.2) {
           cost = laneChangeInFrontOfOtherCost;
           break;
-        } else if (longitudinalTimeDiff < 1.0) {
-          cost = max(cost, longitudinalTimeDiff * (laneChangeInFrontOfOtherCost / (1.0 - 0.3)));
+        } else if (longitudinalTimeDiff < 0.8) {
+          cost = max(cost, longitudinalTimeDiff * (laneChangeInFrontOfOtherCost / (0.8 - 0.2)));
         }
       }
     }
@@ -174,12 +198,15 @@ double Path::LaneChangeInFrontOfOther::calc(const Path::Trajectory &trajectory) 
 double Path::LaneChangeInFrontOfOtherFaster::calc(const Path::Trajectory &trajectory) const {
   double cost = 0.0;
   int deltaLane = endLane - startLane > 0 ? 1 : -1;
+  VehicleData::EgoVehicleData egoStateAtLaneChange = trajectory.getState(previousEgoEndState, max(1, trajectory.laneChangeStartIdx));
   for (int lane = startLane; lane != endLane; lane += deltaLane) {
-    for (auto other = vehicleData.others.begin(); other != vehicleData.others.end(); ++other) {
-      if (Helpers::GetLane(other->d) == (lane + deltaLane)) {
-        const double longitudinalDiff = Helpers::calcLongitudinalDiff(vehicleData.ego.s, other->s);
-        const double interceptTime = (longitudinalDiff > 0.0 && (other->speed - vehicleData.ego.speed) > 0.0) ? longitudinalDiff / (other->speed - vehicleData.ego.speed) : HUGE_VAL;
-        if (interceptTime < 5.0) {
+    for (int vehicleIdx = 0; vehicleIdx < predictions.size(); ++vehicleIdx) {
+      VehicleData::EgoVehicleData otherStateAtLaneChange = predictions[vehicleIdx].getState(previousOthersEndState[vehicleIdx], max(1, trajectory.laneChangeStartIdx));
+
+      if (Helpers::GetLane(otherStateAtLaneChange.d) == (lane + deltaLane)) {
+        const double longitudinalDiff = Helpers::calcLongitudinalDiff(egoStateAtLaneChange.s, otherStateAtLaneChange.s);
+        const double interceptTime = (longitudinalDiff > 0.0 && (otherStateAtLaneChange.speed - egoStateAtLaneChange.speed) > 0.0) ? longitudinalDiff / (otherStateAtLaneChange.speed - egoStateAtLaneChange.speed) : HUGE_VAL;
+        if (interceptTime < 3.0) {
           cost = laneChangeInFrontOfOtherFasterCost;
           break;
         }
