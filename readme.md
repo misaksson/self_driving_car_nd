@@ -127,6 +127,15 @@ Report: [writeup.md](./term2/P10-Model-Predictive-Control/writeup.md)<br/>
 Video:<br/>
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=b0Iha1X5WBs" target="_blank"><img src="http://img.youtube.com/vi/b0Iha1X5WBs/0.jpg" alt="project_video output" width="640" height="360" border="10" /></a>
 
-#### P11 - Path planning (_Due date: May 28, 2018_)
+#### P11 - Path planning
+Implement a path planner for American style high-way traffic. The vehicle shall drive as fast as possible without exceeding the speed limit, colliding or choosing dangerous/confusing paths, e.g. avoid driving too close to other vehicles and keep to the center of a lane unless changing. When possible, the vehicle shall change lane in order to pass slower vehicles.
+
+This was implemented by first generating many somewhat reasonable trajectories, that then in the next step is evaluated by cost functions to determine which one is the best.
+
+Directory: [./term3/P11-Path-Planning/](./term3/P11-Path-Planning/)<br/>
+Report: [writeup.md](./term3/P11-Path-Planning/writeup.md)<br/>
+Video:<br/>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=osl_eeWCr44" target="_blank"><img src="http://img.youtube.com/vi/osl_eeWCr44/0.jpg" alt="project_video output" width="640" height="360" border="10" /></a>
+
 #### P12 - Specialization (_Due date: June 25, 2018_)
 #### P13 - System Integration (_Due date: July 23, 2018_)
